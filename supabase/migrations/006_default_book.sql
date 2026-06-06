@@ -607,6 +607,10 @@ declare
         {
           "name": "Novo Nordisk",
           "logo": "/logos/NOV.png"
+        },
+        {
+          "name": "Médecins Direct",
+          "logo": "/logos/MeD.png"
         }
       ]
     }
