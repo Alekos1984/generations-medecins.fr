@@ -20,11 +20,14 @@ export default function Testimonials(props: TestimonialsProps) {
       {props.subtitle && <p className="mt-3 text-[17px] text-navy-200 max-w-[1000px]">{props.subtitle}</p>}
 
       {sideBySide ? (
-        <div className="mt-8 grid grid-cols-12 gap-8 flex-1 min-h-0">
-          <div className="col-span-7">
+        <div
+          className="mt-6 grid grid-cols-12 gap-6 flex-1 min-h-0"
+          style={{ gridTemplateRows: '1fr' }}
+        >
+          <div className="col-span-7 min-h-0 flex">
             <TestimonialFigure t={props.testimonials[0]} index={0} />
           </div>
-          <div className="col-span-5 flex items-center justify-center">
+          <div className="col-span-5 min-h-0 flex items-center justify-center">
             <InstagramFrame card={props.instagram!} />
           </div>
         </div>
@@ -89,11 +92,15 @@ function InstagramFrame({ card }: { card: InstagramCard }) {
       viewport={VIEWPORT_ONCE}
       transition={{ duration: 0.7, ease: [0.2, 0.7, 0.2, 1], delay: 0.2 }}
       whileHover={{ rotate: 0, scale: 1.02 }}
-      className="w-full max-w-[440px] bg-white rounded-2xl overflow-hidden"
-      style={{ boxShadow: '0 40px 80px -20px rgba(0,0,0,0.6)' }}
+      className="bg-white rounded-2xl overflow-hidden flex flex-col"
+      style={{
+        boxShadow: '0 40px 80px -20px rgba(0,0,0,0.6)',
+        width: 'min(100%, 360px)',
+        maxHeight: '100%',
+      }}
     >
       {/* IG header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-navy-100/50">
+      <div className="flex-none flex items-center gap-3 px-4 py-2.5 border-b border-navy-100/50">
         <div
           className="w-9 h-9 rounded-full p-[2px]"
           style={{
@@ -119,20 +126,18 @@ function InstagramFrame({ card }: { card: InstagramCard }) {
         <span className="text-navy-400 text-lg leading-none">⋯</span>
       </div>
 
-      {/* Photo square */}
-      <div className="relative bg-navy-100">
-        <div className="aspect-square">
-          <img
-            src={card.image}
-            alt="Event"
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
-        </div>
+      {/* Photo — flexible height so the card never overflows its slot */}
+      <div className="relative bg-navy-100 flex-1 min-h-0 overflow-hidden">
+        <img
+          src={card.image}
+          alt="Event"
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
       </div>
 
       {/* IG action bar */}
-      <div className="px-4 pt-3 pb-3">
+      <div className="flex-none px-4 pt-2.5 pb-2.5">
         <div className="flex items-center gap-3 text-navy-800">
           <Heart />
           <Comment />
