@@ -445,21 +445,21 @@ export const defaultBook: Book = {
         testimonials: [
           {
             quote:
-              "À compléter — citation de Frédéric Faive sur la valeur du partenariat (l'accès aux médecins, la qualité du networking, la conversion qu'ils observent).",
+              'Merci pour l\'organisation de "Du stéthoscope au business plan". Soirée vraiment réussie.\nCe qui m\'a marqué : ces médecins qui sont partis d\'un problème concret rencontré dans leur métier pour en faire un projet d\'entreprise. La blouse n\'empêche pas d\'entreprendre, au contraire.\nHeureux d\'avoir sponsorisé un événement comme celui-ci. Et en tant qu\'entrepreneur, j\'ai pris ma dose d\'inspiration.',
             name: 'Frédéric Faive',
             role: 'Fondateur',
             company: 'One Gestion Privée',
             logo: '/logos/OGP.png',
           },
-          {
-            quote:
-              "À compléter — citation de Mme Grandgirard (engagement réel des équipes, suivi rigoureux, accès qualifié, etc.).",
-            name: 'Mme Grandgirard',
-            role: 'Responsable',
-            company: 'Crédit Agricole IDF',
-            logo: '/logos/CA.png',
-          },
         ],
+        instagram: {
+          image: '/events/event.png',
+          username: 'generations_medecins',
+          caption:
+            'Du stéthoscope au business plan • Une soirée riche en inspirations, avec @onegestionprivee et la communauté GM.',
+          likes: 312,
+          location: 'Paris • House Clinics',
+        },
       },
     },
     {

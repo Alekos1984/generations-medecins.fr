@@ -1,12 +1,4 @@
--- ============================================================================
--- Default book template — re-run this whole file in Supabase SQL Editor
--- whenever the default book content changes.
---
--- Two things happen here in a single transaction:
---   1. apply_default_book(slug) is (re)defined with the latest 18-slide JSON
---   2. it is immediately applied to every active partner.
--- ============================================================================
-
+-- Default book template — applies in one Run
 create or replace function public.apply_default_book(p_slug text)
 returns int language plpgsql security definer
 set search_path = public, extensions
@@ -627,20 +619,20 @@ declare
       "subtitle": "Ce que disent celles et ceux qui ont déjà choisi GM.",
       "testimonials": [
         {
-          "quote": "À compléter — citation de Frédéric Faive sur la valeur du partenariat (l'accès aux médecins, la qualité du networking, la conversion qu'ils observent).",
+          "quote": "Merci pour l'organisation de \"Du stéthoscope au business plan\". Soirée vraiment réussie.\nCe qui m'a marqué : ces médecins qui sont partis d'un problème concret rencontré dans leur métier pour en faire un projet d'entreprise. La blouse n'empêche pas d'entreprendre, au contraire.\nHeureux d'avoir sponsorisé un événement comme celui-ci. Et en tant qu'entrepreneur, j'ai pris ma dose d'inspiration.",
           "name": "Frédéric Faive",
           "role": "Fondateur",
           "company": "One Gestion Privée",
           "logo": "/logos/OGP.png"
-        },
-        {
-          "quote": "À compléter — citation de Mme Grandgirard (engagement réel des équipes, suivi rigoureux, accès qualifié, etc.).",
-          "name": "Mme Grandgirard",
-          "role": "Responsable",
-          "company": "Crédit Agricole IDF",
-          "logo": "/logos/CA.png"
         }
-      ]
+      ],
+      "instagram": {
+        "image": "/events/event.png",
+        "username": "generations_medecins",
+        "caption": "Du stéthoscope au business plan • Une soirée riche en inspirations, avec @onegestionprivee et la communauté GM.",
+        "likes": 312,
+        "location": "Paris • House Clinics"
+      }
     }
   },
   {
@@ -803,10 +795,6 @@ begin
   return v_count;
 end;
 $fn$;
-
 revoke all on function public.apply_default_book(text) from public;
-
 select slug, public.apply_default_book(slug) as nb_slides
-  from public.partners
-  where active = true
-  order by display_order;
+  from public.partners where active = true order by display_order;

@@ -279,11 +279,19 @@ export type TestimonialItem = {
   company?: string
   logo?: string
 }
+export type InstagramCard = {
+  image: string
+  username?: string
+  caption?: string
+  likes?: number
+  location?: string
+}
 export type TestimonialsProps = {
   eyebrow?: string
   title: string
   subtitle?: string
   testimonials: TestimonialItem[]
+  instagram?: InstagramCard
 }
 
 export type MediaTile = {
