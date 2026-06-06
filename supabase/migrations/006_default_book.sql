@@ -4,8 +4,7 @@
 --
 -- Two things happen here in a single transaction:
 --   1. apply_default_book(slug) is (re)defined with the latest 18-slide JSON
---   2. it is immediately applied to every active partner, so each partner
---      sees the new content without a second SQL call.
+--   2. it is immediately applied to every active partner.
 -- ============================================================================
 
 create or replace function public.apply_default_book(p_slug text)
@@ -26,7 +25,7 @@ declare
         "d'une nouvelle",
         "génération de médecins"
       ],
-      "subtitle": "Un réseau de plus de 3 000 médecins. Une communauté engagée. Un parcours partenaire pensé pour votre impact.",
+      "subtitle": "Un réseau de plus de 3 000 médecins. Une communauté engagée.\nUn parcours partenaire pensé pour votre impact.",
       "footer": "BOOK PARTENAIRES • ÉDITION 2026"
     }
   },
@@ -807,8 +806,6 @@ $fn$;
 
 revoke all on function public.apply_default_book(text) from public;
 
--- Auto-apply to every active partner so the new JSON propagates without
--- a second manual call. Result table shows nb_slides per partner.
 select slug, public.apply_default_book(slug) as nb_slides
   from public.partners
   where active = true

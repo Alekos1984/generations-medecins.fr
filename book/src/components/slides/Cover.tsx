@@ -3,10 +3,17 @@ import type { CoverProps } from '../../lib/types'
 import type { SlideContext } from './registry'
 
 export default function Cover({ ctx, ...props }: CoverProps & { ctx: SlideContext }) {
+  // Subtitle accepts a single string with optional \n for hard line breaks.
+  const subtitleLines = (props.subtitle ?? '')
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+
   return (
     <div className="h-full w-full grid grid-cols-12 gap-10 items-stretch">
       {/* Decorative gold ring (top right) */}
-      <div className="absolute top-[120px] right-[80px] w-[420px] h-[420px] rounded-full pointer-events-none"
+      <div
+        className="absolute top-[120px] right-[80px] w-[420px] h-[420px] rounded-full pointer-events-none"
         style={{
           background: 'radial-gradient(closest-side, rgba(196,149,61,0.18), transparent 70%)',
         }}
@@ -16,7 +23,7 @@ export default function Cover({ ctx, ...props }: CoverProps & { ctx: SlideContex
         initial="hidden"
         animate="show"
         variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } } }}
-        className="col-span-7 flex flex-col justify-center"
+        className="col-span-7 flex flex-col"
       >
         <motion.div variants={lineVariant} className="eyebrow">
           {props.eyebrow ?? 'PARTENARIAT • 2026'}
@@ -25,40 +32,59 @@ export default function Cover({ ctx, ...props }: CoverProps & { ctx: SlideContex
           variants={lineVariant}
           className="mt-4 text-[14px] tracking-[0.22em] text-navy-200 uppercase"
         >
-          {props.brand ?? 'GÉNÉRATIONS MÉDECINS IDF'}
+          {props.brand ?? 'GÉNÉRATIONS MÉDECINS'}
         </motion.div>
 
-        <div className="mt-10 space-y-1">
+        <div className="mt-8 space-y-1 flex-1">
           {props.titleLines.map((l, i) => (
             <motion.div
               key={i}
               variants={lineVariant}
-              className="h-display text-[88px] leading-[0.95] text-white"
-              style={i === 1 ? { color: '#ffffff' } : i === 2 ? { color: '#d6ad58' } : undefined}
+              className="h-display text-[78px] leading-[0.95] text-white"
+              style={i === 2 ? { color: '#d6ad58' } : undefined}
             >
               {l}
             </motion.div>
           ))}
         </div>
 
-        {props.subtitle && (
-          <motion.p
-            variants={lineVariant}
-            className="mt-10 text-[18px] leading-relaxed text-navy-200 max-w-[640px]"
-          >
-            {props.subtitle}
-          </motion.p>
-        )}
-
-        {props.footer && (
+        {subtitleLines.length > 0 && (
           <motion.div
             variants={lineVariant}
-            className="mt-12 inline-flex items-center gap-3 text-[12px] tracking-[0.3em] text-navy-300"
+            className="mt-6 max-w-[640px] space-y-1"
           >
-            <span className="inline-block w-10 h-px bg-gold-500" />
-            {props.footer}
+            {subtitleLines.map((line, i) => (
+              <p key={i} className="text-[18px] leading-relaxed text-navy-200">
+                {line}
+              </p>
+            ))}
           </motion.div>
         )}
+
+        {/* Bottom strip: GM logo on the left, "BOOK PARTENAIRES" on the right */}
+        <motion.div variants={lineVariant} className="mt-10 flex items-end justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-[88px] h-[88px] rounded-2xl bg-white p-2 grid place-items-center shadow-glow ring-1 ring-gold-500/30">
+              <img
+                src="/gm-logo.jpeg"
+                alt="Générations Médecins"
+                className="max-w-full max-h-full object-contain"
+                draggable={false}
+              />
+            </div>
+            <div className="flex flex-col text-[12px] tracking-[0.2em] text-navy-200 uppercase leading-tight">
+              <span>Générations</span>
+              <span className="text-gold-500">Médecins</span>
+            </div>
+          </div>
+
+          {props.footer && (
+            <div className="inline-flex items-center gap-3 text-[12px] tracking-[0.3em] text-navy-300">
+              <span className="inline-block w-10 h-px bg-gold-500" />
+              {props.footer}
+            </div>
+          )}
+        </motion.div>
       </motion.div>
 
       <motion.div
@@ -75,7 +101,10 @@ export default function Cover({ ctx, ...props }: CoverProps & { ctx: SlideContex
           {/* WHITE inner disc — readable for both light and dark partner logos */}
           <div
             className="absolute inset-6 rounded-full bg-white"
-            style={{ boxShadow: '0 30px 80px -20px rgba(2,8,20,0.55), inset 0 0 0 1px rgba(196,149,61,0.25)' }}
+            style={{
+              boxShadow:
+                '0 30px 80px -20px rgba(2,8,20,0.55), inset 0 0 0 1px rgba(196,149,61,0.25)',
+            }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
             {ctx.partnerLogoUrl ? (

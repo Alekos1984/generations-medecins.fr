@@ -26,7 +26,7 @@ export const defaultBook: Book = {
         brand: 'GÉNÉRATIONS MÉDECINS',
         titleLines: ['Devenez', "l'allié privilégié", "d'une nouvelle", 'génération de médecins'],
         subtitle:
-          'Un réseau de plus de 3 000 médecins. Une communauté engagée. Un parcours partenaire pensé pour votre impact.',
+          'Un réseau de plus de 3 000 médecins. Une communauté engagée.\nUn parcours partenaire pensé pour votre impact.',
         footer: 'BOOK PARTENAIRES • ÉDITION 2026',
       },
     },
