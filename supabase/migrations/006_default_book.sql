@@ -1,4 +1,13 @@
--- Default book template
+-- ============================================================================
+-- Default book template — re-run this whole file in Supabase SQL Editor
+-- whenever the default book content changes.
+--
+-- Two things happen here in a single transaction:
+--   1. apply_default_book(slug) is (re)defined with the latest 18-slide JSON
+--   2. it is immediately applied to every active partner, so each partner
+--      sees the new content without a second SQL call.
+-- ============================================================================
+
 create or replace function public.apply_default_book(p_slug text)
 returns int language plpgsql security definer
 set search_path = public, extensions
@@ -10,14 +19,14 @@ declare
     "type": "cover",
     "props": {
       "eyebrow": "PARTENARIAT • 2026",
-      "brand": "GÉNÉRATIONS MÉDECINS IDF",
+      "brand": "GÉNÉRATIONS MÉDECINS",
       "titleLines": [
         "Devenez",
         "l'allié privilégié",
-        "des médecins",
-        "franciliens."
+        "d'une nouvelle",
+        "génération de médecins"
       ],
-      "subtitle": "Un réseau de 2 000 médecins. Une communauté engagée. Un parcours partenaire pensé pour votre impact.",
+      "subtitle": "Un réseau de plus de 3 000 médecins. Une communauté engagée. Un parcours partenaire pensé pour votre impact.",
       "footer": "BOOK PARTENAIRES • ÉDITION 2026"
     }
   },
@@ -148,10 +157,7 @@ declare
           "name": "Dr. Minh-Hanh TA",
           "role": "Secrétaire générale",
           "specialty": "Onco-radiothérapeute",
-          "highlights": [
-            "Board médical de Résorose & Celene Care",
-            "Ancienne vice-présidente nationale de la SFjRO (Société Française des jeunes radiothérapeutes oncologues)"
-          ],
+          "details": "Board médical Résorose & Celene Care • Ancienne vice-présidente nationale de la SFjRO",
           "photoUrl": "/bureau/MHT.png"
         },
         {
@@ -166,7 +172,8 @@ declare
           "initials": "CC",
           "name": "Dr. Cherifa CHEURFA",
           "role": "Vice-présidente",
-          "specialty": "Anesthésiste-réanimateur"
+          "specialty": "Anesthésiste-réanimateur",
+          "photoUrl": "/bureau/CC.png"
         },
         {
           "initials": "LK",
@@ -797,4 +804,12 @@ begin
   return v_count;
 end;
 $fn$;
+
 revoke all on function public.apply_default_book(text) from public;
+
+-- Auto-apply to every active partner so the new JSON propagates without
+-- a second manual call. Result table shows nb_slides per partner.
+select slug, public.apply_default_book(slug) as nb_slides
+  from public.partners
+  where active = true
+  order by display_order;

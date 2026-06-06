@@ -23,10 +23,10 @@ export const defaultBook: Book = {
       type: 'cover',
       props: {
         eyebrow: 'PARTENARIAT • 2026',
-        brand: 'GÉNÉRATIONS MÉDECINS IDF',
-        titleLines: ['Devenez', "l'allié privilégié", 'des médecins', 'franciliens.'],
+        brand: 'GÉNÉRATIONS MÉDECINS',
+        titleLines: ['Devenez', "l'allié privilégié", "d'une nouvelle", 'génération de médecins'],
         subtitle:
-          'Un réseau de 2 000 médecins. Une communauté engagée. Un parcours partenaire pensé pour votre impact.',
+          'Un réseau de plus de 3 000 médecins. Une communauté engagée. Un parcours partenaire pensé pour votre impact.',
         footer: 'BOOK PARTENAIRES • ÉDITION 2026',
       },
     },
@@ -96,10 +96,8 @@ export const defaultBook: Book = {
             name: 'Dr. Minh-Hanh TA',
             role: 'Secrétaire générale',
             specialty: 'Onco-radiothérapeute',
-            highlights: [
-              'Board médical de Résorose & Celene Care',
-              'Ancienne vice-présidente nationale de la SFjRO (Société Française des jeunes radiothérapeutes oncologues)',
-            ],
+            details:
+              'Board médical Résorose & Celene Care • Ancienne vice-présidente nationale de la SFjRO',
             photoUrl: '/bureau/MHT.png',
           },
           {
@@ -115,6 +113,7 @@ export const defaultBook: Book = {
             name: 'Dr. Cherifa CHEURFA',
             role: 'Vice-présidente',
             specialty: 'Anesthésiste-réanimateur',
+            photoUrl: '/bureau/CC.png',
           },
           {
             initials: 'LK',
