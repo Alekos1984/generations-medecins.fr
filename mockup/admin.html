@@ -1903,14 +1903,20 @@
         chunk: (results, parser) => {
           if (!colProf) {
             const headers = results.meta.fields || [];
-            colDept   = findCol(headers, 'département', 'coord') || findCol(headers, 'departement', 'coord');
-            colProf   = findCol(headers, 'libellé', 'profession') || findCol(headers, 'libelle', 'profession');
-            colSavoir = findCol(headers, 'libellé', 'savoir-faire') || findCol(headers, 'libelle', 'savoir-faire');
+            // Colonnes réelles dans PS_LibreAccès :
+            // "Code Département (structure)" | "Libellé profession" | "Libellé savoir-faire"
+            colDept   = findCol(headers, 'code département') || findCol(headers, 'code departement')
+                     || findCol(headers, 'département', 'structure') || findCol(headers, 'departement', 'structure');
+            colProf   = findCol(headers, 'libellé profession') || findCol(headers, 'libelle profession');
+            colSavoir = findCol(headers, 'libellé savoir-faire') || findCol(headers, 'libelle savoir-faire');
             if (!colDept || !colProf) {
               parser.abort();
-              toast('Colonnes RPPS introuvables. Vérifie le format du CSV.', 'error');
-              reject(new Error('Colonnes manquantes : ' + headers.slice(0,10).join(', ')));
+              const sample = headers.filter(h => h.toLowerCase().includes('départ') || h.toLowerCase().includes('profes')).join(' | ');
+              toast(`Colonnes introuvables. Colonnes trouvées contenant "départ"/"profes" : ${sample || '(aucune)'}`, 'error');
+              reject(new Error('Colonnes manquantes'));
               return;
+            }
+            if (false) { // déjà géré ci-dessus
             }
           }
           for (const row of results.data) {
