@@ -451,6 +451,11 @@
         <span class="icon">🌐</span><span>Écosystème</span>
       </button>
 
+      <div class="sidebar-section-label">Données</div>
+      <button class="sidebar-link" onclick="showSection('observatoire')" id="nav-observatoire">
+        <span class="icon">📊</span><span>Observatoire</span>
+      </button>
+
       <div class="sidebar-section-label">Navigation</div>
       <a class="sidebar-link" href="espace-membre.html">
         <span class="icon">👤</span><span>Mon espace</span>
@@ -1410,6 +1415,39 @@
         </div>
       </div>
 
+      <!-- Section: Observatoire -->
+      <div id="section-observatoire" class="section-panel">
+        <div class="section-header">
+          <h2>Observatoire — Données</h2>
+          <p style="font-size:.85rem;color:var(--muted);margin-top:4px">Mets à jour les indicateurs affichés sur la page publique. Sources : RPPS, DREES, CNAM — généralement une fois par an.</p>
+        </div>
+
+        <!-- KPIs -->
+        <div style="margin-bottom:32px">
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Indicateurs clés (4 grandes stats)</div>
+          <div id="obs-kpis-list" style="display:flex;flex-direction:column;gap:10px">
+            <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
+          </div>
+        </div>
+
+        <!-- Séries bar charts -->
+        <div style="margin-bottom:32px">
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Démographie IDF par spécialité</div>
+          <div id="obs-series-demographie" style="display:flex;flex-direction:column;gap:8px">
+            <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:10px;font-size:.8rem" onclick="addObsSerie('demographie_idf')">+ Ajouter une ligne</button>
+        </div>
+
+        <div style="margin-bottom:32px">
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Honoraires par mode d'exercice</div>
+          <div id="obs-series-honoraires" style="display:flex;flex-direction:column;gap:8px">
+            <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:10px;font-size:.8rem" onclick="addObsSerie('honoraires_exercice')">+ Ajouter une ligne</button>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -1672,6 +1710,111 @@
     setTimeout(() => t.className = 'toast', 3000);
   }
 
+  // ── Observatoire ────────────────────────────────────────────
+  const OBS_TENDANCE_DIRS = ['up','down','neutral'];
+
+  function obsKpiRow(k) {
+    return `<div class="obs-kpi-row" data-id="${k.id}" style="display:grid;grid-template-columns:1fr 110px 220px 90px 90px auto;gap:8px;align-items:center;background:white;border:1.5px solid var(--line);border-radius:10px;padding:10px 14px">
+      <div>
+        <div style="font-size:.7rem;color:var(--muted);font-weight:600;margin-bottom:2px">${k.id}</div>
+        <input class="obs-input obs-label" value="${k.label}" placeholder="Label" style="font-size:.85rem;font-weight:600;border:none;outline:none;width:100%;background:transparent;color:var(--ink)">
+      </div>
+      <input class="obs-input obs-valeur" value="${k.valeur}" placeholder="Valeur" style="font-size:1.1rem;font-weight:900;color:var(--blue-dark);border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
+      <input class="obs-input obs-tendance" value="${k.tendance||''}" placeholder="Tendance (ex: ↑ +4pts vs 2022)" style="font-size:.8rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
+      <select class="obs-input obs-dir" style="font-size:.8rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 6px">
+        ${OBS_TENDANCE_DIRS.map(d=>`<option value="${d}" ${k.tendance_dir===d?'selected':''}>${d}</option>`).join('')}
+      </select>
+      <input class="obs-input obs-source" value="${k.source||''}" placeholder="Source" style="font-size:.75rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%;color:var(--muted)">
+      <button onclick="saveObsKpi(this)" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Sauver</button>
+    </div>`;
+  }
+
+  function obsSerieRow(s, serieId) {
+    const rowId = s.id || ('new-' + Date.now() + Math.random());
+    return `<div class="obs-serie-row" data-id="${s.id||''}" data-serie="${serieId}" style="display:grid;grid-template-columns:1fr 100px 120px 60px 80px auto;gap:8px;align-items:center;background:white;border:1.5px solid var(--line);border-radius:8px;padding:8px 12px">
+      <input class="obs-input obs-label" value="${s.label||''}" placeholder="Label (ex: Cardiologie)" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
+      <input class="obs-input obs-valeur-num" type="number" value="${s.valeur_num||''}" placeholder="123456" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
+      <input class="obs-input obs-valeur-fmt" value="${s.valeur_fmt||''}" placeholder="1 234" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
+      <input class="obs-input obs-rang" type="number" value="${s.rang||''}" placeholder="1" min="1" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
+      <input class="obs-input obs-source" value="${s.source||''}" placeholder="Source" style="font-size:.75rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%;color:var(--muted)">
+      <div style="display:flex;gap:4px">
+        <button onclick="saveObsSerie(this)" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:700;cursor:pointer">Sauver</button>
+        <button onclick="deleteObsSerie(this)" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;font-weight:700;cursor:pointer">✕</button>
+      </div>
+    </div>`;
+  }
+
+  async function loadObservatoire() {
+    const { data: kpis } = await db.from('observatoire_kpis').select('*').order('id');
+    const el = document.getElementById('obs-kpis-list');
+    el.innerHTML = kpis && kpis.length ? kpis.map(obsKpiRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
+
+    const { data: series } = await db.from('observatoire_series').select('*').order('rang');
+    const demo = (series||[]).filter(s => s.serie_id === 'demographie_idf');
+    const hon  = (series||[]).filter(s => s.serie_id === 'honoraires_exercice');
+    document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(s => obsSerieRow(s, 'demographie_idf')).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
+    document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(s => obsSerieRow(s, 'honoraires_exercice')).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
+  }
+
+  window.saveObsKpi = async function(btn) {
+    const row  = btn.closest('.obs-kpi-row');
+    const id   = row.dataset.id;
+    const data = {
+      id,
+      valeur:       row.querySelector('.obs-valeur').value.trim(),
+      label:        row.querySelector('.obs-label').value.trim(),
+      tendance:     row.querySelector('.obs-tendance').value.trim() || null,
+      tendance_dir: row.querySelector('.obs-dir').value,
+      source:       row.querySelector('.obs-source').value.trim() || null,
+      updated_at:   new Date().toISOString(),
+    };
+    const { error } = await db.from('observatoire_kpis').upsert(data, { onConflict: 'id' });
+    if (error) toast('Erreur : ' + error.message, 'error');
+    else { toast('KPI sauvegardé ✓'); btn.textContent = '✓'; setTimeout(() => btn.textContent = 'Sauver', 2000); }
+  };
+
+  window.saveObsSerie = async function(btn) {
+    const row      = btn.closest('.obs-serie-row');
+    const existId  = row.dataset.id;
+    const serieId  = row.dataset.serie;
+    const data = {
+      serie_id:    serieId,
+      label:       row.querySelector('.obs-label').value.trim(),
+      valeur_num:  parseFloat(row.querySelector('.obs-valeur-num').value) || null,
+      valeur_fmt:  row.querySelector('.obs-valeur-fmt').value.trim(),
+      rang:        parseInt(row.querySelector('.obs-rang').value) || 0,
+      source:      row.querySelector('.obs-source').value.trim() || null,
+      updated_at:  new Date().toISOString(),
+    };
+    if (existId) data.id = existId;
+    const { data: saved, error } = await db.from('observatoire_series').upsert(data, { onConflict: existId ? 'id' : 'serie_id,label' }).select().single();
+    if (error) toast('Erreur : ' + error.message, 'error');
+    else {
+      if (!existId && saved) row.dataset.id = saved.id;
+      toast('Ligne sauvegardée ✓'); btn.textContent = '✓'; setTimeout(() => btn.textContent = 'Sauver', 2000);
+    }
+  };
+
+  window.deleteObsSerie = async function(btn) {
+    const row = btn.closest('.obs-serie-row');
+    const id  = row.dataset.id;
+    if (!id) { row.remove(); return; }
+    if (!confirm('Supprimer cette ligne ?')) return;
+    const { error } = await db.from('observatoire_series').delete().eq('id', id);
+    if (error) toast('Erreur : ' + error.message, 'error');
+    else row.remove();
+  };
+
+  window.addObsSerie = function(serieId) {
+    const containerId = serieId === 'demographie_idf' ? 'obs-series-demographie' : 'obs-series-honoraires';
+    const container = document.getElementById(containerId);
+    const emptyRow = container.querySelector('[style*="Aucune"]');
+    if (emptyRow) emptyRow.remove();
+    const div = document.createElement('div');
+    div.innerHTML = obsSerieRow({ id:'', label:'', valeur_num:'', valeur_fmt:'', rang:'', source:'' }, serieId);
+    container.appendChild(div.firstElementChild);
+  };
+
   // ── Navigation ──────────────────────────────────────────────
   window.showSection = function(id) {
     document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
@@ -1684,6 +1827,7 @@
     if (id === 'doctrine') { loadDoctrine(); }
     if (id === 'greve') { loadGreve(); }
     if (id === 'ecosysteme') { loadEcosysteme(); }
+    if (id === 'observatoire') { loadObservatoire(); }
   };
 
   // ── Logout ──────────────────────────────────────────────────
