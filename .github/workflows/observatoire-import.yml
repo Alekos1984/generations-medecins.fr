@@ -1,4 +1,4 @@
-name: Import Observatoire (RPPS)
+name: Import Observatoire (DREES + RPPS)
 
 on:
   schedule:
@@ -26,8 +26,21 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
+      # DREES = source principale (pré-agrégée, ~Mo, donne la tendance N vs N-1).
+      # Tourne d'abord — si elle réussit, ses chiffres écrasent ceux de RPPS
+      # dans la suite (les deux écrivent dans les mêmes colonnes *_pending).
+      - name: Lancer l'import DREES
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/import_drees.py
+        continue-on-error: true
+
+      # RPPS = source de secours (brut 700 Mo, recompte sans tendance).
+      # Si DREES a planté, on a au moins le compte brut.
       - name: Lancer l'import RPPS
         env:
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/import_observatoire.py
+        continue-on-error: true
