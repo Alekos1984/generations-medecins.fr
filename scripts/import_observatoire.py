@@ -64,7 +64,8 @@ SPECIALITE_LABELS = {
     "Neurologie":                     "Neurologie",
 }
 
-RPPS_DATASET = "https://www.data.gouv.fr/api/1/datasets/53f1e90f-a50c-4e46-9b43-b09d3d15f476/"
+RPPS_DATASET_ID = "53f1e90f-a50c-4e46-9b43-b09d3d15f476"  # conservé pour référence
+RPPS_SEARCH_URL = "https://www.data.gouv.fr/api/1/datasets/?q=RPPS+libre+acc%C3%A8s+professionnels+sant%C3%A9&page_size=5"
 ANNEE = datetime.now().year
 
 log_lines = []
@@ -74,23 +75,56 @@ def log(msg):
 
 
 # ── Téléchargement CSV ────────────────────────────────────────
-def fetch_rpps():
-    log("🔍 Recherche du dernier extrait RPPS sur data.gouv.fr…")
-    resp = requests.get(RPPS_DATASET, timeout=30)
-    resp.raise_for_status()
-    resources = resp.json().get("resources", [])
-    url, title = None, None
+def _pick_csv_resource(resources):
+    """Retourne (url, title) du meilleur CSV/ZIP dans une liste de resources."""
     for r in resources:
         t = (r.get("title") or "").lower()
-        if "libre" in t and (r.get("format") or "").lower() in ("csv", "zip"):
-            url, title = r["url"], r["title"]
-            break
+        fmt = (r.get("format") or "").lower()
+        if fmt in ("csv", "zip") and any(k in t for k in ("libre", "rpps", "professionnel")):
+            return r["url"], r["title"]
+    # fallback : premier CSV/ZIP dispo
+    for r in resources:
+        if (r.get("format") or "").lower() in ("csv", "zip"):
+            return r["url"], r["title"]
+    return None, None
+
+
+def _find_rpps_dataset():
+    """
+    Cherche le dataset RPPS sur data.gouv.fr via l'API de recherche.
+    Essaie d'abord par ID connu, sinon cherche par mots-clés.
+    Retourne la liste des resources du dataset trouvé.
+    """
+    # 1) Essai par ID direct
+    r = requests.get(f"https://www.data.gouv.fr/api/1/datasets/{RPPS_DATASET_ID}/", timeout=15)
+    if r.status_code == 200:
+        log(f"   Dataset trouvé par ID : {r.json().get('title','')}")
+        return r.json().get("resources", [])
+
+    log(f"   ID {RPPS_DATASET_ID} introuvable (HTTP {r.status_code}), recherche par mots-clés…")
+
+    # 2) Recherche textuelle
+    r = requests.get(RPPS_SEARCH_URL, timeout=15)
+    r.raise_for_status()
+    datasets = r.json().get("data", [])
+    for ds in datasets:
+        title = (ds.get("title") or "").lower()
+        if any(k in title for k in ("rpps", "répertoire partagé", "repertoire partage", "professionnel")):
+            log(f"   Dataset trouvé : {ds['title']} (id={ds['id']})")
+            return ds.get("resources", [])
+
+    raise ValueError(
+        "Dataset RPPS introuvable sur data.gouv.fr. "
+        "Vérifiez manuellement sur https://www.data.gouv.fr et mettez à jour RPPS_DATASET_ID."
+    )
+
+
+def fetch_rpps():
+    log("🔍 Recherche du dernier extrait RPPS sur data.gouv.fr…")
+    resources = _find_rpps_dataset()
+    url, title = _pick_csv_resource(resources)
     if not url:
-        for r in resources:
-            if (r.get("format") or "").lower() in ("csv", "zip"):
-                url, title = r["url"], r["title"]; break
-    if not url:
-        raise ValueError("Aucun fichier CSV/ZIP trouvé pour RPPS")
+        raise ValueError("Aucun fichier CSV/ZIP trouvé dans le dataset RPPS")
 
     log(f"   📥 {title} → {url}")
     resp = requests.get(url, timeout=180)
