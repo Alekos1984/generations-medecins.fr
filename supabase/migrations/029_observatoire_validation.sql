@@ -47,5 +47,5 @@ VALUES ('observatoire-csv', 'observatoire-csv', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS sur le bucket : seuls les admins lisent, le service_role écrit
-CREATE POLICY IF NOT EXISTS "obs_csv_admin_read" ON storage.objects FOR SELECT
+CREATE POLICY "obs_csv_admin_read" ON storage.objects FOR SELECT
   USING (bucket_id = 'observatoire-csv' AND is_admin());
