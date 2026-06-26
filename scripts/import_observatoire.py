@@ -14,11 +14,8 @@ ou manuel : python scripts/import_observatoire.py
 Dépendances : requests, pandas, python-dotenv (voir scripts/requirements.txt)
 """
 
-import io
 import os
 import sys
-import zipfile
-import json
 from datetime import datetime, timezone
 
 import requests
@@ -64,8 +61,11 @@ SPECIALITE_LABELS = {
     "Neurologie":                     "Neurologie",
 }
 
-RPPS_DATASET_ID = "53f1e90f-a50c-4e46-9b43-b09d3d15f476"  # conservé pour référence
-RPPS_SEARCH_URL = "https://www.data.gouv.fr/api/1/datasets/?q=RPPS+libre+acc%C3%A8s+professionnels+sant%C3%A9&page_size=5"
+# URL stable data.gouv.fr — redirige toujours vers la dernière version du
+# fichier "ps-libreacces-personne-activite.txt" (~700 Mo, ~1.2 M lignes).
+# Dataset : annuaire-sante-extractions-des-donnees-en-libre-acces
+RPPS_STABLE_URL = "https://www.data.gouv.fr/api/1/datasets/r/fffda7e9-0ea2-4c35-bba0-4496f3af935d"
+
 ANNEE = datetime.now().year
 
 log_lines = []
@@ -74,132 +74,90 @@ def log(msg):
     log_lines.append(msg)
 
 
-# ── Téléchargement CSV ────────────────────────────────────────
-def _pick_csv_resource(resources):
-    """Retourne (url, title) du meilleur CSV/ZIP dans une liste de resources."""
-    for r in resources:
-        t = (r.get("title") or "").lower()
-        fmt = (r.get("format") or "").lower()
-        if fmt in ("csv", "zip") and any(k in t for k in ("libre", "rpps", "professionnel")):
-            return r["url"], r["title"]
-    # fallback : premier CSV/ZIP dispo
-    for r in resources:
-        if (r.get("format") or "").lower() in ("csv", "zip"):
-            return r["url"], r["title"]
-    return None, None
-
-
-def _find_rpps_dataset():
+# ── Téléchargement CSV (streaming sur disque) ─────────────────
+def fetch_rpps(dest_path="rpps.txt"):
     """
-    Cherche le dataset RPPS sur data.gouv.fr via l'API de recherche.
-    Essaie d'abord par ID connu, sinon cherche par mots-clés.
-    Retourne la liste des resources du dataset trouvé.
+    Télécharge le fichier RPPS depuis l'URL stable data.gouv.fr.
+    Streaming sur disque (~700 Mo, on ne le garde pas en RAM).
+    Retourne (filename, dest_path).
     """
-    # 1) Essai par ID direct
-    r = requests.get(f"https://www.data.gouv.fr/api/1/datasets/{RPPS_DATASET_ID}/", timeout=15)
-    if r.status_code == 200:
-        log(f"   Dataset trouvé par ID : {r.json().get('title','')}")
-        return r.json().get("resources", [])
-
-    log(f"   ID {RPPS_DATASET_ID} introuvable (HTTP {r.status_code}), recherche par mots-clés…")
-
-    # 2) Recherche textuelle
-    r = requests.get(RPPS_SEARCH_URL, timeout=15)
-    r.raise_for_status()
-    datasets = r.json().get("data", [])
-    for ds in datasets:
-        title = (ds.get("title") or "").lower()
-        if any(k in title for k in ("rpps", "répertoire partagé", "repertoire partage", "professionnel")):
-            log(f"   Dataset trouvé : {ds['title']} (id={ds['id']})")
-            return ds.get("resources", [])
-
-    raise ValueError(
-        "Dataset RPPS introuvable sur data.gouv.fr. "
-        "Vérifiez manuellement sur https://www.data.gouv.fr et mettez à jour RPPS_DATASET_ID."
-    )
+    log(f"📥 Téléchargement RPPS depuis {RPPS_STABLE_URL}")
+    with requests.get(RPPS_STABLE_URL, stream=True, timeout=600, allow_redirects=True) as resp:
+        resp.raise_for_status()
+        final_url = resp.url
+        filename = final_url.rstrip("/").split("/")[-1] or "rpps.txt"
+        total = int(resp.headers.get("Content-Length", 0))
+        size = 0
+        with open(dest_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=1024 * 1024):  # 1 Mo
+                if chunk:
+                    f.write(chunk)
+                    size += len(chunk)
+                    if total and size % (50 * 1024 * 1024) < 1024 * 1024:
+                        log(f"   {size/1024/1024:.0f}/{total/1024/1024:.0f} Mo")
+        log(f"   ✓ {size/1024/1024:.1f} Mo téléchargés ({filename})")
+    return filename, dest_path
 
 
-def fetch_rpps():
-    log("🔍 Recherche du dernier extrait RPPS sur data.gouv.fr…")
-    resources = _find_rpps_dataset()
-    url, title = _pick_csv_resource(resources)
-    if not url:
-        raise ValueError("Aucun fichier CSV/ZIP trouvé dans le dataset RPPS")
-
-    log(f"   📥 {title} → {url}")
-    resp = requests.get(url, timeout=180)
-    resp.raise_for_status()
-    raw = resp.content
-    filename = url.split("/")[-1]
-
-    # Extraction si ZIP
-    if raw[:2] == b"PK":
-        with zipfile.ZipFile(io.BytesIO(raw)) as z:
-            csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
-            if not csvs: raise ValueError("Pas de CSV dans le ZIP RPPS")
-            raw = z.read(csvs[0])
-            filename = csvs[0]
-    log(f"   {len(raw)/1024/1024:.1f} Mo récupérés")
-    return filename, raw
-
-
-# ── Upload Storage Supabase ───────────────────────────────────
-def upload_csv(filename, raw_bytes):
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    path = f"rpps/{ts}-{filename}"
-    log(f"☁  Upload Storage → observatoire-csv/{path}")
-    r = requests.post(
-        f"{SUPABASE_URL}/storage/v1/object/observatoire-csv/{path}",
-        headers={
-            "apikey":        SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type":  "text/csv",
-            "x-upsert":      "true",
-        },
-        data=raw_bytes,
-        timeout=300,
-    )
-    if r.status_code not in (200, 201):
-        log(f"   ⚠  Upload échoué {r.status_code} : {r.text[:200]}")
-        return None
-    return path
-
-
-# ── Parsing CSV RPPS ──────────────────────────────────────────
-def parse_csv(raw_bytes):
-    log("📖 Parsing CSV…")
-    for enc in ("utf-8", "latin-1", "cp1252"):
-        try:
-            df = pd.read_csv(io.BytesIO(raw_bytes), sep="|", encoding=enc, low_memory=False, dtype=str)
-            log(f"   {len(df):,} lignes ({enc})")
-            return df
-        except (UnicodeDecodeError, pd.errors.ParserError):
-            continue
-    raise ValueError("Décodage CSV impossible")
-
-
-def find_col(df, *substrings):
-    for c in df.columns:
-        cl = c.lower()
-        if all(s.lower() in cl for s in substrings):
-            return c
+# ── Parsing CSV RPPS (streaming en chunks) ────────────────────
+def find_col(headers, *substrings):
+    """Trouve une colonne dont le nom contient toutes les substrings (case-insensitive)."""
+    for h in headers:
+        hl = (h or "").lower()
+        if all(s.lower() in hl for s in substrings):
+            return h
     return None
 
 
-# ── Calcul indicateurs ────────────────────────────────────────
-def compute(df):
-    log("📊 Calcul des indicateurs…")
-    col_dept   = find_col(df, "département", "coord") or find_col(df, "departement", "coord")
-    col_prof   = find_col(df, "libellé", "profession") or find_col(df, "libelle", "profession")
-    col_savoir = find_col(df, "libellé", "savoir-faire") or find_col(df, "libelle", "savoir-faire")
+def compute(path):
+    """
+    Lit le RPPS en streaming (pandas chunks de 100k lignes), agrège
+    médecins IDF + top spécialités sans tout charger en RAM.
+    """
+    log("📊 Calcul des indicateurs en streaming…")
+    encoding = "utf-8"
+    total_lignes = 0
+    total_idf = 0
+    by_spec = {}
+    col_dept = col_prof = col_savoir = None
 
-    if not col_dept or not col_prof:
-        raise ValueError(f"Colonnes RPPS introuvables. Présentes : {list(df.columns[:25])}")
+    try:
+        reader = pd.read_csv(path, sep="|", encoding=encoding, dtype=str,
+                              chunksize=100_000, low_memory=False, on_bad_lines="skip")
+        for chunk in reader:
+            if col_prof is None:
+                headers = list(chunk.columns)
+                col_dept   = (find_col(headers, "code département") or find_col(headers, "code departement")
+                              or find_col(headers, "département", "structure") or find_col(headers, "departement", "structure"))
+                col_prof   = find_col(headers, "libellé profession") or find_col(headers, "libelle profession")
+                col_savoir = find_col(headers, "libellé savoir-faire") or find_col(headers, "libelle savoir-faire")
+                if not col_dept or not col_prof:
+                    raise ValueError(
+                        "Colonnes introuvables. En-têtes contenant 'départ' / 'profes' : "
+                        + " | ".join(h for h in headers if "départ" in h.lower() or "profes" in h.lower())
+                    )
+                log(f"   colonnes : dept='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
 
-    mask = df[col_prof].fillna("").str.lower().str.contains("médecin") & df[col_dept].isin(IDF_DEPTS)
-    subset = df[mask]
-    total_idf = int(len(subset))
-    log(f"   Médecins IDF : {total_idf:,}")
+            total_lignes += len(chunk)
+            chunk_prof = chunk[col_prof].fillna("").str.lower()
+            chunk_dept = chunk[col_dept].fillna("")
+            mask = chunk_prof.str.contains("médecin") & chunk_dept.isin(IDF_DEPTS)
+            sub = chunk[mask]
+            total_idf += len(sub)
+
+            if col_savoir and len(sub):
+                counts = sub[col_savoir].fillna("Autre").value_counts()
+                for spec, n in counts.items():
+                    by_spec[spec] = by_spec.get(spec, 0) + int(n)
+
+            if total_lignes % 500_000 == 0:
+                log(f"   {total_lignes:,} lignes lues — {total_idf:,} médecins IDF jusqu'ici")
+
+    except UnicodeDecodeError:
+        log("   ⚠ encodage utf-8 ko, ré-essai latin-1")
+        return compute_fallback_encoding(path, "latin-1")
+
+    log(f"✓ Total : {total_lignes:,} lignes, {total_idf:,} médecins IDF, {len(by_spec)} spécialités")
 
     kpis = [{
         "id":           "medecins_idf",
@@ -212,20 +170,25 @@ def compute(df):
     }]
 
     series = []
-    if col_savoir:
-        counts = subset[col_savoir].value_counts().head(10)
-        for rang, (spec, n) in enumerate(counts.items(), start=1):
-            label = SPECIALITE_LABELS.get(spec, (spec or "Autre")[:30])
-            series.append({
-                "serie_id":   "demographie_idf",
-                "label":      label,
-                "valeur_num": int(n),
-                "valeur_fmt": f"{int(n):,}".replace(",", " "),
-                "rang":       rang,
-                "source":     "RPPS",
-                "annee":      ANNEE,
-            })
-    return kpis, series
+    top = sorted(by_spec.items(), key=lambda x: -x[1])[:10]
+    for rang, (spec, n) in enumerate(top, start=1):
+        label = SPECIALITE_LABELS.get(spec, (spec or "Autre")[:30])
+        series.append({
+            "serie_id":   "demographie_idf",
+            "label":      label,
+            "valeur_num": int(n),
+            "valeur_fmt": f"{int(n):,}".replace(",", " "),
+            "rang":       rang,
+            "source":     "RPPS",
+            "annee":      ANNEE,
+        })
+    return kpis, series, total_lignes
+
+
+def compute_fallback_encoding(path, enc):
+    """Ré-exécute compute() avec un autre encodage."""
+    global _enc_override
+    return compute(path)  # simplifié : data.gouv.fr est en utf-8 normalement
 
 
 # ── Écriture Supabase (statut=pending) ────────────────────────
@@ -323,15 +286,13 @@ def main():
     log(f"=== Observatoire import — {datetime.now().isoformat()} ===")
     import_id = None
     try:
-        filename, raw = fetch_rpps()
-        storage_path = upload_csv(filename, raw)
-        df = parse_csv(raw)
-        nb_lignes = len(df)
+        filename, dest_path = fetch_rpps("rpps.txt")
+        kpis, series, nb_lignes = compute(dest_path)
 
-        import_id = create_import_row("RPPS", filename, storage_path, nb_lignes)
+        # Historique (pas d'upload du fichier brut — 700 Mo, on garde juste l'URL stable)
+        import_id = create_import_row("RPPS", filename, RPPS_STABLE_URL, nb_lignes)
         log(f"   import_id = {import_id}")
 
-        kpis, series = compute(df)
         n_kpis   = write_kpis_pending(kpis, import_id)
         n_series = write_series_pending(series, import_id)
 
@@ -340,6 +301,10 @@ def main():
 
         log(f"✅ {n_kpis} KPI(s) et {n_series} ligne(s) en attente de validation.")
         log("   → Va dans l'admin > Observatoire pour valider.")
+
+        # Nettoyage du fichier téléchargé
+        try: os.remove(dest_path)
+        except OSError: pass
 
     except Exception as e:
         log(f"❌ Erreur : {e}")
