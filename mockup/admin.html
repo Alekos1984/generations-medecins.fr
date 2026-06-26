@@ -1844,6 +1844,14 @@
 
   // ── Upload + parse CSV RPPS (côté navigateur) ───────────────
   const IDF_DEPTS_SET = new Set(['75','77','78','91','92','93','94','95']);
+  // Normalise un code département : trim, strip "075" → "75", "75 - Paris" → "75"
+  function normDept(v) {
+    if (!v) return '';
+    let s = String(v).trim();
+    s = s.split(/[\s\-–]/)[0];     // garde ce qui est avant le 1er espace/tiret
+    if (/^0\d{2}$/.test(s)) s = s.slice(1);  // "075" → "75"
+    return s;
+  }
   const SPECIALITE_LABELS = {
     'Médecine générale':'Médecine générale','Psychiatrie':'Psychiatrie',
     'Cardiologie et maladies vasculaires':'Cardiologie','Pédiatrie':'Pédiatrie',
@@ -1924,7 +1932,12 @@
           for (const row of results.data) {
             total++;
             const prof = (row[colProf] || '').toLowerCase();
-            const dept = row[colDept] || '';
+            const dept = normDept(row[colDept]);
+            // Échantillon de diagnostic sur les 5 premières lignes pour
+            // vérifier le format réel des données.
+            if (total <= 5) {
+              console.log('[obs] sample row:', { prof: row[colProf], dept_raw: row[colDept], dept_norm: dept });
+            }
             if (!prof.includes('médecin')) continue;
             if (!IDF_DEPTS_SET.has(dept)) continue;
             totalIdf++;
