@@ -1440,9 +1440,10 @@
           <div style="font-size:.82rem;color:#1e40af;margin-bottom:12px">
             Télécharge l'extrait "<b>PS_LibreAccès</b>" depuis
             <a href="https://www.data.gouv.fr/datasets/annuaire-sante-extractions-des-donnees-en-libre-acces-des-professionnels-intervenant-dans-le-systeme-de-sante-rpps" target="_blank" style="color:#1e40af;text-decoration:underline">data.gouv.fr → RPPS</a>,
-            puis dépose-le ici. Le fichier est traité localement dans ton navigateur (1,2 M lignes OK, ~30 s).
+            puis dépose-le ici. Fichier traité localement dans ton navigateur (~700 Mo, 1,2 M lignes, compte ~1 à 2 min selon ta machine).
           </div>
-          <input type="file" id="obs-csv-file" accept=".csv,.zip" onchange="parseObsCsv(this)" style="font-size:.82rem">
+          <input type="file" id="obs-csv-file" accept=".csv,.txt,.zip" onchange="parseObsCsv(this)" style="font-size:.82rem">
+          <div style="font-size:.75rem;color:#1e40af;margin-top:6px">Formats acceptés : <code>.txt</code> (séparateur <code>|</code>), <code>.csv</code> ou <code>.zip</code>. Fichier traité localement, seuls les indicateurs agrégés sont envoyés à Supabase.</div>
           <div id="obs-csv-progress" style="display:none;margin-top:12px">
             <div style="font-size:.82rem;color:var(--ink);margin-bottom:6px"><span id="obs-csv-status">Lecture…</span> <span id="obs-csv-rows" style="color:var(--muted)">0 lignes</span></div>
             <div style="height:6px;background:var(--line);border-radius:999px;overflow:hidden">
@@ -1883,14 +1884,10 @@
       } catch (e) { toast('ZIP invalide : ' + e.message, 'error'); progress.style.display='none'; return; }
     }
 
-    // ── 1. Upload du CSV brut dans Storage ─────────────────────
-    status.textContent = 'Upload du fichier brut…';
-    const ts = new Date().toISOString().replace(/[:.]/g,'-');
-    const storagePath = `rpps/${ts}-${file.name.replace(/\.zip$/i,'.csv')}`;
-    const { error: upErr } = await db.storage.from('observatoire-csv').upload(storagePath, csvBlob, { upsert: true });
-    if (upErr) { toast('Upload Storage : ' + upErr.message, 'error'); progress.style.display='none'; return; }
+    // (Pas d'upload du brut — fichier RPPS = ~700 Mo, on garde uniquement les agrégats)
+    const storagePath = null;
 
-    // ── 2. Parse en streaming + agrégation ─────────────────────
+    // ── Parse en streaming + agrégation ────────────────────────
     status.textContent = 'Parsing CSV…';
     let total = 0, totalIdf = 0;
     const bySpec = {};
