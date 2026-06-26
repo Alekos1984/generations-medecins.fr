@@ -1418,8 +1418,27 @@
       <!-- Section: Observatoire -->
       <div id="section-observatoire" class="section-panel">
         <div class="section-header">
-          <h2>Observatoire — Données</h2>
-          <p style="font-size:.85rem;color:var(--muted);margin-top:4px">Mets à jour les indicateurs affichés sur la page publique. Sources : RPPS, DREES, CNAM — généralement une fois par an.</p>
+          <h2>Observatoire — Validation des imports</h2>
+          <p style="font-size:.85rem;color:var(--muted);margin-top:4px">Les imports automatiques (GitHub Actions mensuel, source RPPS / data.gouv.fr) déposent ici de nouvelles valeurs en attente. Valide pour publier sur la page publique.</p>
+        </div>
+
+        <!-- Bandeau pending -->
+        <div id="obs-pending-banner" style="display:none;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:14px 18px;margin-bottom:24px">
+          <div style="font-weight:700;color:#92400e;font-size:.95rem;margin-bottom:4px">⏳ <span id="obs-pending-count">0</span> valeur(s) en attente de validation</div>
+          <div style="font-size:.8rem;color:#92400e">Les nouvelles valeurs proposées sont surlignées. Compare avec la valeur en cours, puis valide ou rejette.</div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button onclick="validateAllObsPending()" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer">✓ Tout valider</button>
+            <button onclick="rejectAllObsPending()" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer">✕ Tout rejeter</button>
+          </div>
+        </div>
+
+        <!-- Historique des imports -->
+        <div style="margin-bottom:32px">
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Derniers imports automatiques</div>
+          <div id="obs-imports-list" style="display:flex;flex-direction:column;gap:8px">
+            <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:10px;font-size:.8rem" onclick="triggerObsImport()">⚡ Lancer un import manuel (GitHub Actions)</button>
         </div>
 
         <!-- KPIs -->
@@ -1430,13 +1449,12 @@
           </div>
         </div>
 
-        <!-- Séries bar charts -->
+        <!-- Séries -->
         <div style="margin-bottom:32px">
           <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Démographie IDF par spécialité</div>
           <div id="obs-series-demographie" style="display:flex;flex-direction:column;gap:8px">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
-          <button class="btn btn-ghost" style="margin-top:10px;font-size:.8rem" onclick="addObsSerie('demographie_idf')">+ Ajouter une ligne</button>
         </div>
 
         <div style="margin-bottom:32px">
@@ -1444,7 +1462,6 @@
           <div id="obs-series-honoraires" style="display:flex;flex-direction:column;gap:8px">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
-          <button class="btn btn-ghost" style="margin-top:10px;font-size:.8rem" onclick="addObsSerie('honoraires_exercice')">+ Ajouter une ligne</button>
         </div>
       </div>
 
@@ -1713,106 +1730,191 @@
   // ── Observatoire ────────────────────────────────────────────
   const OBS_TENDANCE_DIRS = ['up','down','neutral'];
 
-  function obsKpiRow(k) {
-    return `<div class="obs-kpi-row" data-id="${k.id}" style="display:grid;grid-template-columns:1fr 110px 220px 90px 90px auto;gap:8px;align-items:center;background:white;border:1.5px solid var(--line);border-radius:10px;padding:10px 14px">
-      <div>
-        <div style="font-size:.7rem;color:var(--muted);font-weight:600;margin-bottom:2px">${k.id}</div>
-        <input class="obs-input obs-label" value="${k.label}" placeholder="Label" style="font-size:.85rem;font-weight:600;border:none;outline:none;width:100%;background:transparent;color:var(--ink)">
-      </div>
-      <input class="obs-input obs-valeur" value="${k.valeur}" placeholder="Valeur" style="font-size:1.1rem;font-weight:900;color:var(--blue-dark);border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
-      <input class="obs-input obs-tendance" value="${k.tendance||''}" placeholder="Tendance (ex: ↑ +4pts vs 2022)" style="font-size:.8rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
-      <select class="obs-input obs-dir" style="font-size:.8rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 6px">
-        ${OBS_TENDANCE_DIRS.map(d=>`<option value="${d}" ${k.tendance_dir===d?'selected':''}>${d}</option>`).join('')}
-      </select>
-      <input class="obs-input obs-source" value="${k.source||''}" placeholder="Source" style="font-size:.75rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%;color:var(--muted)">
-      <button onclick="saveObsKpi(this)" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:6px 12px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">Sauver</button>
+  function obsImportRow(imp) {
+    const ts = new Date(imp.created_at).toLocaleString('fr-FR');
+    const statusColor = imp.statut === 'success' ? '#16a34a' : imp.statut === 'failed' ? '#dc2626' : '#f59e0b';
+    const statusIcon  = imp.statut === 'success' ? '✓' : imp.statut === 'failed' ? '✕' : '⚠';
+    return `<div style="background:white;border:1.5px solid var(--line);border-radius:8px;padding:10px 14px;display:grid;grid-template-columns:90px 80px 1fr 80px 110px;gap:12px;align-items:center;font-size:.82rem">
+      <div style="font-weight:700">${imp.source}</div>
+      <div style="color:${statusColor};font-weight:700">${statusIcon} ${imp.statut}</div>
+      <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${imp.fichier||''}">${imp.fichier||''}</div>
+      <div style="color:var(--muted);font-size:.78rem">${imp.nb_lignes_brutes?.toLocaleString('fr-FR') || '—'} lignes</div>
+      <div style="color:var(--muted);font-size:.75rem">${ts}</div>
     </div>`;
   }
 
-  function obsSerieRow(s, serieId) {
-    const rowId = s.id || ('new-' + Date.now() + Math.random());
-    return `<div class="obs-serie-row" data-id="${s.id||''}" data-serie="${serieId}" style="display:grid;grid-template-columns:1fr 100px 120px 60px 80px auto;gap:8px;align-items:center;background:white;border:1.5px solid var(--line);border-radius:8px;padding:8px 12px">
-      <input class="obs-input obs-label" value="${s.label||''}" placeholder="Label (ex: Cardiologie)" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
-      <input class="obs-input obs-valeur-num" type="number" value="${s.valeur_num||''}" placeholder="123456" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
-      <input class="obs-input obs-valeur-fmt" value="${s.valeur_fmt||''}" placeholder="1 234" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
-      <input class="obs-input obs-rang" type="number" value="${s.rang||''}" placeholder="1" min="1" style="font-size:.85rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%">
-      <input class="obs-input obs-source" value="${s.source||''}" placeholder="Source" style="font-size:.75rem;border:1.5px solid var(--line);border-radius:6px;padding:4px 8px;width:100%;color:var(--muted)">
+  function diffPill(oldVal, newVal) {
+    if (!newVal || oldVal === newVal) return '';
+    return `<span style="font-size:.7rem;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;margin-left:6px">≠</span>`;
+  }
+
+  function obsKpiRow(k) {
+    const isPending = k.statut === 'pending' && k.valeur_pending;
+    const rowBg = isPending ? '#fefce8' : 'white';
+    const rowBorder = isPending ? '#facc15' : 'var(--line)';
+    return `<div class="obs-kpi-row" data-id="${k.id}" style="background:${rowBg};border:1.5px solid ${rowBorder};border-radius:10px;padding:12px 14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:center">
+        <div>
+          <div style="font-size:.7rem;color:var(--muted);font-weight:600;margin-bottom:2px">${k.label}</div>
+          <div style="font-size:1.4rem;font-weight:900;color:var(--blue-dark)">${k.valeur || '—'}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${k.tendance || ''} · ${k.source||''} ${k.annee||''}</div>
+        </div>
+        <div style="${isPending?'':'opacity:.35'}">
+          <div style="font-size:.7rem;color:#92400e;font-weight:700;margin-bottom:2px">${isPending?'⏳ NOUVELLE VALEUR PROPOSÉE':'(rien en attente)'}</div>
+          <div style="font-size:1.4rem;font-weight:900;color:#92400e">${k.valeur_pending || '—'} ${diffPill(k.valeur, k.valeur_pending)}</div>
+          <div style="font-size:.72rem;color:#92400e;margin-top:2px">${k.tendance_pending || ''} · ${k.source_pending||''} ${k.annee_pending||''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${isPending ? `
+            <button onclick="validateObsKpi('${k.id}')" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider</button>
+            <button onclick="rejectObsKpi('${k.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✕ Rejeter</button>
+          ` : `<button onclick="editObsKpi('${k.id}')" style="background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✎ Éditer</button>`}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function obsSerieRow(s) {
+    const isPending = s.statut === 'pending' && s.valeur_fmt_pending;
+    const rowBg = isPending ? '#fefce8' : 'white';
+    const rowBorder = isPending ? '#facc15' : 'var(--line)';
+    return `<div class="obs-serie-row" data-id="${s.id}" style="background:${rowBg};border:1.5px solid ${rowBorder};border-radius:8px;padding:10px 14px;display:grid;grid-template-columns:160px 1fr 1fr auto;gap:14px;align-items:center;font-size:.85rem">
+      <div style="font-weight:600">${s.label}</div>
+      <div>
+        <span style="color:var(--muted);font-size:.72rem">en cours</span>
+        <span style="font-weight:700;color:var(--ink);margin-left:6px">${s.valeur_fmt || '—'}</span>
+      </div>
+      <div style="${isPending?'':'opacity:.35'}">
+        <span style="color:#92400e;font-size:.72rem;font-weight:700">⏳ proposée</span>
+        <span style="font-weight:700;color:#92400e;margin-left:6px">${s.valeur_fmt_pending || '—'}</span>
+        ${diffPill(s.valeur_fmt, s.valeur_fmt_pending)}
+      </div>
       <div style="display:flex;gap:4px">
-        <button onclick="saveObsSerie(this)" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:700;cursor:pointer">Sauver</button>
-        <button onclick="deleteObsSerie(this)" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:5px 8px;font-size:.75rem;font-weight:700;cursor:pointer">✕</button>
+        ${isPending ? `
+          <button onclick="validateObsSerie('${s.id}')" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:4px 10px;font-size:.72rem;font-weight:700;cursor:pointer">✓</button>
+          <button onclick="rejectObsSerie('${s.id}')"   style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 8px;font-size:.72rem;font-weight:700;cursor:pointer">✕</button>
+        ` : ''}
       </div>
     </div>`;
   }
 
   async function loadObservatoire() {
+    const { data: imports } = await db.from('observatoire_imports').select('*').order('created_at',{ascending:false}).limit(10);
+    document.getElementById('obs-imports-list').innerHTML = (imports||[]).length
+      ? imports.map(obsImportRow).join('')
+      : '<div style="color:var(--muted);font-size:.85rem">Aucun import. Le 1er aura lieu le 1er du mois prochain à 4h UTC.</div>';
+
     const { data: kpis } = await db.from('observatoire_kpis').select('*').order('id');
-    const el = document.getElementById('obs-kpis-list');
-    el.innerHTML = kpis && kpis.length ? kpis.map(obsKpiRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
+    document.getElementById('obs-kpis-list').innerHTML = (kpis||[]).length
+      ? kpis.map(obsKpiRow).join('')
+      : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
 
     const { data: series } = await db.from('observatoire_series').select('*').order('rang');
     const demo = (series||[]).filter(s => s.serie_id === 'demographie_idf');
     const hon  = (series||[]).filter(s => s.serie_id === 'honoraires_exercice');
-    document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(s => obsSerieRow(s, 'demographie_idf')).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
-    document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(s => obsSerieRow(s, 'honoraires_exercice')).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
+    document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(obsSerieRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
+    document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(obsSerieRow).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
+
+    const pendingCount = [...(kpis||[]), ...(series||[])].filter(x => x.statut === 'pending').length;
+    const banner = document.getElementById('obs-pending-banner');
+    if (pendingCount) { banner.style.display = 'block'; document.getElementById('obs-pending-count').textContent = pendingCount; }
+    else banner.style.display = 'none';
   }
 
-  window.saveObsKpi = async function(btn) {
-    const row  = btn.closest('.obs-kpi-row');
-    const id   = row.dataset.id;
-    const data = {
-      id,
-      valeur:       row.querySelector('.obs-valeur').value.trim(),
-      label:        row.querySelector('.obs-label').value.trim(),
-      tendance:     row.querySelector('.obs-tendance').value.trim() || null,
-      tendance_dir: row.querySelector('.obs-dir').value,
-      source:       row.querySelector('.obs-source').value.trim() || null,
+  window.validateObsKpi = async function(id) {
+    const { data: row } = await db.from('observatoire_kpis').select('*').eq('id',id).single();
+    if (!row) return;
+    const { error } = await db.from('observatoire_kpis').update({
+      valeur:       row.valeur_pending       ?? row.valeur,
+      tendance:     row.tendance_pending     ?? row.tendance,
+      tendance_dir: row.tendance_dir_pending ?? row.tendance_dir,
+      source:       row.source_pending       ?? row.source,
+      annee:        row.annee_pending        ?? row.annee,
+      statut:       'validated',
+      valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
       updated_at:   new Date().toISOString(),
-    };
-    const { error } = await db.from('observatoire_kpis').upsert(data, { onConflict: 'id' });
+    }).eq('id', id);
     if (error) toast('Erreur : ' + error.message, 'error');
-    else { toast('KPI sauvegardé ✓'); btn.textContent = '✓'; setTimeout(() => btn.textContent = 'Sauver', 2000); }
+    else { toast('KPI validé ✓'); loadObservatoire(); }
   };
 
-  window.saveObsSerie = async function(btn) {
-    const row      = btn.closest('.obs-serie-row');
-    const existId  = row.dataset.id;
-    const serieId  = row.dataset.serie;
-    const data = {
-      serie_id:    serieId,
-      label:       row.querySelector('.obs-label').value.trim(),
-      valeur_num:  parseFloat(row.querySelector('.obs-valeur-num').value) || null,
-      valeur_fmt:  row.querySelector('.obs-valeur-fmt').value.trim(),
-      rang:        parseInt(row.querySelector('.obs-rang').value) || 0,
-      source:      row.querySelector('.obs-source').value.trim() || null,
-      updated_at:  new Date().toISOString(),
-    };
-    if (existId) data.id = existId;
-    const { data: saved, error } = await db.from('observatoire_series').upsert(data, { onConflict: existId ? 'id' : 'serie_id,label' }).select().single();
+  window.rejectObsKpi = async function(id) {
+    const { error } = await db.from('observatoire_kpis').update({
+      statut: 'validated',
+      valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
+    }).eq('id', id);
     if (error) toast('Erreur : ' + error.message, 'error');
-    else {
-      if (!existId && saved) row.dataset.id = saved.id;
-      toast('Ligne sauvegardée ✓'); btn.textContent = '✓'; setTimeout(() => btn.textContent = 'Sauver', 2000);
-    }
+    else { toast('Valeur rejetée'); loadObservatoire(); }
   };
 
-  window.deleteObsSerie = async function(btn) {
-    const row = btn.closest('.obs-serie-row');
-    const id  = row.dataset.id;
-    if (!id) { row.remove(); return; }
-    if (!confirm('Supprimer cette ligne ?')) return;
-    const { error } = await db.from('observatoire_series').delete().eq('id', id);
+  window.validateObsSerie = async function(id) {
+    const { data: row } = await db.from('observatoire_series').select('*').eq('id',id).single();
+    if (!row) return;
+    const { error } = await db.from('observatoire_series').update({
+      valeur_num: row.valeur_num_pending ?? row.valeur_num,
+      valeur_fmt: row.valeur_fmt_pending ?? row.valeur_fmt,
+      source:     row.source_pending     ?? row.source,
+      annee:      row.annee_pending      ?? row.annee,
+      statut:     'validated',
+      valeur_num_pending: null, valeur_fmt_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
     if (error) toast('Erreur : ' + error.message, 'error');
-    else row.remove();
+    else { toast('Ligne validée ✓'); loadObservatoire(); }
   };
 
-  window.addObsSerie = function(serieId) {
-    const containerId = serieId === 'demographie_idf' ? 'obs-series-demographie' : 'obs-series-honoraires';
-    const container = document.getElementById(containerId);
-    const emptyRow = container.querySelector('[style*="Aucune"]');
-    if (emptyRow) emptyRow.remove();
-    const div = document.createElement('div');
-    div.innerHTML = obsSerieRow({ id:'', label:'', valeur_num:'', valeur_fmt:'', rang:'', source:'' }, serieId);
-    container.appendChild(div.firstElementChild);
+  window.rejectObsSerie = async function(id) {
+    const { error } = await db.from('observatoire_series').update({
+      statut: 'validated',
+      valeur_num_pending: null, valeur_fmt_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
+    }).eq('id', id);
+    if (error) toast('Erreur : ' + error.message, 'error');
+    else { toast('Ligne rejetée'); loadObservatoire(); }
+  };
+
+  window.validateAllObsPending = async function() {
+    if (!confirm('Valider TOUTES les valeurs proposées ?')) return;
+    const { data: kpis }   = await db.from('observatoire_kpis').select('id').eq('statut','pending');
+    const { data: series } = await db.from('observatoire_series').select('id').eq('statut','pending');
+    for (const k of (kpis||[]))   await validateObsKpi(k.id);
+    for (const s of (series||[])) await validateObsSerie(s.id);
+    toast('Tout validé ✓');
+  };
+
+  window.rejectAllObsPending = async function() {
+    if (!confirm('Rejeter TOUTES les valeurs proposées ?')) return;
+    await db.from('observatoire_kpis').update({
+      statut: 'validated', valeur_pending: null, tendance_pending: null,
+      tendance_dir_pending: null, source_pending: null, annee_pending: null, pending_at: null,
+    }).eq('statut','pending');
+    await db.from('observatoire_series').update({
+      statut: 'validated', valeur_num_pending: null, valeur_fmt_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
+    }).eq('statut','pending');
+    toast('Tout rejeté');
+    loadObservatoire();
+  };
+
+  window.editObsKpi = async function(id) {
+    const { data: k } = await db.from('observatoire_kpis').select('*').eq('id',id).single();
+    if (!k) return;
+    const valeur = prompt('Valeur affichée :', k.valeur); if (valeur === null) return;
+    const tendance = prompt('Tendance (ex: ↑ +4 pts vs 2022) :', k.tendance || '');
+    const dir = prompt('Direction (up / down / neutral) :', k.tendance_dir || 'neutral');
+    const { error } = await db.from('observatoire_kpis').update({
+      valeur, tendance: tendance || null, tendance_dir: dir,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+    if (error) toast('Erreur : ' + error.message, 'error');
+    else { toast('KPI mis à jour ✓'); loadObservatoire(); }
+  };
+
+  window.triggerObsImport = function() {
+    alert("Pour lancer un import manuellement :\n\n1. GitHub → Actions → 'Import Observatoire (RPPS)'\n2. Clique 'Run workflow'\n\nL'import s'exécute automatiquement le 1er de chaque mois à 4h UTC.");
   };
 
   // ── Navigation ──────────────────────────────────────────────

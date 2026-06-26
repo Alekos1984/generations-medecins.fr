@@ -1,51 +1,52 @@
 #!/usr/bin/env python3
 """
-Import Observatoire data into Supabase.
+Import automatique Observatoire :
+  1. Télécharge le dernier CSV RPPS depuis data.gouv.fr
+  2. Upload le fichier brut dans Supabase Storage (bucket 'observatoire-csv')
+  3. Crée une ligne observatoire_imports (historique)
+  4. Calcule les KPIs et séries
+  5. Écrit les nouvelles valeurs dans les colonnes *_pending (statut='pending')
+  6. L'admin valide ensuite depuis le dashboard → la valeur courante est remplacée
 
-Sources officielles (open data) :
-  - RPPS  : https://www.data.gouv.fr/fr/datasets/repertoire-partage-des-professionnels-de-sante/
-  - DREES : https://www.data.gouv.fr/fr/organizations/ministere-des-affaires-sociales-et-de-la-sante/
-  - CNAM  : https://www.data.gouv.fr/fr/datasets/open-damir-base-complete-sur-les-depenses-d-assurance-maladie-inter-regimes/
+Lancement : GitHub Action mensuelle (.github/workflows/observatoire-import.yml)
+ou manuel : python scripts/import_observatoire.py
 
-Usage :
-  # Téléchargement auto depuis data.gouv.fr
-  python scripts/import_observatoire.py
-
-  # Avec un fichier RPPS local (téléchargé manuellement depuis annuaire.sante.fr)
-  python scripts/import_observatoire.py --rpps /path/to/PS_LibreAcces_202412.csv
-
-  # Dry-run (calcule sans écrire dans Supabase)
-  python scripts/import_observatoire.py --dry-run
-
-Dépendances : pip install supabase python-dotenv requests pandas
+Dépendances : requests, pandas, python-dotenv (voir scripts/requirements.txt)
 """
 
-import argparse
+import io
 import os
 import sys
-import io
 import zipfile
+import json
+from datetime import datetime, timezone
+
 import requests
 import pandas as pd
-from datetime import datetime
-from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-SUPABASE_URL  = os.environ.get("SUPABASE_URL",  os.environ.get("VITE_SUPABASE_URL", ""))
-SUPABASE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "")  # service role key requis pour bypass RLS
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("⚠  SUPABASE_URL et SUPABASE_SERVICE_KEY doivent être définis (.env ou variables d'environnement).")
-    print("   Exemple .env :")
-    print("     SUPABASE_URL=https://xxxx.supabase.co")
-    print("     SUPABASE_SERVICE_KEY=eyJ...")
+    print("❌ SUPABASE_URL et SUPABASE_SERVICE_KEY requis.", file=sys.stderr)
     sys.exit(1)
 
-# Départements Île-de-France
+HEADERS = {
+    "apikey":        SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type":  "application/json",
+}
+
+# Départements IDF
 IDF_DEPTS = {"75", "77", "78", "91", "92", "93", "94", "95"}
 
-# Mapping spécialités RPPS → libellés courts pour l'affichage
+# Mapping des libellés longs → labels courts pour l'affichage
 SPECIALITE_LABELS = {
     "Médecine générale":              "Médecine générale",
     "Psychiatrie":                    "Psychiatrie",
@@ -61,211 +62,261 @@ SPECIALITE_LABELS = {
     "ORL":                            "ORL",
     "Rhumatologie":                   "Rhumatologie",
     "Neurologie":                     "Neurologie",
-    "Endocrinologie-diabétologie-nutrition": "Endocrinologie",
 }
 
-# URL du dataset RPPS sur data.gouv.fr (extrait libre accès)
-RPPS_DATAGOUV_DATASET = "https://www.data.gouv.fr/api/1/datasets/53f1e90f-a50c-4e46-9b43-b09d3d15f476/"
-
+RPPS_DATASET = "https://www.data.gouv.fr/api/1/datasets/53f1e90f-a50c-4e46-9b43-b09d3d15f476/"
 ANNEE = datetime.now().year
 
+log_lines = []
+def log(msg):
+    print(msg)
+    log_lines.append(msg)
 
-def fetch_rpps_url() -> str:
-    """Récupère l'URL de téléchargement du dernier extrait RPPS sur data.gouv.fr."""
-    print("🔍 Recherche du dernier extrait RPPS sur data.gouv.fr…")
-    resp = requests.get(RPPS_DATAGOUV_DATASET, timeout=30)
+
+# ── Téléchargement CSV ────────────────────────────────────────
+def fetch_rpps():
+    log("🔍 Recherche du dernier extrait RPPS sur data.gouv.fr…")
+    resp = requests.get(RPPS_DATASET, timeout=30)
     resp.raise_for_status()
     resources = resp.json().get("resources", [])
-    # Cherche le CSV ou ZIP de l'extrait libre accès PS
+    url, title = None, None
     for r in resources:
-        title = r.get("title", "").lower()
-        if "libre" in title and r.get("format", "").lower() in ("csv", "zip"):
-            url = r["url"]
-            print(f"   Trouvé : {r['title']} → {url}")
-            return url
-    # Fallback : premier CSV
-    for r in resources:
-        if r.get("format", "").lower() in ("csv", "zip"):
-            url = r["url"]
-            print(f"   Fallback : {r['title']} → {url}")
-            return url
-    raise ValueError("Aucun fichier CSV/ZIP trouvé dans le dataset RPPS.")
+        t = (r.get("title") or "").lower()
+        if "libre" in t and (r.get("format") or "").lower() in ("csv", "zip"):
+            url, title = r["url"], r["title"]
+            break
+    if not url:
+        for r in resources:
+            if (r.get("format") or "").lower() in ("csv", "zip"):
+                url, title = r["url"], r["title"]; break
+    if not url:
+        raise ValueError("Aucun fichier CSV/ZIP trouvé pour RPPS")
 
+    log(f"   📥 {title} → {url}")
+    resp = requests.get(url, timeout=180)
+    resp.raise_for_status()
+    raw = resp.content
+    filename = url.split("/")[-1]
 
-def load_rpps_dataframe(path_or_url: str) -> pd.DataFrame:
-    """Charge le CSV RPPS (local ou URL). Gère les ZIP et les encodages."""
-    print(f"📥 Chargement RPPS depuis : {path_or_url}")
-
-    if path_or_url.startswith("http"):
-        resp = requests.get(path_or_url, stream=True, timeout=120)
-        resp.raise_for_status()
-        raw = resp.content
-    else:
-        with open(path_or_url, "rb") as f:
-            raw = f.read()
-
-    # Si ZIP, extraire le premier CSV
+    # Extraction si ZIP
     if raw[:2] == b"PK":
-        print("   Format ZIP détecté, extraction…")
         with zipfile.ZipFile(io.BytesIO(raw)) as z:
-            csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
-            if not csv_names:
-                raise ValueError("Aucun CSV dans le ZIP RPPS.")
-            raw = z.read(csv_names[0])
-            print(f"   Fichier extrait : {csv_names[0]}")
+            csvs = [n for n in z.namelist() if n.lower().endswith(".csv")]
+            if not csvs: raise ValueError("Pas de CSV dans le ZIP RPPS")
+            raw = z.read(csvs[0])
+            filename = csvs[0]
+    log(f"   {len(raw)/1024/1024:.1f} Mo récupérés")
+    return filename, raw
 
-    # Encodage souvent latin-1 ou utf-8
+
+# ── Upload Storage Supabase ───────────────────────────────────
+def upload_csv(filename, raw_bytes):
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    path = f"rpps/{ts}-{filename}"
+    log(f"☁  Upload Storage → observatoire-csv/{path}")
+    r = requests.post(
+        f"{SUPABASE_URL}/storage/v1/object/observatoire-csv/{path}",
+        headers={
+            "apikey":        SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type":  "text/csv",
+            "x-upsert":      "true",
+        },
+        data=raw_bytes,
+        timeout=300,
+    )
+    if r.status_code not in (200, 201):
+        log(f"   ⚠  Upload échoué {r.status_code} : {r.text[:200]}")
+        return None
+    return path
+
+
+# ── Parsing CSV RPPS ──────────────────────────────────────────
+def parse_csv(raw_bytes):
+    log("📖 Parsing CSV…")
     for enc in ("utf-8", "latin-1", "cp1252"):
         try:
-            df = pd.read_csv(io.BytesIO(raw), sep="|", encoding=enc, low_memory=False, dtype=str)
-            print(f"   Encodage {enc} OK — {len(df):,} lignes chargées.")
+            df = pd.read_csv(io.BytesIO(raw_bytes), sep="|", encoding=enc, low_memory=False, dtype=str)
+            log(f"   {len(df):,} lignes ({enc})")
             return df
         except (UnicodeDecodeError, pd.errors.ParserError):
             continue
+    raise ValueError("Décodage CSV impossible")
 
-    raise ValueError("Impossible de décoder le CSV RPPS.")
+
+def find_col(df, *substrings):
+    for c in df.columns:
+        cl = c.lower()
+        if all(s.lower() in cl for s in substrings):
+            return c
+    return None
 
 
-def compute_demographie_idf(df: pd.DataFrame) -> list[dict]:
-    """
-    Agrège le nombre de médecins actifs en IDF par spécialité (top 10).
-    Retourne une liste prête pour observatoire_series.
-    """
-    print("📊 Calcul démographie IDF par spécialité…")
-
-    # Colonnes attendues (peuvent varier légèrement selon version RPPS)
-    col_dept     = next((c for c in df.columns if "département" in c.lower() and "coord" in c.lower()), None)
-    col_prof     = next((c for c in df.columns if "libellé profession" in c.lower() or "libelle profession" in c.lower()), None)
-    col_savoir   = next((c for c in df.columns if "libellé savoir-faire" in c.lower() or "libelle savoir-faire" in c.lower()), None)
-    col_mode_ex  = next((c for c in df.columns if "mode exercice" in c.lower()), None)
+# ── Calcul indicateurs ────────────────────────────────────────
+def compute(df):
+    log("📊 Calcul des indicateurs…")
+    col_dept   = find_col(df, "département", "coord") or find_col(df, "departement", "coord")
+    col_prof   = find_col(df, "libellé", "profession") or find_col(df, "libelle", "profession")
+    col_savoir = find_col(df, "libellé", "savoir-faire") or find_col(df, "libelle", "savoir-faire")
 
     if not col_dept or not col_prof:
-        print(f"   ⚠  Colonnes introuvables. Colonnes disponibles : {list(df.columns[:20])}")
-        return []
+        raise ValueError(f"Colonnes RPPS introuvables. Présentes : {list(df.columns[:25])}")
 
-    # Filtre : médecins en IDF
-    mask_medecin = df[col_prof].str.lower().str.contains("médecin", na=False)
-    mask_idf     = df[col_dept].isin(IDF_DEPTS)
-    subset       = df[mask_medecin & mask_idf].copy()
-    print(f"   {len(subset):,} médecins actifs en IDF trouvés.")
+    mask = df[col_prof].fillna("").str.lower().str.contains("médecin") & df[col_dept].isin(IDF_DEPTS)
+    subset = df[mask]
+    total_idf = int(len(subset))
+    log(f"   Médecins IDF : {total_idf:,}")
 
-    if col_savoir:
-        # Agrège par spécialité
-        counts = subset[col_savoir].value_counts().head(15)
-    else:
-        # Pas de colonne savoir-faire : on group par profession
-        counts = subset[col_prof].value_counts().head(15)
-
-    rows = []
-    rang = 1
-    for specialite, count in counts.items():
-        label = SPECIALITE_LABELS.get(specialite, specialite[:30])
-        rows.append({
-            "serie_id":   "demographie_idf",
-            "label":      label,
-            "valeur_num": int(count),
-            "valeur_fmt": f"{count:,}".replace(",", " "),
-            "rang":       rang,
-            "source":     "RPPS",
-            "annee":      ANNEE,
-        })
-        rang += 1
-        if rang > 10:
-            break
-
-    return rows
-
-
-def compute_kpi_medecins_idf(df: pd.DataFrame) -> dict:
-    """Calcule le total médecins actifs en IDF."""
-    col_dept = next((c for c in df.columns if "département" in c.lower() and "coord" in c.lower()), None)
-    col_prof = next((c for c in df.columns if "libellé profession" in c.lower() or "libelle profession" in c.lower()), None)
-    if not col_dept or not col_prof:
-        return {}
-
-    mask_medecin = df[col_prof].str.lower().str.contains("médecin", na=False)
-    mask_idf     = df[col_dept].isin(IDF_DEPTS)
-    total        = int((mask_medecin & mask_idf).sum())
-
-    print(f"   KPI médecins IDF : {total:,}")
-    return {
+    kpis = [{
         "id":           "medecins_idf",
-        "valeur":       f"{total:,}".replace(",", " "),
+        "valeur":       f"{total_idf:,}".replace(",", " "),
         "label":        "Médecins actifs en IDF",
         "tendance":     None,
         "tendance_dir": "neutral",
         "source":       "RPPS",
         "annee":        ANNEE,
+    }]
+
+    series = []
+    if col_savoir:
+        counts = subset[col_savoir].value_counts().head(10)
+        for rang, (spec, n) in enumerate(counts.items(), start=1):
+            label = SPECIALITE_LABELS.get(spec, (spec or "Autre")[:30])
+            series.append({
+                "serie_id":   "demographie_idf",
+                "label":      label,
+                "valeur_num": int(n),
+                "valeur_fmt": f"{int(n):,}".replace(",", " "),
+                "rang":       rang,
+                "source":     "RPPS",
+                "annee":      ANNEE,
+            })
+    return kpis, series
+
+
+# ── Écriture Supabase (statut=pending) ────────────────────────
+def create_import_row(source, filename, storage_path, nb_lignes, statut="success", erreur=None):
+    payload = {
+        "source":           source,
+        "fichier":          filename,
+        "storage_path":     storage_path,
+        "nb_lignes_brutes": nb_lignes,
+        "statut":           statut,
+        "erreur":           erreur,
+        "log":              "\n".join(log_lines)[-8000:],
     }
+    r = requests.post(
+        f"{SUPABASE_URL}/rest/v1/observatoire_imports",
+        headers={**HEADERS, "Prefer": "return=representation"},
+        json=payload, timeout=30,
+    )
+    if r.status_code in (200, 201):
+        return r.json()[0]["id"]
+    log(f"   ⚠ create_import_row {r.status_code} : {r.text[:200]}")
+    return None
 
 
-def upsert_supabase(table: str, rows: list[dict], conflict_col: str) -> None:
-    """Upsert rows dans Supabase via l'API REST."""
-    if not rows:
-        print(f"   Aucune donnée à écrire dans {table}.")
-        return
-
-    headers = {
-        "apikey":        SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type":  "application/json",
-        "Prefer":        f"resolution=merge-duplicates,return=representation",
-    }
-    url = f"{SUPABASE_URL}/rest/v1/{table}"
-    resp = requests.post(url, json=rows, headers=headers, timeout=60)
-    if resp.status_code in (200, 201):
-        print(f"   ✅ {len(rows)} lignes upsertées dans {table}.")
-    else:
-        print(f"   ❌ Erreur {resp.status_code} sur {table} : {resp.text[:300]}")
+def update_import_row(import_id, nb_indicateurs):
+    requests.patch(
+        f"{SUPABASE_URL}/rest/v1/observatoire_imports?id=eq.{import_id}",
+        headers=HEADERS,
+        json={"nb_indicateurs": nb_indicateurs, "log": "\n".join(log_lines)[-8000:]},
+        timeout=30,
+    )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Import données Observatoire → Supabase")
-    parser.add_argument("--rpps",    help="Chemin ou URL du CSV RPPS (auto-téléchargé si absent)")
-    parser.add_argument("--dry-run", action="store_true", help="Calcule sans écrire dans Supabase")
-    args = parser.parse_args()
+def write_kpis_pending(kpis, import_id):
+    """Pour chaque KPI : écrit la nouvelle valeur dans les colonnes *_pending, statut='pending'."""
+    n = 0
+    for k in kpis:
+        # On UPDATE la ligne existante en ajoutant les valeurs pending
+        payload = {
+            "valeur_pending":       k["valeur"],
+            "tendance_pending":     k.get("tendance"),
+            "tendance_dir_pending": k.get("tendance_dir"),
+            "source_pending":       k.get("source"),
+            "annee_pending":        k.get("annee"),
+            "import_id":            import_id,
+            "pending_at":           datetime.now(timezone.utc).isoformat(),
+            "statut":               "pending",
+        }
+        r = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}",
+            headers=HEADERS, json=payload, timeout=30,
+        )
+        # Si le KPI n'existe pas encore, on l'insère directement (statut=pending)
+        if r.status_code == 200 and r.text == "[]":
+            insert = {**k, **payload, "id": k["id"]}
+            requests.post(f"{SUPABASE_URL}/rest/v1/observatoire_kpis",
+                          headers=HEADERS, json=insert, timeout=30)
+        n += 1
+    return n
 
-    print("=" * 60)
-    print("Observatoire · Import données")
-    print(f"Cible : {SUPABASE_URL}")
-    print("=" * 60)
 
-    # --- RPPS ---
-    rpps_url = args.rpps or fetch_rpps_url()
+def write_series_pending(series, import_id):
+    """Pour chaque ligne : UPSERT sur (serie_id, label), écrit dans *_pending."""
+    n = 0
+    for s in series:
+        # Cherche si la ligne existe
+        q = f"{SUPABASE_URL}/rest/v1/observatoire_series?serie_id=eq.{s['serie_id']}&label=eq.{requests.utils.quote(s['label'])}&select=id"
+        existing = requests.get(q, headers=HEADERS, timeout=30).json()
+        payload = {
+            "valeur_num_pending": s["valeur_num"],
+            "valeur_fmt_pending": s["valeur_fmt"],
+            "source_pending":     s.get("source"),
+            "annee_pending":      s.get("annee"),
+            "import_id":          import_id,
+            "pending_at":         datetime.now(timezone.utc).isoformat(),
+            "statut":             "pending",
+            "rang":               s["rang"],  # rang appliqué tout de suite (ordre attendu)
+        }
+        if existing:
+            requests.patch(
+                f"{SUPABASE_URL}/rest/v1/observatoire_series?id=eq.{existing[0]['id']}",
+                headers=HEADERS, json=payload, timeout=30,
+            )
+        else:
+            # Nouvelle ligne : on l'insère en pending (valeur_num/valeur_fmt vides côté validated)
+            insert = {**s, **payload}
+            requests.post(f"{SUPABASE_URL}/rest/v1/observatoire_series",
+                          headers=HEADERS, json=insert, timeout=30)
+        n += 1
+    return n
+
+
+# ── Main ──────────────────────────────────────────────────────
+def main():
+    log(f"=== Observatoire import — {datetime.now().isoformat()} ===")
+    import_id = None
     try:
-        df_rpps = load_rpps_dataframe(rpps_url)
+        filename, raw = fetch_rpps()
+        storage_path = upload_csv(filename, raw)
+        df = parse_csv(raw)
+        nb_lignes = len(df)
+
+        import_id = create_import_row("RPPS", filename, storage_path, nb_lignes)
+        log(f"   import_id = {import_id}")
+
+        kpis, series = compute(df)
+        n_kpis   = write_kpis_pending(kpis, import_id)
+        n_series = write_series_pending(series, import_id)
+
+        if import_id:
+            update_import_row(import_id, n_kpis + n_series)
+
+        log(f"✅ {n_kpis} KPI(s) et {n_series} ligne(s) en attente de validation.")
+        log("   → Va dans l'admin > Observatoire pour valider.")
+
     except Exception as e:
-        print(f"❌ Impossible de charger RPPS : {e}")
-        print("   Conseil : téléchargez manuellement depuis https://annuaire.sante.fr/web/site-pro/extractions-snds")
-        print("   et relancez avec --rpps /chemin/vers/fichier.csv")
+        log(f"❌ Erreur : {e}")
+        if import_id:
+            requests.patch(
+                f"{SUPABASE_URL}/rest/v1/observatoire_imports?id=eq.{import_id}",
+                headers=HEADERS,
+                json={"statut": "failed", "erreur": str(e), "log": "\n".join(log_lines)[-8000:]},
+                timeout=30,
+            )
         sys.exit(1)
-
-    kpi_medecins  = compute_kpi_medecins_idf(df_rpps)
-    series_demo   = compute_demographie_idf(df_rpps)
-
-    kpis_to_write   = [kpi_medecins] if kpi_medecins else []
-    series_to_write = series_demo
-
-    # Résumé
-    print()
-    print("── Résumé ──────────────────────────────────────")
-    for k in kpis_to_write:
-        print(f"  KPI  {k['id']:30s} = {k['valeur']}")
-    for s in series_to_write:
-        print(f"  Série {s['serie_id']:25s} [{s['rang']:2d}] {s['label']:30s} = {s['valeur_fmt']}")
-
-    if args.dry_run:
-        print()
-        print("🔎 Dry-run : aucune écriture.")
-        return
-
-    print()
-    print("── Écriture Supabase ────────────────────────────")
-    upsert_supabase("observatoire_kpis",   kpis_to_write,   "id")
-    upsert_supabase("observatoire_series", series_to_write, "serie_id,label")
-
-    print()
-    print("✅ Import terminé.")
 
 
 if __name__ == "__main__":

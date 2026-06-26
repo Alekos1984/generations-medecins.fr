@@ -339,8 +339,8 @@
 
     const db = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-    // ── KPIs ──────────────────────────────────────────────
-    const { data: kpis } = await db.from('observatoire_kpis').select('*');
+    // ── KPIs ── (seulement validés)
+    const { data: kpis } = await db.from('observatoire_kpis').select('*').eq('statut','validated');
     if (kpis && kpis.length) {
       kpis.forEach(k => {
         const cards = document.querySelectorAll('.stat-card');
@@ -361,6 +361,7 @@
     // ── Séries bar charts ──────────────────────────────────
     const { data: series } = await db.from('observatoire_series')
       .select('*')
+      .eq('statut','validated')
       .order('serie_id').order('rang');
 
     if (!series || !series.length) return;
