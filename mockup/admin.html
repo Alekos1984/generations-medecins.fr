@@ -8,6 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -1432,13 +1434,30 @@
           </div>
         </div>
 
+        <!-- Upload manuel CSV RPPS -->
+        <div style="margin-bottom:32px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:18px 20px">
+          <div style="font-weight:700;color:#1e40af;margin-bottom:6px">📁 Importer un CSV RPPS</div>
+          <div style="font-size:.82rem;color:#1e40af;margin-bottom:12px">
+            Télécharge l'extrait "<b>PS_LibreAccès</b>" depuis
+            <a href="https://annuaire.sante.fr/web/site-pro/extractions-publiques" target="_blank" style="color:#1e40af;text-decoration:underline">annuaire.sante.fr</a>
+            ou <a href="https://www.data.gouv.fr/fr/datasets/?q=RPPS" target="_blank" style="color:#1e40af;text-decoration:underline">data.gouv.fr</a>,
+            puis dépose-le ici. Le fichier est traité localement dans ton navigateur (1,2 M lignes OK, ~30 s).
+          </div>
+          <input type="file" id="obs-csv-file" accept=".csv,.zip" onchange="parseObsCsv(this)" style="font-size:.82rem">
+          <div id="obs-csv-progress" style="display:none;margin-top:12px">
+            <div style="font-size:.82rem;color:var(--ink);margin-bottom:6px"><span id="obs-csv-status">Lecture…</span> <span id="obs-csv-rows" style="color:var(--muted)">0 lignes</span></div>
+            <div style="height:6px;background:var(--line);border-radius:999px;overflow:hidden">
+              <div id="obs-csv-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--teal));transition:width .2s"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Historique des imports -->
         <div style="margin-bottom:32px">
-          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Derniers imports automatiques</div>
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Historique des imports</div>
           <div id="obs-imports-list" style="display:flex;flex-direction:column;gap:8px">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
-          <button class="btn btn-ghost" style="margin-top:10px;font-size:.8rem" onclick="triggerObsImport()">⚡ Lancer un import manuel (GitHub Actions)</button>
         </div>
 
         <!-- KPIs -->
@@ -1821,6 +1840,173 @@
     else banner.style.display = 'none';
   }
 
+  // ── Upload + parse CSV RPPS (côté navigateur) ───────────────
+  const IDF_DEPTS_SET = new Set(['75','77','78','91','92','93','94','95']);
+  const SPECIALITE_LABELS = {
+    'Médecine générale':'Médecine générale','Psychiatrie':'Psychiatrie',
+    'Cardiologie et maladies vasculaires':'Cardiologie','Pédiatrie':'Pédiatrie',
+    'Gynécologie médicale et obstétrique':'Gynécologie',
+    'Dermatologie et vénéréologie':'Dermatologie','Chirurgie générale':'Chirurgie',
+    'Anesthésiologie-réanimation chirurgicale':'Anesthésie',
+    'Gastro-entérologie et hépatologie':'Gastro-entérologie',
+    'Radiologie':'Radiologie','Ophtalmologie':'Ophtalmologie','ORL':'ORL',
+    'Rhumatologie':'Rhumatologie','Neurologie':'Neurologie',
+  };
+
+  function findCol(headers, ...substrings) {
+    return headers.find(h => {
+      const hl = (h||'').toLowerCase();
+      return substrings.every(s => hl.includes(s.toLowerCase()));
+    });
+  }
+
+  window.parseObsCsv = async function(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const progress = document.getElementById('obs-csv-progress');
+    const status   = document.getElementById('obs-csv-status');
+    const rowsEl   = document.getElementById('obs-csv-rows');
+    const bar      = document.getElementById('obs-csv-bar');
+    progress.style.display = 'block';
+    status.textContent = 'Lecture du fichier…';
+    bar.style.width = '0%';
+
+    let csvBlob = file;
+    if (file.name.toLowerCase().endsWith('.zip')) {
+      status.textContent = 'Extraction du ZIP…';
+      try {
+        const zip = await JSZip.loadAsync(file);
+        const csvName = Object.keys(zip.files).find(n => n.toLowerCase().endsWith('.csv'));
+        if (!csvName) { toast('Aucun CSV dans le ZIP', 'error'); progress.style.display='none'; return; }
+        const data = await zip.files[csvName].async('blob');
+        csvBlob = new Blob([data], { type: 'text/csv' });
+      } catch (e) { toast('ZIP invalide : ' + e.message, 'error'); progress.style.display='none'; return; }
+    }
+
+    // ── 1. Upload du CSV brut dans Storage ─────────────────────
+    status.textContent = 'Upload du fichier brut…';
+    const ts = new Date().toISOString().replace(/[:.]/g,'-');
+    const storagePath = `rpps/${ts}-${file.name.replace(/\.zip$/i,'.csv')}`;
+    const { error: upErr } = await db.storage.from('observatoire-csv').upload(storagePath, csvBlob, { upsert: true });
+    if (upErr) { toast('Upload Storage : ' + upErr.message, 'error'); progress.style.display='none'; return; }
+
+    // ── 2. Parse en streaming + agrégation ─────────────────────
+    status.textContent = 'Parsing CSV…';
+    let total = 0, totalIdf = 0;
+    const bySpec = {};
+    let colDept = null, colProf = null, colSavoir = null;
+    const fileSize = csvBlob.size;
+
+    await new Promise((resolve, reject) => {
+      Papa.parse(csvBlob, {
+        header: true,
+        delimiter: '|',
+        skipEmptyLines: true,
+        chunkSize: 1024 * 1024 * 4, // 4 Mo par chunk
+        chunk: (results, parser) => {
+          if (!colProf) {
+            const headers = results.meta.fields || [];
+            colDept   = findCol(headers, 'département', 'coord') || findCol(headers, 'departement', 'coord');
+            colProf   = findCol(headers, 'libellé', 'profession') || findCol(headers, 'libelle', 'profession');
+            colSavoir = findCol(headers, 'libellé', 'savoir-faire') || findCol(headers, 'libelle', 'savoir-faire');
+            if (!colDept || !colProf) {
+              parser.abort();
+              toast('Colonnes RPPS introuvables. Vérifie le format du CSV.', 'error');
+              reject(new Error('Colonnes manquantes : ' + headers.slice(0,10).join(', ')));
+              return;
+            }
+          }
+          for (const row of results.data) {
+            total++;
+            const prof = (row[colProf] || '').toLowerCase();
+            const dept = row[colDept] || '';
+            if (!prof.includes('médecin')) continue;
+            if (!IDF_DEPTS_SET.has(dept)) continue;
+            totalIdf++;
+            if (colSavoir) {
+              const spec = row[colSavoir] || 'Autre';
+              bySpec[spec] = (bySpec[spec] || 0) + 1;
+            }
+          }
+          // Progress bar approximative basée sur le curseur du parser
+          const cursor = parser.streamer && parser.streamer._input ? parser.streamer._input.length : 0;
+          // Papa Parse n'expose pas le pourcentage parfaitement ; on affiche les lignes
+          rowsEl.textContent = total.toLocaleString('fr-FR') + ' lignes — ' + totalIdf.toLocaleString('fr-FR') + ' médecins IDF';
+          bar.style.width = Math.min(95, (total / 1500000) * 100) + '%';
+        },
+        complete: resolve,
+        error: reject,
+      });
+    });
+
+    bar.style.width = '100%';
+    status.textContent = `Calcul terminé : ${total.toLocaleString('fr-FR')} lignes traitées, ${totalIdf.toLocaleString('fr-FR')} médecins IDF.`;
+
+    // ── 3. Création du record import + écriture pending ────────
+    const annee = new Date().getFullYear();
+    const { data: imp, error: impErr } = await db.from('observatoire_imports').insert({
+      source: 'RPPS',
+      fichier: file.name,
+      storage_path: storagePath,
+      nb_lignes_brutes: total,
+      nb_indicateurs: 0,
+      statut: 'success',
+      log: `Import navigateur — ${file.name}\n${total} lignes, ${totalIdf} médecins IDF, ${Object.keys(bySpec).length} spécialités`,
+    }).select().single();
+    if (impErr) { toast('Erreur historique : ' + impErr.message, 'error'); return; }
+
+    // KPI principal
+    await db.from('observatoire_kpis').update({
+      valeur_pending:       totalIdf.toLocaleString('fr-FR'),
+      tendance_pending:     null,
+      tendance_dir_pending: 'neutral',
+      source_pending:       'RPPS',
+      annee_pending:        annee,
+      import_id:            imp.id,
+      pending_at:           new Date().toISOString(),
+      statut:               'pending',
+    }).eq('id', 'medecins_idf');
+
+    // Top 10 spécialités → série démographie_idf
+    const topSpecs = Object.entries(bySpec)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 10);
+
+    let nbWritten = 0;
+    for (let i = 0; i < topSpecs.length; i++) {
+      const [spec, count] = topSpecs[i];
+      const label = SPECIALITE_LABELS[spec] || (spec || 'Autre').slice(0, 30);
+      const payload = {
+        valeur_num_pending: count,
+        valeur_fmt_pending: count.toLocaleString('fr-FR'),
+        source_pending:     'RPPS',
+        annee_pending:      annee,
+        import_id:          imp.id,
+        pending_at:         new Date().toISOString(),
+        statut:             'pending',
+        rang:               i + 1,
+      };
+      // Upsert sur (serie_id, label)
+      const { data: existing } = await db.from('observatoire_series')
+        .select('id').eq('serie_id', 'demographie_idf').eq('label', label).maybeSingle();
+      if (existing) {
+        await db.from('observatoire_series').update(payload).eq('id', existing.id);
+      } else {
+        await db.from('observatoire_series').insert({
+          serie_id: 'demographie_idf', label, valeur_num: null, valeur_fmt: null, ...payload
+        });
+      }
+      nbWritten++;
+    }
+
+    await db.from('observatoire_imports').update({ nb_indicateurs: nbWritten + 1 }).eq('id', imp.id);
+
+    toast(`✓ ${nbWritten + 1} indicateur(s) en attente de validation`, 'success');
+    input.value = '';
+    setTimeout(() => { progress.style.display = 'none'; loadObservatoire(); }, 1500);
+  };
+
   window.validateObsKpi = async function(id) {
     const { data: row } = await db.from('observatoire_kpis').select('*').eq('id',id).single();
     if (!row) return;
@@ -1911,10 +2097,6 @@
     }).eq('id', id);
     if (error) toast('Erreur : ' + error.message, 'error');
     else { toast('KPI mis à jour ✓'); loadObservatoire(); }
-  };
-
-  window.triggerObsImport = function() {
-    alert("Pour lancer un import manuellement :\n\n1. GitHub → Actions → 'Import Observatoire (RPPS)'\n2. Clique 'Run workflow'\n\nL'import s'exécute automatiquement le 1er de chaque mois à 4h UTC.");
   };
 
   // ── Navigation ──────────────────────────────────────────────

@@ -49,3 +49,10 @@ ON CONFLICT (id) DO NOTHING;
 -- RLS sur le bucket : seuls les admins lisent, le service_role écrit
 CREATE POLICY "obs_csv_admin_read" ON storage.objects FOR SELECT
   USING (bucket_id = 'observatoire-csv' AND is_admin());
+
+CREATE POLICY "obs_csv_admin_write" ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'observatoire-csv' AND is_admin());
+
+CREATE POLICY "obs_csv_admin_update" ON storage.objects FOR UPDATE
+  USING (bucket_id = 'observatoire-csv' AND is_admin())
+  WITH CHECK (bucket_id = 'observatoire-csv' AND is_admin());
