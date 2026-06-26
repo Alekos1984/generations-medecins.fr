@@ -232,8 +232,8 @@
       <div class="charts-grid">
         <div class="chart-card">
           <div class="chart-title">Démographie médicale IDF par spécialité</div>
-          <div class="chart-sub">Nombre de médecins actifs — T1 2025</div>
-          <div class="bar-chart">
+          <div class="chart-sub" id="chart-sub-demographie">Nombre de médecins actifs — T1 2025</div>
+          <div class="bar-chart" id="chart-demographie">
             <div class="bar-row">
               <div class="bar-row-label">Généraliste</div>
               <div class="bar-row-track"><div class="bar-row-fill" style="width:100%"></div></div>
@@ -270,7 +270,7 @@
         <div class="chart-card">
           <div class="chart-title">Honoraires moyens par mode d'exercice</div>
           <div class="chart-sub">Revenus nets annuels estimés — 2024</div>
-          <div class="bar-chart">
+          <div class="bar-chart" id="chart-honoraires">
             <div class="bar-row">
               <div class="bar-row-label">Libéral S2</div>
               <div class="bar-row-track"><div class="bar-row-fill" style="width:100%;background:linear-gradient(90deg,#17365f,#326aa2)"></div></div>
@@ -331,5 +331,67 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="auth-header.js"></script>
+  <script>
+  (async () => {
+    const SUPA_URL = window.__SUPABASE_URL__ || 'https://placeholder.supabase.co';
+    const SUPA_KEY = window.__SUPABASE_ANON__ || '';
+    if (!SUPA_KEY) return; // pas de config = on garde les valeurs hardcodées
+
+    const db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+    // ── KPIs ──────────────────────────────────────────────
+    const { data: kpis } = await db.from('observatoire_kpis').select('*');
+    if (kpis && kpis.length) {
+      kpis.forEach(k => {
+        const cards = document.querySelectorAll('.stat-card');
+        cards.forEach(card => {
+          const lbl = card.querySelector('.label');
+          if (lbl && lbl.textContent.trim() === k.label) {
+            card.querySelector('.value').textContent = k.valeur;
+            const trend = card.querySelector('.trend');
+            if (trend && k.tendance) {
+              trend.textContent = k.tendance;
+              trend.className = 'trend ' + (k.tendance_dir === 'up' ? 'trend-up' : k.tendance_dir === 'down' ? 'trend-down' : '');
+            }
+          }
+        });
+      });
+    }
+
+    // ── Séries bar charts ──────────────────────────────────
+    const { data: series } = await db.from('observatoire_series')
+      .select('*')
+      .order('serie_id').order('rang');
+
+    if (!series || !series.length) return;
+
+    const byId = {};
+    series.forEach(s => { (byId[s.serie_id] = byId[s.serie_id] || []).push(s); });
+
+    function renderBarChart(containerId, rows) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const max = Math.max(...rows.map(r => r.valeur_num || 0));
+      container.innerHTML = rows.map(r => {
+        const pct = max > 0 ? Math.round((r.valeur_num / max) * 100) : 0;
+        return `<div class="bar-row">
+          <div class="bar-row-label">${r.label}</div>
+          <div class="bar-row-track"><div class="bar-row-fill" style="width:${pct}%"></div></div>
+          <div class="bar-row-value">${r.valeur_fmt}</div>
+        </div>`;
+      }).join('');
+    }
+
+    if (byId['demographie_idf'])    renderBarChart('chart-demographie',   byId['demographie_idf']);
+    if (byId['honoraires_exercice']) renderBarChart('chart-honoraires',   byId['honoraires_exercice']);
+
+    // Mise à jour source + date dans les sous-titres
+    const demo = (byId['demographie_idf'] || [])[0];
+    if (demo) {
+      const el = document.getElementById('chart-sub-demographie');
+      if (el) el.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee}`;
+    }
+  })();
+  </script>
 </body>
 </html>
