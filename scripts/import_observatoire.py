@@ -40,8 +40,10 @@ HEADERS = {
     "Content-Type":  "application/json",
 }
 
-# Départements IDF
-IDF_DEPTS = {"75", "77", "78", "91", "92", "93", "94", "95"}
+# Départements IDF (le RPPS stocke souvent les codes sur 3 chiffres avec zéro
+# de tête, ex "075", "077". On normalise les deux formats.)
+IDF_DEPTS = {"75", "77", "78", "91", "92", "93", "94", "95",
+             "075", "077", "078", "091", "092", "093", "094", "095"}
 
 # Mapping des libellés longs → labels courts pour l'affichage
 SPECIALITE_LABELS = {
