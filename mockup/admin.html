@@ -1818,17 +1818,17 @@
   }
 
   async function loadObservatoire() {
-    const { data: imports } = await db.from('observatoire_imports').select('*').order('created_at',{ascending:false}).limit(10);
+    const { data: imports } = await sb.from('observatoire_imports').select('*').order('created_at',{ascending:false}).limit(10);
     document.getElementById('obs-imports-list').innerHTML = (imports||[]).length
       ? imports.map(obsImportRow).join('')
       : '<div style="color:var(--muted);font-size:.85rem">Aucun import. Le 1er aura lieu le 1er du mois prochain à 4h UTC.</div>';
 
-    const { data: kpis } = await db.from('observatoire_kpis').select('*').order('id');
+    const { data: kpis } = await sb.from('observatoire_kpis').select('*').order('id');
     document.getElementById('obs-kpis-list').innerHTML = (kpis||[]).length
       ? kpis.map(obsKpiRow).join('')
       : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
 
-    const { data: series } = await db.from('observatoire_series').select('*').order('rang');
+    const { data: series } = await sb.from('observatoire_series').select('*').order('rang');
     const demo = (series||[]).filter(s => s.serie_id === 'demographie_idf');
     const hon  = (series||[]).filter(s => s.serie_id === 'honoraires_exercice');
     document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(obsSerieRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
@@ -1947,7 +1947,7 @@
 
     // ── 3. Création du record import + écriture pending ────────
     const annee = new Date().getFullYear();
-    const { data: imp, error: impErr } = await db.from('observatoire_imports').insert({
+    const { data: imp, error: impErr } = await sb.from('observatoire_imports').insert({
       source: 'RPPS',
       fichier: file.name,
       storage_path: storagePath,
@@ -1959,7 +1959,7 @@
     if (impErr) { toast('Erreur historique : ' + impErr.message, 'error'); return; }
 
     // KPI principal
-    await db.from('observatoire_kpis').update({
+    await sb.from('observatoire_kpis').update({
       valeur_pending:       totalIdf.toLocaleString('fr-FR'),
       tendance_pending:     null,
       tendance_dir_pending: 'neutral',
@@ -1990,19 +1990,19 @@
         rang:               i + 1,
       };
       // Upsert sur (serie_id, label)
-      const { data: existing } = await db.from('observatoire_series')
+      const { data: existing } = await sb.from('observatoire_series')
         .select('id').eq('serie_id', 'demographie_idf').eq('label', label).maybeSingle();
       if (existing) {
-        await db.from('observatoire_series').update(payload).eq('id', existing.id);
+        await sb.from('observatoire_series').update(payload).eq('id', existing.id);
       } else {
-        await db.from('observatoire_series').insert({
+        await sb.from('observatoire_series').insert({
           serie_id: 'demographie_idf', label, valeur_num: null, valeur_fmt: null, ...payload
         });
       }
       nbWritten++;
     }
 
-    await db.from('observatoire_imports').update({ nb_indicateurs: nbWritten + 1 }).eq('id', imp.id);
+    await sb.from('observatoire_imports').update({ nb_indicateurs: nbWritten + 1 }).eq('id', imp.id);
 
     toast(`✓ ${nbWritten + 1} indicateur(s) en attente de validation`, 'success');
     input.value = '';
@@ -2010,9 +2010,9 @@
   };
 
   window.validateObsKpi = async function(id) {
-    const { data: row } = await db.from('observatoire_kpis').select('*').eq('id',id).single();
+    const { data: row } = await sb.from('observatoire_kpis').select('*').eq('id',id).single();
     if (!row) return;
-    const { error } = await db.from('observatoire_kpis').update({
+    const { error } = await sb.from('observatoire_kpis').update({
       valeur:       row.valeur_pending       ?? row.valeur,
       tendance:     row.tendance_pending     ?? row.tendance,
       tendance_dir: row.tendance_dir_pending ?? row.tendance_dir,
@@ -2028,7 +2028,7 @@
   };
 
   window.rejectObsKpi = async function(id) {
-    const { error } = await db.from('observatoire_kpis').update({
+    const { error } = await sb.from('observatoire_kpis').update({
       statut: 'validated',
       valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
@@ -2038,9 +2038,9 @@
   };
 
   window.validateObsSerie = async function(id) {
-    const { data: row } = await db.from('observatoire_series').select('*').eq('id',id).single();
+    const { data: row } = await sb.from('observatoire_series').select('*').eq('id',id).single();
     if (!row) return;
-    const { error } = await db.from('observatoire_series').update({
+    const { error } = await sb.from('observatoire_series').update({
       valeur_num: row.valeur_num_pending ?? row.valeur_num,
       valeur_fmt: row.valeur_fmt_pending ?? row.valeur_fmt,
       source:     row.source_pending     ?? row.source,
@@ -2055,7 +2055,7 @@
   };
 
   window.rejectObsSerie = async function(id) {
-    const { error } = await db.from('observatoire_series').update({
+    const { error } = await sb.from('observatoire_series').update({
       statut: 'validated',
       valeur_num_pending: null, valeur_fmt_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
@@ -2066,8 +2066,8 @@
 
   window.validateAllObsPending = async function() {
     if (!confirm('Valider TOUTES les valeurs proposées ?')) return;
-    const { data: kpis }   = await db.from('observatoire_kpis').select('id').eq('statut','pending');
-    const { data: series } = await db.from('observatoire_series').select('id').eq('statut','pending');
+    const { data: kpis }   = await sb.from('observatoire_kpis').select('id').eq('statut','pending');
+    const { data: series } = await sb.from('observatoire_series').select('id').eq('statut','pending');
     for (const k of (kpis||[]))   await validateObsKpi(k.id);
     for (const s of (series||[])) await validateObsSerie(s.id);
     toast('Tout validé ✓');
@@ -2075,11 +2075,11 @@
 
   window.rejectAllObsPending = async function() {
     if (!confirm('Rejeter TOUTES les valeurs proposées ?')) return;
-    await db.from('observatoire_kpis').update({
+    await sb.from('observatoire_kpis').update({
       statut: 'validated', valeur_pending: null, tendance_pending: null,
       tendance_dir_pending: null, source_pending: null, annee_pending: null, pending_at: null,
     }).eq('statut','pending');
-    await db.from('observatoire_series').update({
+    await sb.from('observatoire_series').update({
       statut: 'validated', valeur_num_pending: null, valeur_fmt_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
     }).eq('statut','pending');
@@ -2088,12 +2088,12 @@
   };
 
   window.editObsKpi = async function(id) {
-    const { data: k } = await db.from('observatoire_kpis').select('*').eq('id',id).single();
+    const { data: k } = await sb.from('observatoire_kpis').select('*').eq('id',id).single();
     if (!k) return;
     const valeur = prompt('Valeur affichée :', k.valeur); if (valeur === null) return;
     const tendance = prompt('Tendance (ex: ↑ +4 pts vs 2022) :', k.tendance || '');
     const dir = prompt('Direction (up / down / neutral) :', k.tendance_dir || 'neutral');
-    const { error } = await db.from('observatoire_kpis').update({
+    const { error } = await sb.from('observatoire_kpis').update({
       valeur, tendance: tendance || null, tendance_dir: dir,
       updated_at: new Date().toISOString(),
     }).eq('id', id);
