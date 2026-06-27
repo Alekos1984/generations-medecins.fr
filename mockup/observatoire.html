@@ -333,10 +333,8 @@
   <script src="auth-header.js"></script>
   <script>
   (async () => {
-    const SUPA_URL = window.__SUPABASE_URL__ || 'https://placeholder.supabase.co';
-    const SUPA_KEY = window.__SUPABASE_ANON__ || '';
-    if (!SUPA_KEY) return; // pas de config = on garde les valeurs hardcodées
-
+    const SUPA_URL = 'https://faegpfkhlkkwmtaichin.supabase.co';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo';
     const db = supabase.createClient(SUPA_URL, SUPA_KEY);
 
     // ── KPIs ── (seulement validés)
