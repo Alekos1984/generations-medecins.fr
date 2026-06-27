@@ -111,6 +111,22 @@ def find_col(headers, *substrings):
     return None
 
 
+def read_raw_sample(path, n_lines=100):
+    """Lit les n premières lignes brutes du fichier (pour diagnostic admin)."""
+    out = []
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for _ in range(n_lines):
+            line = f.readline()
+            if not line:
+                break
+            out.append(line.rstrip("\n"))
+    return "\n".join(out)
+
+
+# Diagnostic global rempli par compute() pour le log Supabase
+DIAG = {"colonnes": [], "top_dept": {}, "top_prof": {}, "filter_stats": {}}
+
+
 def compute(path):
     """
     Lit le RPPS en streaming (pandas chunks de 100k lignes), agrège
@@ -120,6 +136,10 @@ def compute(path):
     encoding = "utf-8"
     total_lignes = 0
     total_idf = 0
+    n_match_prof = 0
+    n_match_dept = 0
+    dept_counts = {}
+    prof_counts = {}
     by_spec = {}
     col_dept = col_prof = col_savoir = None
 
@@ -129,6 +149,7 @@ def compute(path):
         for chunk in reader:
             if col_prof is None:
                 headers = list(chunk.columns)
+                DIAG["colonnes"] = headers
                 col_dept   = (find_col(headers, "code département") or find_col(headers, "code departement")
                               or find_col(headers, "département", "structure") or find_col(headers, "departement", "structure"))
                 col_prof   = find_col(headers, "libellé profession") or find_col(headers, "libelle profession")
@@ -139,11 +160,27 @@ def compute(path):
                         + " | ".join(h for h in headers if "départ" in h.lower() or "profes" in h.lower())
                     )
                 log(f"   colonnes : dept='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
+                DIAG["col_dept"] = col_dept
+                DIAG["col_prof"] = col_prof
+                DIAG["col_savoir"] = col_savoir
 
             total_lignes += len(chunk)
             chunk_prof = chunk[col_prof].fillna("").str.lower()
             chunk_dept = chunk[col_dept].fillna("")
-            mask = chunk_prof.str.contains("médecin") & chunk_dept.isin(IDF_DEPTS)
+
+            # Compteurs séparés (pour diagnostic) avant l'ET final
+            mask_prof = chunk_prof.str.contains("médecin")
+            mask_dept = chunk_dept.isin(IDF_DEPTS)
+            n_match_prof += int(mask_prof.sum())
+            n_match_dept += int(mask_dept.sum())
+
+            # Échantillons des valeurs réellement vues (pour debug)
+            for v in chunk_dept.value_counts().head(50).items():
+                dept_counts[v[0]] = dept_counts.get(v[0], 0) + int(v[1])
+            for v in chunk[col_prof].fillna("").value_counts().head(50).items():
+                prof_counts[v[0]] = prof_counts.get(v[0], 0) + int(v[1])
+
+            mask = mask_prof & mask_dept
             sub = chunk[mask]
             total_idf += len(sub)
 
@@ -159,6 +196,19 @@ def compute(path):
         log("   ⚠ encodage utf-8 ko, ré-essai latin-1")
         return compute_fallback_encoding(path, "latin-1")
 
+    # Diagnostic final
+    DIAG["top_dept"] = dict(sorted(dept_counts.items(), key=lambda x: -x[1])[:20])
+    DIAG["top_prof"] = dict(sorted(prof_counts.items(), key=lambda x: -x[1])[:20])
+    DIAG["filter_stats"] = {
+        "total":           total_lignes,
+        "match_prof_seul": n_match_prof,
+        "match_dept_seul": n_match_dept,
+        "match_prof_et_dept": total_idf,
+    }
+    log(f"   stats filtre : {n_match_prof:,} ont 'médecin' dans la prof, "
+        f"{n_match_dept:,} sont en IDF, intersection = {total_idf:,}")
+    log(f"   top 5 depts : {list(DIAG['top_dept'].items())[:5]}")
+    log(f"   top 5 profs : {list(DIAG['top_prof'].items())[:5]}")
     log(f"✓ Total : {total_lignes:,} lignes, {total_idf:,} médecins IDF, {len(by_spec)} spécialités")
 
     kpis = [{
@@ -194,7 +244,9 @@ def compute_fallback_encoding(path, enc):
 
 
 # ── Écriture Supabase (statut=pending) ────────────────────────
-def create_import_row(source, filename, storage_path, nb_lignes, statut="success", erreur=None):
+def create_import_row(source, filename, storage_path, nb_lignes, statut="success", erreur=None,
+                      sample_raw=None, diag=None):
+    import json as _json
     payload = {
         "source":           source,
         "fichier":          filename,
@@ -203,6 +255,16 @@ def create_import_row(source, filename, storage_path, nb_lignes, statut="success
         "statut":           statut,
         "erreur":           erreur,
         "log":              "\n".join(log_lines)[-8000:],
+        "sample_raw":       (sample_raw or "")[:30000],
+        "colonnes_detectees": _json.dumps(diag.get("colonnes", []), ensure_ascii=False)[:8000] if diag else None,
+        "top_valeurs":      _json.dumps({
+                              "col_dept":         diag.get("col_dept"),
+                              "col_prof":         diag.get("col_prof"),
+                              "col_savoir":       diag.get("col_savoir"),
+                              "top_dept":         diag.get("top_dept", {}),
+                              "top_prof":         diag.get("top_prof", {}),
+                              "filter_stats":     diag.get("filter_stats", {}),
+                            }, ensure_ascii=False, indent=2)[:30000] if diag else None,
     }
     r = requests.post(
         f"{SUPABASE_URL}/rest/v1/observatoire_imports",
@@ -289,10 +351,12 @@ def main():
     import_id = None
     try:
         filename, dest_path = fetch_rpps("rpps.txt")
+        sample_raw = read_raw_sample(dest_path, n_lines=100)
         kpis, series, nb_lignes = compute(dest_path)
 
         # Historique (pas d'upload du fichier brut — 700 Mo, on garde juste l'URL stable)
-        import_id = create_import_row("RPPS", filename, RPPS_STABLE_URL, nb_lignes)
+        import_id = create_import_row("RPPS", filename, RPPS_STABLE_URL, nb_lignes,
+                                       sample_raw=sample_raw, diag=DIAG)
         log(f"   import_id = {import_id}")
 
         n_kpis   = write_kpis_pending(kpis, import_id)

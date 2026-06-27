@@ -1472,6 +1472,19 @@
     </main>
   </div>
 
+  <!-- Modale détails d'un import (sample brut + colonnes + log) -->
+  <div class="modal-overlay" id="obs-details-overlay" onclick="closeObsDetails(event)">
+    <div class="modal" style="min-width:780px;max-width:1100px;width:90vw;max-height:90vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
+        <h3 style="margin:0">🔍 Données brutes de l'import</h3>
+        <button onclick="closeObsDetails()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+      <div id="obs-details-body" style="flex:1;overflow-y:auto;font-size:.82rem">
+        <div style="color:var(--muted)">Chargement…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modale historique des imports observatoire -->
   <div class="modal-overlay" id="obs-history-overlay" onclick="closeObsHistory(event)">
     <div class="modal" style="min-width:720px;max-width:920px;max-height:85vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
@@ -1751,12 +1764,13 @@
     const ts = new Date(imp.created_at).toLocaleString('fr-FR');
     const statusColor = imp.statut === 'success' ? '#16a34a' : imp.statut === 'failed' ? '#dc2626' : '#f59e0b';
     const statusIcon  = imp.statut === 'success' ? '✓' : imp.statut === 'failed' ? '✕' : '⚠';
-    return `<div style="background:white;border:1.5px solid var(--line);border-radius:8px;padding:10px 14px;display:grid;grid-template-columns:80px 80px 1fr 80px 130px auto;gap:12px;align-items:center;font-size:.82rem">
+    return `<div style="background:white;border:1.5px solid var(--line);border-radius:8px;padding:10px 14px;display:grid;grid-template-columns:80px 80px 1fr 80px 130px auto auto;gap:10px;align-items:center;font-size:.82rem">
       <div style="font-weight:700">${imp.source}</div>
       <div style="color:${statusColor};font-weight:700">${statusIcon} ${imp.statut}</div>
       <div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${imp.fichier||''}">${imp.fichier||''}</div>
       <div style="color:var(--muted);font-size:.78rem">${imp.nb_lignes_brutes?.toLocaleString('fr-FR') || '—'} lignes</div>
       <div style="color:var(--muted);font-size:.75rem">${ts}</div>
+      <button onclick="showObsImportDetails('${imp.id}')" title="Voir les données brutes" style="background:#dbeafe;color:#1e40af;border:none;border-radius:6px;padding:4px 10px;font-size:.78rem;font-weight:700;cursor:pointer">🔍</button>
       <button onclick="deleteObsImport('${imp.id}')" title="Supprimer cet import" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:.78rem;font-weight:700;cursor:pointer">🗑</button>
     </div>`;
   }
@@ -1887,6 +1901,60 @@
   window.closeObsHistory = function(ev) {
     if (ev && ev.target !== ev.currentTarget) return;
     document.getElementById('obs-history-overlay').classList.remove('open');
+  };
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  window.showObsImportDetails = async function(id) {
+    document.getElementById('obs-details-overlay').classList.add('open');
+    const body = document.getElementById('obs-details-body');
+    body.innerHTML = '<div style="color:var(--muted)">Chargement…</div>';
+    const { data: imp, error } = await sb.from('observatoire_imports').select('*').eq('id', id).single();
+    if (error || !imp) { body.innerHTML = '<div style="color:#dc2626">Erreur de chargement</div>'; return; }
+
+    const ts = new Date(imp.created_at).toLocaleString('fr-FR');
+    let colonnes = imp.colonnes_detectees;
+    try { colonnes = JSON.parse(colonnes); } catch {}
+    const colonnesHtml = Array.isArray(colonnes)
+      ? '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
+          colonnes.map(c => `<code style="background:#eff6ff;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:.78rem">${escapeHtml(c)}</code>`).join('') +
+        '</div>'
+      : '<div style="color:var(--muted);font-style:italic">(non capturé — script à mettre à jour)</div>';
+
+    const section = (title, content) => `
+      <div style="margin-bottom:18px">
+        <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px">${title}</div>
+        ${content}
+      </div>`;
+    const pre = txt => `<pre style="background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;font-size:.74rem;line-height:1.4;overflow:auto;max-height:340px;margin:0;white-space:pre">${escapeHtml(txt||'(vide)')}</pre>`;
+
+    body.innerHTML =
+      section('Métadonnées', `
+        <div style="font-size:.85rem;line-height:1.7">
+          <b>Source :</b> ${escapeHtml(imp.source)} &middot;
+          <b>Statut :</b> ${escapeHtml(imp.statut)} &middot;
+          <b>Date :</b> ${ts}<br>
+          <b>Fichier :</b> ${escapeHtml(imp.fichier||'—')}<br>
+          <b>URL :</b> ${imp.storage_path ? `<a href="${escapeHtml(imp.storage_path)}" target="_blank" style="color:var(--blue);word-break:break-all">${escapeHtml(imp.storage_path)}</a>` : '—'}<br>
+          <b>Lignes brutes :</b> ${imp.nb_lignes_brutes?.toLocaleString('fr-FR')||'—'} &middot;
+          <b>Indicateurs écrits :</b> ${imp.nb_indicateurs||0}
+          ${imp.erreur ? `<br><b style="color:#dc2626">Erreur :</b> ${escapeHtml(imp.erreur)}` : ''}
+        </div>`) +
+      section('Colonnes détectées dans le fichier', colonnesHtml) +
+      section('Valeurs réellement vues + stats de filtre (JSON)',
+        pre(imp.top_valeurs)) +
+      section('Échantillon brut (100 premières lignes du fichier source)',
+        pre(imp.sample_raw)) +
+      section('Log du script',
+        pre(imp.log));
+  };
+
+  window.closeObsDetails = function(ev) {
+    if (ev && ev.target !== ev.currentTarget) return;
+    document.getElementById('obs-details-overlay').classList.remove('open');
   };
 
   window.deleteObsImport = async function(id) {

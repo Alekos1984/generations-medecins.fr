@@ -73,10 +73,13 @@ def fetch_drees():
     return r.text
 
 
+DIAG = {}
+
 def compute(csv_text):
     df = pd.read_csv(StringIO(csv_text), sep=";", dtype=str, low_memory=False)
     log(f"✓ {len(df):,} lignes, {len(df.columns)} colonnes")
     log(f"   colonnes : {list(df.columns)[:15]}")
+    DIAG["colonnes"] = list(df.columns)
 
     # Détection souple des colonnes (les noms peuvent évoluer côté DREES)
     headers = list(df.columns)
@@ -98,6 +101,11 @@ def compute(csv_text):
             f"Toutes colonnes : {headers}"
         )
     log(f"   → annee='{col_annee}' prof='{col_prof}' spec='{col_spec}' dept='{col_dept}' eff='{col_eff}'")
+    DIAG.update({"col_annee": col_annee, "col_prof": col_prof, "col_spec": col_spec,
+                 "col_dept": col_dept, "col_eff": col_eff})
+    DIAG["top_dept"] = df[col_dept].fillna("").value_counts().head(20).to_dict()
+    DIAG["top_prof"] = df[col_prof].fillna("").value_counts().head(20).to_dict()
+    DIAG["annees"]   = sorted(df[col_annee].dropna().unique().tolist())[-10:]
 
     df[col_eff] = pd.to_numeric(df[col_eff], errors="coerce").fillna(0).astype(int)
     df[col_annee] = pd.to_numeric(df[col_annee], errors="coerce").astype("Int64")
@@ -166,7 +174,14 @@ def compute(csv_text):
     return kpis, series, len(df)
 
 
-def create_import_row(source, filename, nb_lignes, statut="success", erreur=None):
+def create_import_row(source, filename, nb_lignes, statut="success", erreur=None,
+                      sample_raw=None, diag=None):
+    import json as _json
+    payload_extra = {
+        "sample_raw":         (sample_raw or "")[:30000],
+        "colonnes_detectees": _json.dumps(diag.get("colonnes", []), ensure_ascii=False)[:8000] if diag else None,
+        "top_valeurs":        _json.dumps(diag, ensure_ascii=False, indent=2, default=str)[:30000] if diag else None,
+    }
     payload = {
         "source":           source,
         "fichier":          filename,
@@ -175,6 +190,7 @@ def create_import_row(source, filename, nb_lignes, statut="success", erreur=None
         "statut":           statut,
         "erreur":           erreur,
         "log":              "\n".join(log_lines)[-8000:],
+        **payload_extra,
     }
     r = requests.post(
         f"{SUPABASE_URL}/rest/v1/observatoire_imports",
@@ -245,9 +261,12 @@ def main():
     import_id = None
     try:
         csv_text = fetch_drees()
+        # Garde les 100 premières lignes brutes du CSV pour diagnostic admin
+        sample_raw = "\n".join(csv_text.splitlines()[:100])
         kpis, series, nb_lignes = compute(csv_text)
 
-        import_id = create_import_row("DREES", f"{DREES_SLUG}.csv", nb_lignes)
+        import_id = create_import_row("DREES", f"{DREES_SLUG}.csv", nb_lignes,
+                                       sample_raw=sample_raw, diag=DIAG)
         log(f"   import_id = {import_id}")
 
         n_kpis   = write_kpis_pending(kpis, import_id)
