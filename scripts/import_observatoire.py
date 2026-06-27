@@ -126,6 +126,45 @@ def read_raw_sample(path, n_lines=100):
 # Diagnostic global rempli par compute() pour le log Supabase
 DIAG = {"colonnes": [], "top_dept": {}, "top_prof": {}, "filter_stats": {}}
 
+# Index complet des médecins (tous départements) pour la vérification des adhérents.
+# Rempli par compute() au fur et à mesure, puis bulk-inséré dans Supabase
+# par push_rpps_index().
+RPPS_INDEX = {}   # identifiant_pp → dict des champs (dédupliqué)
+
+
+def push_rpps_index():
+    """TRUNCATE + bulk insert dans rpps_medecins. Batches de 500 lignes."""
+    if not RPPS_INDEX:
+        log("   ⚠ pas de médecins à indexer (RPPS_INDEX vide)")
+        return 0
+    log(f"📤 Push de {len(RPPS_INDEX):,} médecins dans rpps_medecins (TRUNCATE + insert)…")
+    # 1. Truncate via PostgREST (DELETE all rows)
+    r = requests.delete(
+        f"{SUPABASE_URL}/rest/v1/rpps_medecins?identifiant_pp=neq.__never__",
+        headers=HEADERS, timeout=120,
+    )
+    if r.status_code not in (200, 204):
+        log(f"   ⚠ truncate failed {r.status_code} : {r.text[:200]}")
+    # 2. Bulk insert
+    rows = list(RPPS_INDEX.values())
+    BATCH = 500
+    n_ok = 0
+    for i in range(0, len(rows), BATCH):
+        batch = rows[i:i+BATCH]
+        r = requests.post(
+            f"{SUPABASE_URL}/rest/v1/rpps_medecins",
+            headers={**HEADERS, "Prefer": "return=minimal"},
+            json=batch, timeout=60,
+        )
+        if r.status_code in (200, 201, 204):
+            n_ok += len(batch)
+            if i % 5000 == 0:
+                log(f"   {n_ok:,}/{len(rows):,} insérés…")
+        else:
+            log(f"   ⚠ batch {i} failed {r.status_code} : {r.text[:200]}")
+    log(f"   ✓ {n_ok:,} médecins indexés")
+    return n_ok
+
 
 def compute(path):
     """
@@ -160,6 +199,15 @@ def compute(path):
                 # postal ou le code commune INSEE (les 2 premiers chiffres).
                 col_id     = (find_col(headers, "identification nationale")
                               or find_col(headers, "identifiant pp"))
+                # Pour l'index RPPS adhérents on garde aussi "Identifiant PP"
+                # (11 chiffres, format que les médecins connaissent) en plus de
+                # l'identification nationale.
+                col_id_pp  = find_col(headers, "identifiant pp")
+                col_id_nat = find_col(headers, "identification nationale")
+                col_nom    = find_col(headers, "nom d'exercice") or find_col(headers, "nom d exercice") or find_col(headers, "nom")
+                col_prenom = find_col(headers, "prénom d'exercice") or find_col(headers, "prenom d'exercice") or find_col(headers, "prénom") or find_col(headers, "prenom")
+                col_mode_ex= find_col(headers, "libellé mode exercice") or find_col(headers, "libelle mode exercice")
+                col_libcom = find_col(headers, "libellé commune") or find_col(headers, "libelle commune")
                 col_cp     = find_col(headers, "code postal", "structure")
                 col_commune= find_col(headers, "code commune", "structure")
                 col_dept   = (find_col(headers, "code département") or find_col(headers, "code departement")
@@ -226,6 +274,32 @@ def compute(path):
                 counts = sub[col_savoir].fillna("Autre").value_counts()
                 for spec, n in counts.items():
                     by_spec[spec] = by_spec.get(spec, 0) + int(n)
+
+            # ── Index complet des médecins (tous départements) pour la vérif
+            # des adhérents. Une ligne par identifiant_pp, dédupliquée.
+            all_med = chunk[mask_prof]
+            for _, row in all_med.iterrows():
+                pp = (row.get(col_id_pp) or "").strip() if col_id_pp else ""
+                if not pp or pp in RPPS_INDEX:
+                    continue
+                cp_val = (row.get(col_cp) or "").strip() if col_cp else ""
+                dept_val = cp_val[:2] if cp_val[:2].isdigit() else ""
+                nom = (row.get(col_nom) or "").strip() if col_nom else ""
+                prenom = (row.get(col_prenom) or "").strip() if col_prenom else ""
+                RPPS_INDEX[pp] = {
+                    "identifiant_pp":        pp,
+                    "identification_nat":    (row.get(col_id_nat) or "").strip() if col_id_nat else None,
+                    "nom":                   nom or None,
+                    "prenom":                prenom or None,
+                    "nom_upper":             nom.upper() if nom else None,
+                    "prenom_upper":          prenom.upper() if prenom else None,
+                    "libelle_profession":    row.get(col_prof) or None,
+                    "libelle_savoir_faire":  row.get(col_savoir) if col_savoir else None,
+                    "libelle_mode_exercice": row.get(col_mode_ex) if col_mode_ex else None,
+                    "code_postal":           cp_val or None,
+                    "code_departement":      dept_val or None,
+                    "libelle_commune":       row.get(col_libcom) if col_libcom else None,
+                }
 
             if total_lignes % 500_000 == 0:
                 log(f"   {total_lignes:,} lignes lues — {total_idf:,} médecins IDF jusqu'ici")
@@ -409,6 +483,9 @@ def main():
 
         n_kpis   = write_kpis_pending(kpis, import_id)
         n_series = write_series_pending(series, import_id)
+
+        # Index RPPS pour la vérification des adhérents
+        push_rpps_index()
 
         if import_id:
             update_import_row(import_id, n_kpis + n_series)

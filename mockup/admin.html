@@ -594,12 +594,15 @@
           <div class="main-sub">Vérifiez les numéros RPPS des membres</div>
         </div>
 
-        <div class="filters" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
             <input type="checkbox" id="rpps-show-verified" onchange="renderRppsTable()" style="width:16px;height:16px;cursor:pointer">
             Afficher aussi les déjà vérifiés
           </label>
+          <button id="rpps-auto-btn" onclick="verifierRppsAuto()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:9px 16px;font-size:.82rem;font-weight:700;cursor:pointer">🔍 Vérification auto (toute la table)</button>
         </div>
+
+        <div id="rpps-auto-status" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;background:#eff6ff;border:1.5px solid #bfdbfe;color:#1e40af;font-size:.85rem"></div>
 
         <div class="table-wrap">
           <table>
@@ -610,7 +613,7 @@
                 <th>RPPS</th>
                 <th>Spécialité</th>
                 <th>Statut membre</th>
-                <th>RPPS vérifié</th>
+                <th>Match auto</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -2917,7 +2920,7 @@
 
   async function loadRpps() {
     const { data, error } = await sb.from('membres')
-      .select('id,prenom,nom,email,rpps,specialite,statut,rpps_verifie,est_interne')
+      .select('id,prenom,nom,email,rpps,specialite,statut,rpps_verifie,est_interne,rpps_match_status,rpps_match_identifiant,rpps_match_score,rpps_match_details,rpps_match_at')
       .order('rpps_verifie', { ascending: true });
 
     if (error) {
@@ -2948,9 +2951,23 @@
         ? `<span class="rpps-copy" title="Cliquer pour sélectionner">${esc(m.rpps)}</span>`
         : '<span style="color:var(--muted)">—</span>';
 
-      const rppsVerifBadge = m.rpps_verifie
-        ? '<span class="status-badge status-actif">● Vérifié</span>'
-        : '<span class="status-badge status-attente">● En attente</span>';
+      // Badge "match auto" combinant rpps_verifie manuel + rpps_match_status auto
+      let matchBadge;
+      if (m.rpps_verifie) {
+        matchBadge = '<span class="status-badge status-actif" title="Vérifié manuellement">● Vérifié ✓</span>';
+      } else if (m.rpps_match_status === 'verifie') {
+        const score = m.rpps_match_score;
+        const det = m.rpps_match_details || {};
+        const tip = (det.libelle_savoir_faire || det.libelle_profession || '') + (det.code_postal ? ' · ' + det.code_postal : '');
+        matchBadge = `<span class="status-badge status-actif" title="${esc(tip)}">● Match auto (${score}%)</span>`;
+      } else if (m.rpps_match_status === 'multiple') {
+        const n = (m.rpps_match_details && m.rpps_match_details.candidats || []).length;
+        matchBadge = `<span class="status-badge status-attente" title="Plusieurs candidats RPPS">⚠ Homonymes (${n})</span>`;
+      } else if (m.rpps_match_status === 'non_trouve') {
+        matchBadge = '<span class="status-badge" style="background:#fee2e2;color:#991b1b">✕ Introuvable RPPS</span>';
+      } else {
+        matchBadge = '<span class="status-badge status-attente">● Non vérifié</span>';
+      }
 
       let actions = '';
       if (m.est_interne) {
@@ -2973,10 +2990,41 @@
           <td>${rppsCell}</td>
           <td>${esc(m.specialite || '—')}</td>
           <td>${statusBadge(m.statut)}</td>
-          <td>${rppsVerifBadge}</td>
+          <td>${matchBadge}</td>
           <td>${actions}</td>
         </tr>`;
     }).join('');
+  };
+
+  window.verifierRppsAuto = async function() {
+    if (!confirm('Lancer la vérification RPPS automatique pour tous les adhérents ? Compte ~quelques secondes par lot.')) return;
+    const btn = document.getElementById('rpps-auto-btn');
+    const status = document.getElementById('rpps-auto-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ Vérification…';
+    status.style.display = 'block';
+    status.textContent = 'Appel en cours…';
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error('Session expirée');
+      const r = await fetch('/.netlify/functions/verifier-rpps', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error + (d.detail ? ' — ' + d.detail : ''));
+      status.innerHTML = `✓ ${d.n_checked} adhérents vérifiés &middot; ${d.n_verifie} matchés &middot; ${d.n_multiple} homonymes &middot; ${d.n_non_trouve} introuvables`;
+      toast('Vérification terminée ✓', 'success');
+      loadRpps();
+    } catch (e) {
+      status.style.color = '#dc2626';
+      status.textContent = '✕ ' + e.message;
+      toast('Erreur : ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Vérification auto (toute la table)';
+    }
   };
 
   window.validerRpps = async function(id) {
