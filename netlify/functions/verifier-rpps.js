@@ -23,20 +23,29 @@ function srv(extra = {}) {
 }
 
 async function requireAdmin(token) {
-  if (!token) return null;
+  if (!token) return { ok: false, why: 'pas de token Authorization' };
+  if (!SB)   return { ok: false, why: 'SUPABASE_URL non configuré côté serveur' };
+  if (!ANON) return { ok: false, why: 'SUPABASE_ANON_KEY non configuré côté serveur' };
+  if (!SSK)  return { ok: false, why: 'SUPABASE_SERVICE_ROLE_KEY non configuré côté serveur' };
   const userRes = await fetch(`${SB}/auth/v1/user`, {
     headers: { Authorization: `Bearer ${token}`, apikey: ANON },
   });
-  if (!userRes.ok) return null;
+  if (!userRes.ok) return { ok: false, why: `Supabase /auth/v1/user a renvoyé ${userRes.status}` };
   const user = await userRes.json();
-  if (!user?.id) return null;
+  if (!user?.id) return { ok: false, why: 'pas d\'id utilisateur dans la réponse Supabase' };
   const adminRes = await fetch(
-    `${SB}/rest/v1/admins?user_id=eq.${user.id}&select=id`,
+    `${SB}/rest/v1/admins?user_id=eq.${user.id}&select=id,role`,
     { headers: srv() },
   );
-  if (!adminRes.ok) return null;
+  if (!adminRes.ok) {
+    const t = await adminRes.text();
+    return { ok: false, why: `lecture admins échouée ${adminRes.status} : ${t.slice(0,200)}` };
+  }
   const rows = await adminRes.json();
-  return (Array.isArray(rows) && rows.length > 0) ? user : null;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, why: `user_id ${user.id} pas trouvé dans la table admins (vérifie que ton compte a bien une ligne)` };
+  }
+  return { ok: true, user };
 }
 
 // Normalisation : strip accents, upper, trim
@@ -102,8 +111,9 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: '{"error":"Method not allowed"}' };
 
   const token = (event.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  const user = await requireAdmin(token);
-  if (!user) return { statusCode: 403, headers, body: '{"error":"Accès réservé aux administrateurs"}' };
+  const auth = await requireAdmin(token);
+  if (!auth.ok) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Accès refusé', detail: auth.why }) };
+  const user = auth.user;
 
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch {}
