@@ -338,7 +338,30 @@
     const db = supabase.createClient(SUPA_URL, SUPA_KEY);
 
     // ── KPIs ── (seulement validés)
-    const { data: kpis } = await db.from('observatoire_kpis').select('*').eq('statut','validated');
+    const [{ data: kpis }, { data: tendances }, { data: histKpis }] = await Promise.all([
+      db.from('observatoire_kpis').select('*').eq('statut','validated'),
+      db.from('observatoire_kpis_tendance').select('*'),
+      db.from('observatoire_kpis_history').select('kpi_id,valeur_num,snapshot_at').order('snapshot_at',{ascending:true}),
+    ]);
+    const tendanceById = Object.fromEntries((tendances||[]).map(t => [t.kpi_id, t]));
+    const histByKpi = {};
+    (histKpis||[]).forEach(h => { (histByKpi[h.kpi_id] = histByKpi[h.kpi_id] || []).push(h); });
+
+    function sparkline(points, width=80, height=24) {
+      if (!points || points.length < 2) return '';
+      const vals = points.map(p => Number(p.valeur_num)).filter(v => !isNaN(v));
+      if (vals.length < 2) return '';
+      const min = Math.min(...vals), max = Math.max(...vals);
+      const range = max - min || 1;
+      const step = width / (vals.length - 1);
+      const d = vals.map((v,i) => `${i===0?'M':'L'} ${(i*step).toFixed(1)} ${(height - ((v-min)/range)*height).toFixed(1)}`).join(' ');
+      const last = vals[vals.length-1], first = vals[0];
+      const color = last >= first ? '#16a34a' : '#dc2626';
+      return `<svg width="${width}" height="${height}" style="display:block;margin-top:6px" aria-label="évolution 12 mois">
+        <path d="${d}" fill="none" stroke="${color}" stroke-width="1.8"/>
+      </svg>`;
+    }
+
     if (kpis && kpis.length) {
       kpis.forEach(k => {
         const cards = document.querySelectorAll('.stat-card');
@@ -347,9 +370,22 @@
           if (lbl && lbl.textContent.trim() === k.label) {
             card.querySelector('.value').textContent = k.valeur;
             const trend = card.querySelector('.trend');
-            if (trend && k.tendance) {
-              trend.textContent = k.tendance;
-              trend.className = 'trend ' + (k.tendance_dir === 'up' ? 'trend-up' : k.tendance_dir === 'down' ? 'trend-down' : '');
+            const t = tendanceById[k.id];
+            if (trend) {
+              if (t && t.pct_variation != null) {
+                const pct = Number(t.pct_variation);
+                const sign = pct >= 0 ? '↑' : '↓';
+                trend.textContent = `${sign} ${pct >= 0 ? '+' : ''}${pct}% sur 12 mois`;
+                trend.className = 'trend ' + (pct >= 0 ? 'trend-up' : 'trend-down');
+              } else if (k.tendance) {
+                trend.textContent = k.tendance;
+                trend.className = 'trend ' + (k.tendance_dir === 'up' ? 'trend-up' : k.tendance_dir === 'down' ? 'trend-down' : '');
+              }
+            }
+            // Sparkline si on a au moins 2 points d'historique
+            const pts = histByKpi[k.id] || [];
+            if (pts.length >= 2) {
+              card.insertAdjacentHTML('beforeend', sparkline(pts));
             }
           }
         });

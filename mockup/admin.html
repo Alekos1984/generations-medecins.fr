@@ -1967,22 +1967,41 @@
 
 
 
+  // Extrait le 1er nombre d'une chaîne "30 €" / "1 842" / "− %" pour l'historique
+  function parseNum(s) {
+    if (!s) return null;
+    const m = String(s).replace(/ |\s/g, '').match(/-?\d+(?:[.,]\d+)?/);
+    return m ? parseFloat(m[0].replace(',', '.')) : null;
+  }
+
   window.validateObsKpi = async function(id) {
     const { data: row } = await sb.from('observatoire_kpis').select('*').eq('id',id).single();
     if (!row) return;
+    const newValeur = row.valeur_pending ?? row.valeur;
+    const newSource = row.source_pending ?? row.source;
+    const newAnnee  = row.annee_pending  ?? row.annee;
     const { error } = await sb.from('observatoire_kpis').update({
-      valeur:       row.valeur_pending       ?? row.valeur,
+      valeur:       newValeur,
       tendance:     row.tendance_pending     ?? row.tendance,
       tendance_dir: row.tendance_dir_pending ?? row.tendance_dir,
-      source:       row.source_pending       ?? row.source,
-      annee:        row.annee_pending        ?? row.annee,
+      source:       newSource,
+      annee:        newAnnee,
       statut:       'validated',
       valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
       updated_at:   new Date().toISOString(),
     }).eq('id', id);
-    if (error) toast('Erreur : ' + error.message, 'error');
-    else { toast('KPI validé ✓'); loadObservatoire(); }
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    // Snapshot dans l'historique (pour calcul de tendance N vs N-12 mois)
+    await sb.from('observatoire_kpis_history').insert({
+      kpi_id:     id,
+      valeur:     newValeur,
+      valeur_num: parseNum(newValeur),
+      source:     newSource,
+      annee:      newAnnee,
+      import_id:  row.import_id || null,
+    });
+    toast('KPI validé ✓'); loadObservatoire();
   };
 
   window.rejectObsKpi = async function(id) {
@@ -1998,18 +2017,32 @@
   window.validateObsSerie = async function(id) {
     const { data: row } = await sb.from('observatoire_series').select('*').eq('id',id).single();
     if (!row) return;
+    const newNum = row.valeur_num_pending ?? row.valeur_num;
+    const newFmt = row.valeur_fmt_pending ?? row.valeur_fmt;
+    const newSource = row.source_pending ?? row.source;
+    const newAnnee  = row.annee_pending  ?? row.annee;
     const { error } = await sb.from('observatoire_series').update({
-      valeur_num: row.valeur_num_pending ?? row.valeur_num,
-      valeur_fmt: row.valeur_fmt_pending ?? row.valeur_fmt,
-      source:     row.source_pending     ?? row.source,
-      annee:      row.annee_pending      ?? row.annee,
+      valeur_num: newNum,
+      valeur_fmt: newFmt,
+      source:     newSource,
+      annee:      newAnnee,
       statut:     'validated',
       valeur_num_pending: null, valeur_fmt_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
       updated_at: new Date().toISOString(),
     }).eq('id', id);
-    if (error) toast('Erreur : ' + error.message, 'error');
-    else { toast('Ligne validée ✓'); loadObservatoire(); }
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    await sb.from('observatoire_series_history').insert({
+      serie_id:   row.serie_id,
+      label:      row.label,
+      valeur_num: newNum,
+      valeur_fmt: newFmt,
+      rang:       row.rang,
+      source:     newSource,
+      annee:      newAnnee,
+      import_id:  row.import_id || null,
+    });
+    toast('Ligne validée ✓'); loadObservatoire();
   };
 
   window.rejectObsSerie = async function(id) {
