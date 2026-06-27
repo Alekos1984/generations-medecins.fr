@@ -1837,85 +1837,31 @@
   }
 
   // ── Déclenchement workflow GitHub Actions ───────────────────
-  // Le user fournit un Personal Access Token GitHub (scope: workflow) la
-  // première fois, on le garde en localStorage. Le PAT peut être révoqué à tout
-  // moment depuis github.com/settings/tokens.
-  const GH_REPO_NAME  = 'generations-medecins.fr';
-  const GH_WORKFLOW   = 'observatoire-import.yml';
-  const GH_REF        = 'claude/mockup-vitrine';
-
-  function getGhOwner() {
-    let owner = localStorage.getItem('obs_gh_owner') || '';
-    if (!owner) {
-      owner = prompt(
-        'Ton compte GitHub (le fork sur lequel tourne le workflow).\n\n' +
-        'Exemple : si ton repo est github.com/jdupont/generations-medecins.fr,\n' +
-        'tape : jdupont'
-      );
-      if (!owner) return null;
-      localStorage.setItem('obs_gh_owner', owner.trim());
-    }
-    return owner.trim();
-  }
-
-  function getGhPat() {
-    const owner = getGhOwner();
-    if (!owner) return null;
-    let pat = localStorage.getItem('obs_gh_pat') || '';
-    if (!pat) {
-      const msg = [
-        'Token GitHub (scope "workflow") — colle-le ici.',
-        '',
-        'À créer une fois sur github.com → Settings → Developer settings →',
-        'Personal access tokens → Fine-grained tokens → Generate new token',
-        '  • Repository : ' + owner + '/' + GH_REPO_NAME,
-        '  • Permission : Actions = Read and write',
-        '',
-        'Le token est stocké uniquement dans ton navigateur (localStorage).',
-      ].join('\n');
-      pat = prompt(msg);
-      if (!pat) return null;
-      localStorage.setItem('obs_gh_pat', pat.trim());
-    }
-    return pat.trim();
-  }
-
+  // Passe par une Netlify Function (le PAT est stocké en env var côté serveur,
+  // pas dans le navigateur). Évite aussi les soucis CORS d'appeler api.github
+  // directement.
   window.triggerObsImport = async function() {
-    const owner = getGhOwner();
-    if (!owner) return;
-    const pat = getGhPat();
-    if (!pat) return;
     const btn = document.getElementById('obs-trigger-btn');
     const statusEl = document.getElementById('obs-import-status');
     btn.disabled = true;
     btn.textContent = '⏳ Lancement…';
     statusEl.style.display = 'block';
+    statusEl.style.color = '#1e40af';
     statusEl.textContent  = 'Appel à GitHub API…';
 
     try {
-      const url = `https://api.github.com/repos/${owner}/${GH_REPO_NAME}/actions/workflows/${GH_WORKFLOW}/dispatches`;
-      const r = await fetch(url, {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error('Session expirée, reconnecte-toi');
+      const r = await fetch('/.netlify/functions/trigger-observatoire-import', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer ' + pat,
-          'Accept':        'application/vnd.github+json',
+          'Authorization': 'Bearer ' + session.access_token,
           'Content-Type':  'application/json',
         },
-        body: JSON.stringify({ ref: GH_REF }),
       });
-      if (r.status === 401 || r.status === 403) {
-        localStorage.removeItem('obs_gh_pat');
-        throw new Error('Token GitHub invalide ou sans le scope "workflow" (ré-essaie, on te redemandera le token)');
-      }
-      if (r.status === 404) {
-        localStorage.removeItem('obs_gh_owner');
-        throw new Error('Repo ' + owner + '/' + GH_REPO_NAME + ' introuvable. Vérifie ton nom d\'utilisateur GitHub (ré-essaie).');
-      }
-      if (r.status !== 204) {
-        const txt = await r.text();
-        throw new Error(`GitHub a répondu ${r.status} : ${txt.slice(0,200)}`);
-      }
-      statusEl.innerHTML = '✓ Workflow déclenché. Suivi : <a href="https://github.com/' + owner + '/' + GH_REPO_NAME + '/actions/workflows/' + GH_WORKFLOW + '" target="_blank" style="color:#1e40af;text-decoration:underline">GitHub Actions</a>. Compte ~1-2 min, puis rafraîchis l\'admin pour voir les nouvelles valeurs en attente.';
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error + (data.detail ? ' — ' + data.detail : ''));
+      statusEl.innerHTML = '✓ Workflow déclenché. Suivi : <a href="' + data.run_url + '" target="_blank" style="color:#1e40af;text-decoration:underline">GitHub Actions</a>. Compte ~1-2 min, puis rafraîchis l\'admin pour voir les nouvelles valeurs en attente.';
       toast('Import déclenché ✓', 'success');
     } catch (e) {
       statusEl.style.color = '#dc2626';
