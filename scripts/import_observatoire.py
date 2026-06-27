@@ -141,32 +141,61 @@ def compute(path):
     dept_counts = {}
     prof_counts = {}
     by_spec = {}
-    col_dept = col_prof = col_savoir = None
+    # Un médecin peut avoir plusieurs lignes (multi-sites d'exercice).
+    # On dédupe sur l'identifiant national PP pour compter des personnes.
+    medecins_idf_ids = set()
+    spec_par_id = {}   # id → première spécialité rencontrée (pour le top)
+    col_dept = col_prof = col_savoir = col_id = None
 
     try:
         reader = pd.read_csv(path, sep="|", encoding=encoding, dtype=str,
                               chunksize=100_000, low_memory=False, on_bad_lines="skip")
+        col_cp = col_commune = None
         for chunk in reader:
             if col_prof is None:
                 headers = list(chunk.columns)
                 DIAG["colonnes"] = headers
+                # La colonne "Code Département (structure)" du RPPS est vide à
+                # 100 % en pratique. On extrait le département depuis le code
+                # postal ou le code commune INSEE (les 2 premiers chiffres).
+                col_id     = (find_col(headers, "identification nationale")
+                              or find_col(headers, "identifiant pp"))
+                col_cp     = find_col(headers, "code postal", "structure")
+                col_commune= find_col(headers, "code commune", "structure")
                 col_dept   = (find_col(headers, "code département") or find_col(headers, "code departement")
                               or find_col(headers, "département", "structure") or find_col(headers, "departement", "structure"))
                 col_prof   = find_col(headers, "libellé profession") or find_col(headers, "libelle profession")
                 col_savoir = find_col(headers, "libellé savoir-faire") or find_col(headers, "libelle savoir-faire")
-                if not col_dept or not col_prof:
+                if not col_prof or not (col_cp or col_commune or col_dept):
                     raise ValueError(
-                        "Colonnes introuvables. En-têtes contenant 'départ' / 'profes' : "
-                        + " | ".join(h for h in headers if "départ" in h.lower() or "profes" in h.lower())
+                        "Colonnes introuvables. En-têtes contenant 'postal' / 'commune' / 'départ' / 'profes' : "
+                        + " | ".join(h for h in headers if any(k in h.lower() for k in ("postal","commune","départ","profes")))
                     )
-                log(f"   colonnes : dept='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
+                log(f"   colonnes : cp='{col_cp}' / commune='{col_commune}' / dept(officiel)='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
+                DIAG["col_cp"] = col_cp
+                DIAG["col_commune"] = col_commune
                 DIAG["col_dept"] = col_dept
                 DIAG["col_prof"] = col_prof
                 DIAG["col_savoir"] = col_savoir
 
             total_lignes += len(chunk)
             chunk_prof = chunk[col_prof].fillna("").str.lower()
-            chunk_dept = chunk[col_dept].fillna("")
+
+            # Construction du département : priorité au code postal (présent
+            # pour les professionnels avec adresse de structure), fallback au
+            # code commune INSEE. Dans les deux cas on prend les 2 premiers
+            # chiffres (valide pour métropole ; les DOM ne nous intéressent
+            # pas pour l'IDF de toute façon).
+            if col_cp:
+                cp = chunk[col_cp].fillna("").str.strip()
+                chunk_dept = cp.str.slice(0, 2)
+                if col_commune:
+                    fallback = chunk[col_commune].fillna("").str.strip().str.slice(0, 2)
+                    chunk_dept = chunk_dept.where(chunk_dept.str.match(r"^\d{2}$"), fallback)
+            elif col_commune:
+                chunk_dept = chunk[col_commune].fillna("").str.strip().str.slice(0, 2)
+            else:
+                chunk_dept = chunk[col_dept].fillna("")
 
             # Compteurs séparés (pour diagnostic) avant l'ET final
             mask_prof = chunk_prof.str.contains("médecin")
@@ -184,7 +213,16 @@ def compute(path):
             sub = chunk[mask]
             total_idf += len(sub)
 
-            if col_savoir and len(sub):
+            # Dédup sur l'identifiant PP
+            if col_id:
+                for _, row in sub.iterrows():
+                    pid = row.get(col_id)
+                    if not pid: continue
+                    if pid not in medecins_idf_ids:
+                        medecins_idf_ids.add(pid)
+                        if col_savoir:
+                            spec_par_id[pid] = row.get(col_savoir) or "Autre"
+            elif col_savoir and len(sub):
                 counts = sub[col_savoir].fillna("Autre").value_counts()
                 for spec, n in counts.items():
                     by_spec[spec] = by_spec.get(spec, 0) + int(n)
@@ -196,20 +234,30 @@ def compute(path):
         log("   ⚠ encodage utf-8 ko, ré-essai latin-1")
         return compute_fallback_encoding(path, "latin-1")
 
+    # Recalcul du by_spec à partir des IDs dédupés
+    if col_id and spec_par_id:
+        for spec in spec_par_id.values():
+            by_spec[spec] = by_spec.get(spec, 0) + 1
+
+    nb_medecins_uniques = len(medecins_idf_ids) if col_id else total_idf
+
     # Diagnostic final
     DIAG["top_dept"] = dict(sorted(dept_counts.items(), key=lambda x: -x[1])[:20])
     DIAG["top_prof"] = dict(sorted(prof_counts.items(), key=lambda x: -x[1])[:20])
     DIAG["filter_stats"] = {
-        "total":           total_lignes,
-        "match_prof_seul": n_match_prof,
-        "match_dept_seul": n_match_dept,
-        "match_prof_et_dept": total_idf,
+        "total":               total_lignes,
+        "match_prof_seul":     n_match_prof,
+        "match_dept_seul":     n_match_dept,
+        "match_prof_et_dept":  total_idf,
+        "medecins_uniques_idf": nb_medecins_uniques,
     }
     log(f"   stats filtre : {n_match_prof:,} ont 'médecin' dans la prof, "
-        f"{n_match_dept:,} sont en IDF, intersection = {total_idf:,}")
+        f"{n_match_dept:,} sont en IDF, intersection = {total_idf:,} lignes "
+        f"({nb_medecins_uniques:,} médecins uniques après dédup)")
     log(f"   top 5 depts : {list(DIAG['top_dept'].items())[:5]}")
     log(f"   top 5 profs : {list(DIAG['top_prof'].items())[:5]}")
-    log(f"✓ Total : {total_lignes:,} lignes, {total_idf:,} médecins IDF, {len(by_spec)} spécialités")
+    log(f"✓ Total : {total_lignes:,} lignes, {nb_medecins_uniques:,} médecins IDF uniques, {len(by_spec)} spécialités")
+    total_idf = nb_medecins_uniques
 
     kpis = [{
         "id":           "medecins_idf",
