@@ -26,7 +26,7 @@ async function requireAdmin(token) {
   const user = await userRes.json();
   if (!user?.id) return null;
   const adminRes = await fetch(
-    `${SB}/rest/v1/admins?user_id=eq.${user.id}&select=id`,
+    `${SB}/rest/v1/admins?user_id=eq.${user.id}&select=user_id`,
     { headers: srvHeaders() },
   );
   if (!adminRes.ok) return null;
