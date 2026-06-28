@@ -118,6 +118,19 @@ exports.handler = async (event) => {
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch {}
 
+  // Garde-fou : si l'index RPPS est vide, le matching ne trouvera évidemment
+  // rien. Mieux vaut un message clair que "0 matchés".
+  const countRes = await fetch(`${SB}/rest/v1/rpps_medecins?select=identifiant_pp&limit=1`,
+    { headers: srv({ Prefer: 'count=exact' }) });
+  const contentRange = countRes.headers.get('content-range') || '';
+  const total = parseInt(contentRange.split('/')[1] || '0', 10);
+  if (!total) {
+    return { statusCode: 400, headers, body: JSON.stringify({
+      error: 'Index RPPS vide',
+      detail: 'La table rpps_medecins ne contient aucune ligne. Lance un import depuis l\'admin observatoire (🚀 Lancer un import) — ça indexe les ~545 000 médecins en fin de run.',
+    })};
+  }
+
   // Récupère les membres à vérifier
   let url = `${SB}/rest/v1/membres?select=id,nom,prenom,rpps,code_postal`;
   if (Array.isArray(body.membreIds) && body.membreIds.length) {

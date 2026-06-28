@@ -111,6 +111,18 @@ def find_col(headers, *substrings):
     return None
 
 
+def find_col_exact(headers, name):
+    """Match exact (insensible à la casse) sur le nom normalisé.
+    Indispensable pour 'Identifiant PP' qui est un sous-string de 'Type d'identifiant PP'
+    et de 'Identification nationale PP'.
+    """
+    target = name.strip().lower()
+    for h in headers:
+        if (h or "").strip().lower() == target:
+            return h
+    return None
+
+
 def read_raw_sample(path, n_lines=100):
     """Lit les n premières lignes brutes du fichier (pour diagnostic admin)."""
     out = []
@@ -197,15 +209,16 @@ def compute(path):
                 # La colonne "Code Département (structure)" du RPPS est vide à
                 # 100 % en pratique. On extrait le département depuis le code
                 # postal ou le code commune INSEE (les 2 premiers chiffres).
-                col_id     = (find_col(headers, "identification nationale")
-                              or find_col(headers, "identifiant pp"))
-                # Pour l'index RPPS adhérents on garde aussi "Identifiant PP"
-                # (11 chiffres, format que les médecins connaissent) en plus de
-                # l'identification nationale.
-                col_id_pp  = find_col(headers, "identifiant pp")
-                col_id_nat = find_col(headers, "identification nationale")
-                col_nom    = find_col(headers, "nom d'exercice") or find_col(headers, "nom d exercice") or find_col(headers, "nom")
-                col_prenom = find_col(headers, "prénom d'exercice") or find_col(headers, "prenom d'exercice") or find_col(headers, "prénom") or find_col(headers, "prenom")
+                # Match EXACT pour ces colonnes : "Identifiant PP" est un
+                # sous-string de "Type d'identifiant PP" et de "Identification
+                # nationale PP". Avec un substring-match on récupère la
+                # mauvaise colonne (Type = "8" pour tous → toutes les inserts
+                # rpps_medecins échouent en conflit de clé primaire).
+                col_id_pp  = find_col_exact(headers, "Identifiant PP")
+                col_id_nat = find_col_exact(headers, "Identification nationale PP")
+                col_id     = col_id_nat or col_id_pp
+                col_nom    = find_col_exact(headers, "Nom d'exercice")    or find_col(headers, "nom d'exercice") or find_col(headers, "nom d exercice")
+                col_prenom = find_col_exact(headers, "Prénom d'exercice") or find_col(headers, "prénom d'exercice") or find_col(headers, "prenom d'exercice")
                 col_mode_ex= find_col(headers, "libellé mode exercice") or find_col(headers, "libelle mode exercice")
                 col_libcom = find_col(headers, "libellé commune") or find_col(headers, "libelle commune")
                 col_cp     = find_col(headers, "code postal", "structure")
