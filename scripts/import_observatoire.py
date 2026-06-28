@@ -45,6 +45,56 @@ HEADERS = {
 IDF_DEPTS = {"75", "77", "78", "91", "92", "93", "94", "95",
              "075", "077", "078", "091", "092", "093", "094", "095"}
 
+# Mapping département (2 chiffres) → code région INSEE (métropole + DOM-TOM)
+# Référence : https://www.insee.fr/fr/information/2114819
+DEPT_TO_REGION = {
+    # Auvergne-Rhône-Alpes (84)
+    "01":"84","03":"84","07":"84","15":"84","26":"84","38":"84","42":"84","43":"84","63":"84","69":"84","73":"84","74":"84",
+    # Bourgogne-Franche-Comté (27)
+    "21":"27","25":"27","39":"27","58":"27","70":"27","71":"27","89":"27","90":"27",
+    # Bretagne (53)
+    "22":"53","29":"53","35":"53","56":"53",
+    # Centre-Val de Loire (24)
+    "18":"24","28":"24","36":"24","37":"24","41":"24","45":"24",
+    # Corse (94)
+    "2A":"94","2B":"94","20":"94",
+    # Grand Est (44)
+    "08":"44","10":"44","51":"44","52":"44","54":"44","55":"44","57":"44","67":"44","68":"44","88":"44",
+    # Hauts-de-France (32)
+    "02":"32","59":"32","60":"32","62":"32","80":"32",
+    # Île-de-France (11)
+    "75":"11","77":"11","78":"11","91":"11","92":"11","93":"11","94":"11","95":"11",
+    # Normandie (28)
+    "14":"28","27":"28","50":"28","61":"28","76":"28",
+    # Nouvelle-Aquitaine (75)
+    "16":"75","17":"75","19":"75","23":"75","24":"75","33":"75","40":"75","47":"75","64":"75","79":"75","86":"75","87":"75",
+    # Occitanie (76)
+    "09":"76","11":"76","12":"76","30":"76","31":"76","32":"76","34":"76","46":"76","48":"76","65":"76","66":"76","81":"76","82":"76",
+    # Pays de la Loire (52)
+    "44":"52","49":"52","53":"52","72":"52","85":"52",
+    # PACA (93)
+    "04":"93","05":"93","06":"93","13":"93","83":"93","84":"93",
+    # DOM
+    "971":"01","972":"02","973":"03","974":"04","976":"06",
+}
+
+# Noms régions pour affichage
+REGION_NAMES = {
+    "FR":"France entière","11":"Île-de-France","24":"Centre-Val de Loire","27":"Bourgogne-Franche-Comté",
+    "28":"Normandie","32":"Hauts-de-France","44":"Grand Est","52":"Pays de la Loire","53":"Bretagne",
+    "75":"Nouvelle-Aquitaine","76":"Occitanie","84":"Auvergne-Rhône-Alpes","93":"Provence-Alpes-Côte d'Azur",
+    "94":"Corse","01":"Guadeloupe","02":"Martinique","03":"Guyane","04":"La Réunion","06":"Mayotte",
+}
+
+def dept_to_region(dept):
+    if not dept: return None
+    d = str(dept).lstrip("0")  # "075" → "75"
+    if d in DEPT_TO_REGION: return DEPT_TO_REGION[d]
+    # Cas DOM : code postal 971xx, 972xx, etc.
+    if len(d) >= 3 and d.startswith("9") and d[:3] in DEPT_TO_REGION:
+        return DEPT_TO_REGION[d[:3]]
+    return None
+
 # Canonicalisation des spécialités RPPS.
 # Le fichier source contient plusieurs codes pour la même spécialité (ex:
 # SM26 "Qualifié en Médecine Générale", SM53 "Spécialiste en Médecine
@@ -230,22 +280,20 @@ def push_rpps_index():
 
 def compute(path):
     """
-    Lit le RPPS en streaming (pandas chunks de 100k lignes), agrège
-    médecins IDF + top spécialités sans tout charger en RAM.
+    Lit le RPPS en streaming, agrège PAR RÉGION (12 régions métro + DOM + FR
+    entière), médecins actifs + top spécialités. Pour chaque région on dédupe
+    sur l'identifiant national PP pour compter des personnes (un médecin
+    multi-sites ne doit pas être compté plusieurs fois).
     """
-    log("📊 Calcul des indicateurs en streaming…")
+    log("📊 Calcul des indicateurs par région en streaming…")
     encoding = "utf-8"
     total_lignes = 0
-    total_idf = 0
     n_match_prof = 0
-    n_match_dept = 0
     dept_counts = {}
     prof_counts = {}
-    by_spec = {}
-    # Un médecin peut avoir plusieurs lignes (multi-sites d'exercice).
-    # On dédupe sur l'identifiant national PP pour compter des personnes.
-    medecins_idf_ids = set()
-    spec_par_id = {}   # id → première spécialité rencontrée (pour le top)
+    # Dédup par région
+    medecins_par_region = {}        # region → set(id)
+    spec_par_id_region = {}         # (region, id) → spec canonique
     col_dept = col_prof = col_savoir = col_id = None
 
     try:
@@ -316,11 +364,8 @@ def compute(path):
             else:
                 chunk_dept = chunk[col_dept].fillna("")
 
-            # Compteurs séparés (pour diagnostic) avant l'ET final
             mask_prof = chunk_prof.str.contains("médecin")
-            mask_dept = chunk_dept.isin(IDF_DEPTS)
             n_match_prof += int(mask_prof.sum())
-            n_match_dept += int(mask_dept.sum())
 
             # Échantillons des valeurs réellement vues (pour debug)
             for v in chunk_dept.value_counts().head(50).items():
@@ -328,23 +373,25 @@ def compute(path):
             for v in chunk[col_prof].fillna("").value_counts().head(50).items():
                 prof_counts[v[0]] = prof_counts.get(v[0], 0) + int(v[1])
 
-            mask = mask_prof & mask_dept
-            sub = chunk[mask]
-            total_idf += len(sub)
-
-            # Dédup sur l'identifiant PP
-            if col_id:
-                for _, row in sub.iterrows():
-                    pid = row.get(col_id)
-                    if not pid: continue
-                    if pid not in medecins_idf_ids:
-                        medecins_idf_ids.add(pid)
-                        if col_savoir:
-                            spec_par_id[pid] = row.get(col_savoir) or "Autre"
-            elif col_savoir and len(sub):
-                counts = sub[col_savoir].fillna("Autre").value_counts()
-                for spec, n in counts.items():
-                    by_spec[spec] = by_spec.get(spec, 0) + int(n)
+            # Médecins de tout le chunk → on les répartit par région
+            med_chunk = chunk[mask_prof]
+            for _, row in med_chunk.iterrows():
+                pid = row.get(col_id) if col_id else None
+                if not pid: continue
+                dept_raw = chunk_dept.loc[row.name] if row.name in chunk_dept.index else ""
+                region = dept_to_region(dept_raw)
+                if not region: continue  # médecin sans adresse exploitable
+                # Médecins uniques par région
+                if region not in medecins_par_region:
+                    medecins_par_region[region] = set()
+                if pid in medecins_par_region[region]:
+                    continue
+                medecins_par_region[region].add(pid)
+                # France entière en parallèle
+                medecins_par_region.setdefault("FR", set()).add(pid)
+                if col_savoir:
+                    spec_par_id_region[(region, pid)] = row.get(col_savoir) or "Autre"
+                    spec_par_id_region.setdefault(("FR", pid), row.get(col_savoir) or "Autre")
 
             # ── Index complet des médecins (tous départements) pour la vérif
             # des adhérents. Une ligne par identifiant_pp, dédupliquée.
@@ -386,68 +433,60 @@ def compute(path):
         log("   ⚠ encodage utf-8 ko, ré-essai latin-1")
         return compute_fallback_encoding(path, "latin-1")
 
-    # Recalcul du by_spec à partir des IDs dédupés, en fusionnant les variantes
-    # de spécialités (canonicalize_specialite gère les doublons de médecine
-    # générale, gynéco, anesthésie, etc.).
-    if col_id and spec_par_id:
-        for spec in spec_par_id.values():
-            canon = canonicalize_specialite(spec)
-            by_spec[canon] = by_spec.get(canon, 0) + 1
-    else:
-        # Si on n'a pas pu dédup, on fusionne quand même les libellés raw
-        by_spec_canon = {}
-        for spec, n in by_spec.items():
-            canon = canonicalize_specialite(spec)
-            by_spec_canon[canon] = by_spec_canon.get(canon, 0) + n
-        by_spec = by_spec_canon
-
-    nb_medecins_uniques = len(medecins_idf_ids) if col_id else total_idf
-
     # Diagnostic final
     DIAG["top_dept"] = dict(sorted(dept_counts.items(), key=lambda x: -x[1])[:20])
     DIAG["top_prof"] = dict(sorted(prof_counts.items(), key=lambda x: -x[1])[:20])
+    DIAG["nb_par_region"] = {r: len(s) for r, s in medecins_par_region.items()}
     DIAG["filter_stats"] = {
         "total":               total_lignes,
         "match_prof_seul":     n_match_prof,
-        "match_dept_seul":     n_match_dept,
-        "match_prof_et_dept":  total_idf,
-        "medecins_uniques_idf": nb_medecins_uniques,
+        "medecins_FR":         len(medecins_par_region.get("FR", set())),
+        "medecins_IDF":        len(medecins_par_region.get("11", set())),
     }
     log(f"   stats filtre : {n_match_prof:,} ont 'médecin' dans la prof, "
-        f"{n_match_dept:,} sont en IDF, intersection = {total_idf:,} lignes "
-        f"({nb_medecins_uniques:,} médecins uniques après dédup)")
-    log(f"   top 5 depts : {list(DIAG['top_dept'].items())[:5]}")
-    log(f"   top 5 profs : {list(DIAG['top_prof'].items())[:5]}")
-    log(f"✓ Total : {total_lignes:,} lignes, {nb_medecins_uniques:,} médecins IDF uniques, {len(by_spec)} spécialités")
-    total_idf = nb_medecins_uniques
+        f"FR = {len(medecins_par_region.get('FR', set())):,} uniques, "
+        f"IDF = {len(medecins_par_region.get('11', set())):,} uniques")
+    log(f"   par région : {DIAG['nb_par_region']}")
 
-    kpis = [{
-        "id":           "medecins_idf",
-        "valeur":       f"{total_idf:,}".replace(",", " "),
-        "label":        "Médecins actifs en IDF",
-        "tendance":     None,
-        "tendance_dir": "neutral",
-        "source":       "RPPS",
-        "annee":        ANNEE,
-    }]
-
-    series = []
-    # On garde TOUTES les spécialités (les ~44 codes RPPS distincts après
-    # canonicalisation), pas seulement le top 10 — la page publique gère
-    # l'affichage. Filtre minimum à 5 médecins pour ne pas polluer.
-    top = sorted(by_spec.items(), key=lambda x: -x[1])
-    top = [(s, n) for s, n in top if n >= 5]
-    for rang, (spec, n) in enumerate(top, start=1):
-        series.append({
-            "serie_id":   "demographie_idf",
-            "label":      spec,
-            "valeur_num": int(n),
-            "valeur_fmt": f"{int(n):,}".replace(",", " "),
-            "rang":       rang,
-            "source":     "RPPS",
-            "annee":      ANNEE,
+    # KPIs : 1 ligne "medecins_actifs" par région (FR + 13 régions + DOM)
+    kpis = []
+    for region, ids in medecins_par_region.items():
+        n = len(ids)
+        if n < 10: continue   # ignore régions trop petites (DOM peu peuplés)
+        label_region = REGION_NAMES.get(region, region)
+        kpis.append({
+            "id":           "medecins_actifs",
+            "valeur":       f"{n:,}".replace(",", " "),
+            "label":        f"Médecins actifs — {label_region}",
+            "tendance":     None,
+            "tendance_dir": "neutral",
+            "source":       "RPPS",
+            "annee":        ANNEE,
+            "region":       region,
         })
-    log(f"   → {len(series)} spécialités gardées (filtre ≥ 5 médecins)")
+
+    # Séries : top spécialités par région (canonicalisées, ≥ 5 médecins)
+    series = []
+    for region, ids in medecins_par_region.items():
+        by_spec_region = {}
+        for pid in ids:
+            spec_raw = spec_par_id_region.get((region, pid)) or "Autre"
+            canon = canonicalize_specialite(spec_raw)
+            by_spec_region[canon] = by_spec_region.get(canon, 0) + 1
+        top = sorted(by_spec_region.items(), key=lambda x: -x[1])
+        top = [(s, n) for s, n in top if n >= 5]
+        for rang, (spec, n) in enumerate(top, start=1):
+            series.append({
+                "serie_id":   "demographie",
+                "label":      spec,
+                "valeur_num": int(n),
+                "valeur_fmt": f"{int(n):,}".replace(",", " "),
+                "rang":       rang,
+                "source":     "RPPS",
+                "annee":      ANNEE,
+                "region":     region,
+            })
+    log(f"✓ {len(kpis)} KPIs et {len(series)} lignes séries (toutes régions confondues)")
     return kpis, series, total_lignes
 
 
@@ -501,9 +540,11 @@ def update_import_row(import_id, nb_indicateurs):
 
 
 def write_kpis_pending(kpis, import_id):
-    """Pour chaque KPI : écrit la nouvelle valeur dans les colonnes *_pending, statut='pending'."""
+    """Pour chaque KPI : écrit la nouvelle valeur dans les colonnes *_pending, statut='pending'.
+    Clé composite (id, region) — un KPI peut exister pour plusieurs régions."""
     n = 0
     for k in kpis:
+        region = k.get("region", "FR")
         # On UPDATE la ligne existante en ajoutant les valeurs pending
         payload = {
             "valeur_pending":       k["valeur"],
@@ -516,7 +557,7 @@ def write_kpis_pending(kpis, import_id):
             "statut":               "pending",
         }
         r = requests.patch(
-            f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}",
+            f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}&region=eq.{region}",
             headers=HEADERS, json=payload, timeout=30,
         )
         # Si le KPI n'existe pas encore, on l'insère directement (statut=pending)
@@ -529,11 +570,14 @@ def write_kpis_pending(kpis, import_id):
 
 
 def write_series_pending(series, import_id):
-    """Pour chaque ligne : UPSERT sur (serie_id, label), écrit dans *_pending."""
+    """Pour chaque ligne : UPSERT sur (region, serie_id, label), écrit dans *_pending."""
     n = 0
     for s in series:
-        # Cherche si la ligne existe
-        q = f"{SUPABASE_URL}/rest/v1/observatoire_series?serie_id=eq.{s['serie_id']}&label=eq.{requests.utils.quote(s['label'])}&select=id"
+        region = s.get("region", "FR")
+        # Cherche si la ligne existe (clé : region + serie_id + label)
+        q = (f"{SUPABASE_URL}/rest/v1/observatoire_series"
+             f"?serie_id=eq.{s['serie_id']}&label=eq.{requests.utils.quote(s['label'])}"
+             f"&region=eq.{region}&select=id")
         existing = requests.get(q, headers=HEADERS, timeout=30).json()
         payload = {
             "valeur_num_pending": s["valeur_num"],
