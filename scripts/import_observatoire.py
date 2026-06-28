@@ -304,28 +304,35 @@ def compute(path):
 
             # ── Index complet des médecins (tous départements) pour la vérif
             # des adhérents. Une ligne par identifiant_pp, dédupliquée.
+            # Note : pandas renvoie NaN (float) pour les cellules vides, pas
+            # None — d'où la fonction safe_str() locale.
+            def safe_str(v):
+                if v is None: return ""
+                if isinstance(v, float) and v != v:  # NaN
+                    return ""
+                return str(v).strip()
             all_med = chunk[mask_prof]
             for _, row in all_med.iterrows():
-                pp = (row.get(col_id_pp) or "").strip() if col_id_pp else ""
+                pp = safe_str(row.get(col_id_pp)) if col_id_pp else ""
                 if not pp or pp in RPPS_INDEX:
                     continue
-                cp_val = (row.get(col_cp) or "").strip() if col_cp else ""
+                cp_val   = safe_str(row.get(col_cp))     if col_cp     else ""
                 dept_val = cp_val[:2] if cp_val[:2].isdigit() else ""
-                nom = (row.get(col_nom) or "").strip() if col_nom else ""
-                prenom = (row.get(col_prenom) or "").strip() if col_prenom else ""
+                nom      = safe_str(row.get(col_nom))    if col_nom    else ""
+                prenom   = safe_str(row.get(col_prenom)) if col_prenom else ""
                 RPPS_INDEX[pp] = {
                     "identifiant_pp":        pp,
-                    "identification_nat":    (row.get(col_id_nat) or "").strip() if col_id_nat else None,
+                    "identification_nat":    safe_str(row.get(col_id_nat))  if col_id_nat else None,
                     "nom":                   nom or None,
                     "prenom":                prenom or None,
                     "nom_upper":             nom.upper() if nom else None,
                     "prenom_upper":          prenom.upper() if prenom else None,
-                    "libelle_profession":    row.get(col_prof) or None,
-                    "libelle_savoir_faire":  row.get(col_savoir) if col_savoir else None,
-                    "libelle_mode_exercice": row.get(col_mode_ex) if col_mode_ex else None,
+                    "libelle_profession":    safe_str(row.get(col_prof))     or None,
+                    "libelle_savoir_faire":  safe_str(row.get(col_savoir))   or None if col_savoir else None,
+                    "libelle_mode_exercice": safe_str(row.get(col_mode_ex))  or None if col_mode_ex else None,
                     "code_postal":           cp_val or None,
                     "code_departement":      dept_val or None,
-                    "libelle_commune":       row.get(col_libcom) if col_libcom else None,
+                    "libelle_commune":       safe_str(row.get(col_libcom))   or None if col_libcom else None,
                 }
 
             if total_lignes % 500_000 == 0:
