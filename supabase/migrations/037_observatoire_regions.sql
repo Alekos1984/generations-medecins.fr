@@ -32,8 +32,10 @@ UPDATE observatoire_series_history SET region = '11' WHERE serie_id = 'demograph
 ALTER TABLE observatoire_series DROP CONSTRAINT IF EXISTS observatoire_series_serie_id_label_key;
 ALTER TABLE observatoire_series ADD CONSTRAINT observatoire_series_region_serie_label_key UNIQUE (region, serie_id, label);
 
--- Vue tendance par région
-CREATE OR REPLACE VIEW observatoire_kpis_tendance AS
+-- Vue tendance par région (DROP nécessaire : la colonne 'region' s'insère
+-- entre les colonnes existantes, ce que CREATE OR REPLACE refuse)
+DROP VIEW IF EXISTS observatoire_kpis_tendance;
+CREATE VIEW observatoire_kpis_tendance AS
 WITH last_per AS (
   SELECT DISTINCT ON (kpi_id, region) kpi_id, region, valeur_num, snapshot_at
   FROM observatoire_kpis_history
