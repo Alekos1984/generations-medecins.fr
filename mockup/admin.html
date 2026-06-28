@@ -1925,8 +1925,15 @@
     loadObsAnalyse();
     const regionSel = document.getElementById('obs-region-select');
     const region = regionSel ? regionSel.value : '11';
-    // Global KPIs (region='FR') always shown + regional KPIs for selected region
-    const { data: kpis } = await sb.from('observatoire_kpis').select('*').or(`region.eq.${region},region.eq.FR`).order('id');
+    // Global KPIs (region='FR') + regional KPIs fetched separately then merged
+    const [{ data: _globalKpis }, { data: _regionalKpis }] = await Promise.all([
+      sb.from('observatoire_kpis').select('*').eq('region', 'FR').order('id'),
+      sb.from('observatoire_kpis').select('*').eq('region', region).order('id'),
+    ]);
+    const _kpiSeen = new Set();
+    const kpis = [...(_globalKpis||[]), ...(_regionalKpis||[])].filter(k => {
+      const key = k.id + '|' + k.region; return _kpiSeen.has(key) ? false : !!_kpiSeen.add(key);
+    });
     document.getElementById('obs-kpis-list').innerHTML = (kpis||[]).length
       ? kpis.map(obsKpiRow).join('')
       : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';

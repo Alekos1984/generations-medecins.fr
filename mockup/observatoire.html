@@ -493,12 +493,9 @@
       }
     }
 
-    // Détecte les régions disponibles (basé sur la table KPIs)
-    const regionsDisponibles = [...new Set((kpis||[]).map(k => k.region || 'FR'))];
-    // Par défaut : France entière si dispo, sinon IDF, sinon la 1ère région trouvée
-    const defaultRegion = regionsDisponibles.includes('FR') ? 'FR'
-                       : regionsDisponibles.includes('11') ? '11'
-                       : (regionsDisponibles[0] || 'FR');
+    // Par défaut : IDF ('11') car c'est là où les données sont importées ;
+    // les KPIs globaux (region='FR') s'affichent toujours via le filtre renderForRegion.
+    const defaultRegion = '11';
 
     // Initialise la carte interactive
     if (window.FranceMap) {
