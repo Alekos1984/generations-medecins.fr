@@ -429,14 +429,14 @@
       currentRegion = region;
       document.getElementById('obs-region-current').textContent = (window.FranceMap.REGION_NAMES[region] || region);
 
-      // KPIs : on prend ceux de la région + les KPIs FR/legacy en fallback
-      const kpisForRegion = (kpis||[]).filter(k => (k.region || 'FR') === region || (k.region == null && region === 'FR'));
-      // Tendances et historique aussi filtrés
+      // Global KPIs (region='FR') shown for every region; regional KPIs only for the selected one
+      const kpisForRegion = (kpis||[]).filter(k => k.region === 'FR' || k.region === region);
+      // Tendances et historique : idem (FR + région sélectionnée)
       const tendanceById = Object.fromEntries(
-        (tendances||[]).filter(t => (t.region || 'FR') === region).map(t => [t.kpi_id, t])
+        (tendances||[]).filter(t => t.region === 'FR' || t.region === region).map(t => [t.kpi_id, t])
       );
       const histByKpi = {};
-      (histKpis||[]).filter(h => (h.region || 'FR') === region).forEach(h => {
+      (histKpis||[]).filter(h => h.region === 'FR' || h.region === region).forEach(h => {
         (histByKpi[h.kpi_id] = histByKpi[h.kpi_id] || []).push(h);
       });
 
