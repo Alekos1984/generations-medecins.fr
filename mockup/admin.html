@@ -1931,7 +1931,7 @@
       : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
 
     const { data: series } = await sb.from('observatoire_series').select('*').eq('region', region).order('rang');
-    const demo = (series||[]).filter(s => s.serie_id === 'demographie' || s.serie_id === 'demographie_idf');
+    const demo = (series||[]).filter(s => s.serie_id === 'demographie');
     const hon  = (series||[]).filter(s => s.serie_id === 'honoraires_exercice');
     document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(obsSerieRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
     document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(obsSerieRow).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';

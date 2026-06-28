@@ -482,12 +482,11 @@
       const byId = {};
       seriesRegion.forEach(s => { (byId[s.serie_id] = byId[s.serie_id] || []).push(s); });
 
-      // demographie_idf (legacy) ou demographie (nouveau schéma)
-      renderBarChart('chart-demographie', byId['demographie'] || byId['demographie_idf']);
+      renderBarChart('chart-demographie', byId['demographie']);
       renderBarChart('chart-honoraires',  byId['honoraires_exercice']);
 
       // Mise à jour du sous-titre démographie
-      const demo = (byId['demographie'] || byId['demographie_idf'] || [])[0];
+      const demo = (byId['demographie'] || [])[0];
       if (demo) {
         const el = document.getElementById('chart-sub-demographie');
         if (el) el.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee}`;
