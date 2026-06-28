@@ -45,23 +45,67 @@ HEADERS = {
 IDF_DEPTS = {"75", "77", "78", "91", "92", "93", "94", "95",
              "075", "077", "078", "091", "092", "093", "094", "095"}
 
-# Mapping des libellés longs → labels courts pour l'affichage
-SPECIALITE_LABELS = {
-    "Médecine générale":              "Médecine générale",
-    "Psychiatrie":                    "Psychiatrie",
-    "Cardiologie et maladies vasculaires": "Cardiologie",
-    "Pédiatrie":                      "Pédiatrie",
-    "Gynécologie médicale et obstétrique": "Gynécologie",
-    "Dermatologie et vénéréologie":   "Dermatologie",
-    "Chirurgie générale":             "Chirurgie générale",
-    "Anesthésiologie-réanimation chirurgicale": "Anesthésie",
-    "Gastro-entérologie et hépatologie": "Gastro-entérologie",
-    "Radiologie":                     "Radiologie",
-    "Ophtalmologie":                  "Ophtalmologie",
-    "ORL":                            "ORL",
-    "Rhumatologie":                   "Rhumatologie",
-    "Neurologie":                     "Neurologie",
-}
+# Canonicalisation des spécialités RPPS.
+# Le fichier source contient plusieurs codes pour la même spécialité (ex:
+# SM26 "Qualifié en Médecine Générale", SM53 "Spécialiste en Médecine
+# Générale", SM54 "Médecine Générale" → tout est "Médecine générale").
+# On normalise pour fusionner les variantes avant agrégation.
+def canonicalize_specialite(raw):
+    if not raw:
+        return "Autre"
+    s = str(raw).strip()
+    sl = s.lower()
+    # Médecine générale (3 codes RPPS regroupés)
+    if "médecine générale" in sl or "medecine generale" in sl:
+        return "Médecine générale"
+    if "gynéco" in sl or "gyneco" in sl:
+        return "Gynécologie"
+    if "anesthés" in sl or "anesthes" in sl:
+        return "Anesthésie-réanimation"
+    if "radiol" in sl or "radio-diagnostic" in sl or "imagerie médicale" in sl:
+        return "Radiologie"
+    if "psychiatrie" in sl:
+        return "Psychiatrie"
+    if "cardiologie" in sl:
+        return "Cardiologie"
+    if "pédiatrie" in sl or "pediatrie" in sl:
+        return "Pédiatrie"
+    if "dermatolog" in sl:
+        return "Dermatologie"
+    if "ophtalmolog" in sl:
+        return "Ophtalmologie"
+    if "rhumatolog" in sl:
+        return "Rhumatologie"
+    if "neurolog" in sl:
+        return "Neurologie"
+    if "gastro-entéro" in sl or "gastroentéro" in sl or "hépatolog" in sl:
+        return "Gastro-entérologie"
+    if "oto-rhino" in sl or sl.strip() == "orl":
+        return "ORL"
+    if "endocrinolog" in sl:
+        return "Endocrinologie"
+    if "pneumolog" in sl:
+        return "Pneumologie"
+    if "néphrolog" in sl or "nephrolog" in sl:
+        return "Néphrologie"
+    if "urologie" in sl:
+        return "Urologie"
+    if "hématolog" in sl or "hematolog" in sl:
+        return "Hématologie"
+    if "oncolog" in sl:
+        return "Oncologie"
+    if "médecine du travail" in sl or "medecine du travail" in sl:
+        return "Médecine du travail"
+    if "médecine légale" in sl or "medecine legale" in sl:
+        return "Médecine légale"
+    if "santé publique" in sl or "sante publique" in sl:
+        return "Santé publique"
+    if "biolog" in sl:
+        return "Biologie médicale"
+    if "réanimat" in sl or "reanimat" in sl:
+        return "Réanimation"
+    # Tronque les libellés trop longs sans perdre le sens
+    return s[:60]
 
 # URL stable data.gouv.fr — redirige toujours vers la dernière version du
 # fichier "ps-libreacces-personne-activite.txt" (~700 Mo, ~1.2 M lignes).
@@ -342,10 +386,20 @@ def compute(path):
         log("   ⚠ encodage utf-8 ko, ré-essai latin-1")
         return compute_fallback_encoding(path, "latin-1")
 
-    # Recalcul du by_spec à partir des IDs dédupés
+    # Recalcul du by_spec à partir des IDs dédupés, en fusionnant les variantes
+    # de spécialités (canonicalize_specialite gère les doublons de médecine
+    # générale, gynéco, anesthésie, etc.).
     if col_id and spec_par_id:
         for spec in spec_par_id.values():
-            by_spec[spec] = by_spec.get(spec, 0) + 1
+            canon = canonicalize_specialite(spec)
+            by_spec[canon] = by_spec.get(canon, 0) + 1
+    else:
+        # Si on n'a pas pu dédup, on fusionne quand même les libellés raw
+        by_spec_canon = {}
+        for spec, n in by_spec.items():
+            canon = canonicalize_specialite(spec)
+            by_spec_canon[canon] = by_spec_canon.get(canon, 0) + n
+        by_spec = by_spec_canon
 
     nb_medecins_uniques = len(medecins_idf_ids) if col_id else total_idf
 
@@ -378,18 +432,22 @@ def compute(path):
     }]
 
     series = []
-    top = sorted(by_spec.items(), key=lambda x: -x[1])[:10]
+    # On garde TOUTES les spécialités (les ~44 codes RPPS distincts après
+    # canonicalisation), pas seulement le top 10 — la page publique gère
+    # l'affichage. Filtre minimum à 5 médecins pour ne pas polluer.
+    top = sorted(by_spec.items(), key=lambda x: -x[1])
+    top = [(s, n) for s, n in top if n >= 5]
     for rang, (spec, n) in enumerate(top, start=1):
-        label = SPECIALITE_LABELS.get(spec, (spec or "Autre")[:30])
         series.append({
             "serie_id":   "demographie_idf",
-            "label":      label,
+            "label":      spec,
             "valeur_num": int(n),
             "valeur_fmt": f"{int(n):,}".replace(",", " "),
             "rang":       rang,
             "source":     "RPPS",
             "annee":      ANNEE,
         })
+    log(f"   → {len(series)} spécialités gardées (filtre ≥ 5 médecins)")
     return kpis, series, total_lignes
 
 

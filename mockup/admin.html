@@ -1468,14 +1468,20 @@
 
         <!-- Séries -->
         <div style="margin-bottom:32px">
-          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Démographie IDF par spécialité</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Démographie IDF par spécialité <span id="obs-demo-pending-count" style="color:#92400e;text-transform:none"></span></div>
+            <button id="obs-demo-validate-all" onclick="validateAllInSerie('demographie_idf')" style="display:none;background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider toute la section</button>
+          </div>
           <div id="obs-series-demographie" style="display:flex;flex-direction:column;gap:8px">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
         </div>
 
         <div style="margin-bottom:32px">
-          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Honoraires par mode d'exercice</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Honoraires par mode d'exercice <span id="obs-hon-pending-count" style="color:#92400e;text-transform:none"></span></div>
+            <button id="obs-hon-validate-all" onclick="validateAllInSerie('honoraires_exercice')" style="display:none;background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider toute la section</button>
+          </div>
           <div id="obs-series-honoraires" style="display:flex;flex-direction:column;gap:8px">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
@@ -1906,6 +1912,14 @@
     document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(obsSerieRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
     document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(obsSerieRow).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
 
+    // Compte pending + affiche bouton "Valider toute la section" si applicable
+    const demoPending = demo.filter(s => s.statut === 'pending').length;
+    const honPending  = hon.filter(s => s.statut === 'pending').length;
+    document.getElementById('obs-demo-pending-count').textContent = demoPending ? ` (${demoPending} en attente)` : '';
+    document.getElementById('obs-hon-pending-count').textContent  = honPending  ? ` (${honPending} en attente)`  : '';
+    document.getElementById('obs-demo-validate-all').style.display = demoPending ? 'block' : 'none';
+    document.getElementById('obs-hon-validate-all').style.display  = honPending  ? 'block' : 'none';
+
     const pendingCount = [...(kpis||[]), ...(series||[])].filter(x => x.statut === 'pending').length;
     const banner = document.getElementById('obs-pending-banner');
     if (pendingCount) { banner.style.display = 'block'; document.getElementById('obs-pending-count').textContent = pendingCount; }
@@ -2115,6 +2129,15 @@
     }).eq('id', id);
     if (error) toast('Erreur : ' + error.message, 'error');
     else { toast('Ligne rejetée'); loadObservatoire(); }
+  };
+
+  window.validateAllInSerie = async function(serieId) {
+    const { data: rows } = await sb.from('observatoire_series').select('id').eq('serie_id', serieId).eq('statut','pending');
+    if (!rows || !rows.length) { toast('Rien à valider'); return; }
+    if (!confirm(`Valider les ${rows.length} ligne(s) en attente de la section ?`)) return;
+    for (const r of rows) await validateObsSerie(r.id);
+    toast(`${rows.length} lignes validées ✓`, 'success');
+    loadObservatoire();
   };
 
   window.validateAllObsPending = async function() {

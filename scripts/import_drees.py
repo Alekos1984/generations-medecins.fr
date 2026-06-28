@@ -152,22 +152,43 @@ def compute(csv_text):
         "annee":        annee_max,
     }]
 
-    # Top spécialités IDF
+    # Spécialités IDF — toutes celles avec ≥ 5 médecins, après canonicalisation
+    # pour fusionner les variantes (médecine générale, gynéco, etc.).
+    def canon_spec(raw):
+        if not raw: return "Autre"
+        sl = str(raw).strip().lower()
+        if "médecine générale" in sl or "medecine generale" in sl: return "Médecine générale"
+        if "gynéco" in sl or "gyneco" in sl: return "Gynécologie"
+        if "anesthés" in sl or "anesthes" in sl: return "Anesthésie-réanimation"
+        if "radiol" in sl or "imagerie médicale" in sl: return "Radiologie"
+        if "psychiatrie" in sl: return "Psychiatrie"
+        if "cardiologie" in sl: return "Cardiologie"
+        if "pédiatrie" in sl or "pediatrie" in sl: return "Pédiatrie"
+        if "dermatolog" in sl: return "Dermatologie"
+        if "ophtalmolog" in sl: return "Ophtalmologie"
+        if "rhumatolog" in sl: return "Rhumatologie"
+        if "neurolog" in sl: return "Neurologie"
+        if "gastro" in sl or "hépatolog" in sl: return "Gastro-entérologie"
+        if "oto-rhino" in sl or sl == "orl": return "ORL"
+        return str(raw).strip()[:60]
+
     series = []
     if col_spec:
-        df_idf = df_now[dept_now.isin(IDF_DEPTS)]
-        top = df_idf.groupby(col_spec)[col_eff].sum().sort_values(ascending=False).head(10)
-        for rang, (spec, n) in enumerate(top.items(), start=1):
+        df_idf = df_now[dept_now.isin(IDF_DEPTS)].copy()
+        df_idf["_spec_canon"] = df_idf[col_spec].fillna("").map(canon_spec)
+        agg = df_idf.groupby("_spec_canon")[col_eff].sum().sort_values(ascending=False)
+        agg = agg[agg >= 5]
+        for rang, (spec, n) in enumerate(agg.items(), start=1):
             series.append({
                 "serie_id":   "demographie_idf",
-                "label":      (spec or "Autre")[:60],
+                "label":      spec,
                 "valeur_num": int(n),
                 "valeur_fmt": f"{int(n):,}".replace(",", " "),
                 "rang":       rang,
                 "source":     "DREES",
                 "annee":      annee_max,
             })
-        log(f"   {len(series)} spécialités top IDF")
+        log(f"   {len(series)} spécialités IDF (canonicalisées, ≥ 5 médecins)")
     else:
         log("   ⚠ pas de colonne spécialité — séries non calculées")
 
