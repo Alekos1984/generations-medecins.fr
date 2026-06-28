@@ -1492,7 +1492,7 @@
         <div style="margin-bottom:32px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Démographie IDF par spécialité <span id="obs-demo-pending-count" style="color:#92400e;text-transform:none"></span></div>
-            <button id="obs-demo-validate-all" onclick="validateAllInSerie('demographie_idf')" style="display:none;background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider toute la section</button>
+            <button id="obs-demo-validate-all" onclick="validateAllInSerie('demographie')" style="display:none;background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider toute la section</button>
           </div>
           <div id="obs-series-demographie" style="display:flex;flex-direction:column;gap:8px">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
@@ -2159,9 +2159,11 @@
   };
 
   window.validateAllInSerie = async function(serieId) {
-    const { data: rows } = await sb.from('observatoire_series').select('id').eq('serie_id', serieId).eq('statut','pending');
+    const region = document.getElementById('obs-region-select')?.value || 'FR';
+    const { data: rows } = await sb.from('observatoire_series')
+      .select('id').eq('serie_id', serieId).eq('region', region).eq('statut','pending');
     if (!rows || !rows.length) { toast('Rien à valider'); return; }
-    if (!confirm(`Valider les ${rows.length} ligne(s) en attente de la section ?`)) return;
+    if (!confirm(`Valider les ${rows.length} ligne(s) en attente de la section (région ${region}) ?`)) return;
     for (const r of rows) await validateObsSerie(r.id);
     toast(`${rows.length} lignes validées ✓`, 'success');
     loadObservatoire();
