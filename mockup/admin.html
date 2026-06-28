@@ -1458,6 +1458,28 @@
           <div id="obs-analyse-contenu" style="font-size:.88rem;color:var(--ink);line-height:1.55"></div>
         </div>
 
+        <!-- Sélecteur de région -->
+        <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:.8rem;font-weight:700;color:var(--muted)">📍 RÉGION AFFICHÉE</label>
+          <select id="obs-region-select" onchange="loadObservatoire()" style="padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:.85rem;background:white;cursor:pointer;min-width:240px">
+            <option value="FR">🇫🇷 France entière</option>
+            <option value="11" selected>Île-de-France</option>
+            <option value="84">Auvergne-Rhône-Alpes</option>
+            <option value="93">Provence-Alpes-Côte d'Azur</option>
+            <option value="76">Occitanie</option>
+            <option value="75">Nouvelle-Aquitaine</option>
+            <option value="44">Grand Est</option>
+            <option value="32">Hauts-de-France</option>
+            <option value="52">Pays de la Loire</option>
+            <option value="53">Bretagne</option>
+            <option value="28">Normandie</option>
+            <option value="24">Centre-Val de Loire</option>
+            <option value="27">Bourgogne-Franche-Comté</option>
+            <option value="94">Corse</option>
+          </select>
+          <span style="font-size:.78rem;color:var(--muted)">Les KPIs et séries ci-dessous sont filtrés sur cette région.</span>
+        </div>
+
         <!-- KPIs -->
         <div style="margin-bottom:32px">
           <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Indicateurs clés (4 grandes stats)</div>
@@ -1819,9 +1841,9 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:6px">
           ${isPending ? `
-            <button onclick="validateObsKpi('${k.id}')" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider</button>
-            <button onclick="rejectObsKpi('${k.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✕ Rejeter</button>
-          ` : `<button onclick="editObsKpi('${k.id}')" style="background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✎ Éditer</button>`}
+            <button onclick="validateObsKpi('${k.id}','${k.region||'FR'}')" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider</button>
+            <button onclick="rejectObsKpi('${k.id}','${k.region||'FR'}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✕ Rejeter</button>
+          ` : `<button onclick="editObsKpi('${k.id}','${k.region||'FR'}')" style="background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✎ Éditer</button>`}
         </div>
       </div>
     </div>`;
@@ -1901,13 +1923,15 @@
 
   async function loadObservatoire() {
     loadObsAnalyse();
-    const { data: kpis } = await sb.from('observatoire_kpis').select('*').order('id');
+    const regionSel = document.getElementById('obs-region-select');
+    const region = regionSel ? regionSel.value : '11';
+    const { data: kpis } = await sb.from('observatoire_kpis').select('*').eq('region', region).order('id');
     document.getElementById('obs-kpis-list').innerHTML = (kpis||[]).length
       ? kpis.map(obsKpiRow).join('')
       : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
 
-    const { data: series } = await sb.from('observatoire_series').select('*').order('rang');
-    const demo = (series||[]).filter(s => s.serie_id === 'demographie_idf');
+    const { data: series } = await sb.from('observatoire_series').select('*').eq('region', region).order('rang');
+    const demo = (series||[]).filter(s => s.serie_id === 'demographie' || s.serie_id === 'demographie_idf');
     const hon  = (series||[]).filter(s => s.serie_id === 'honoraires_exercice');
     document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(obsSerieRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
     document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(obsSerieRow).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
@@ -2050,8 +2074,9 @@
     return m ? parseFloat(m[0].replace(',', '.')) : null;
   }
 
-  window.validateObsKpi = async function(id) {
-    const { data: row } = await sb.from('observatoire_kpis').select('*').eq('id',id).single();
+  window.validateObsKpi = async function(id, region) {
+    region = region || (document.getElementById('obs-region-select')?.value || 'FR');
+    const { data: row } = await sb.from('observatoire_kpis').select('*').eq('id',id).eq('region',region).single();
     if (!row) return;
     const newValeur = row.valeur_pending ?? row.valeur;
     const newSource = row.source_pending ?? row.source;
@@ -2066,11 +2091,12 @@
       valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
       updated_at:   new Date().toISOString(),
-    }).eq('id', id);
+    }).eq('id', id).eq('region', region);
     if (error) { toast('Erreur : ' + error.message, 'error'); return; }
     // Snapshot dans l'historique (pour calcul de tendance N vs N-12 mois)
     await sb.from('observatoire_kpis_history').insert({
       kpi_id:     id,
+      region:     region,
       valeur:     newValeur,
       valeur_num: parseNum(newValeur),
       source:     newSource,
@@ -2080,12 +2106,13 @@
     toast('KPI validé ✓'); loadObservatoire();
   };
 
-  window.rejectObsKpi = async function(id) {
+  window.rejectObsKpi = async function(id, region) {
+    region = region || (document.getElementById('obs-region-select')?.value || 'FR');
     const { error } = await sb.from('observatoire_kpis').update({
       statut: 'validated',
       valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
       source_pending: null, annee_pending: null, pending_at: null,
-    }).eq('id', id);
+    }).eq('id', id).eq('region', region);
     if (error) toast('Erreur : ' + error.message, 'error');
     else { toast('Valeur rejetée'); loadObservatoire(); }
   };

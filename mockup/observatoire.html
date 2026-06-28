@@ -183,6 +183,18 @@
   <section class="section">
     <div class="section-inner">
 
+      <!-- Carte de France interactive (sélecteur de région) -->
+      <div style="background:white;border:1px solid var(--line,#e2e8f0);border-radius:14px;padding:18px 22px;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700;color:var(--ink,#152033);font-size:.95rem">📍 Choisis ta région</div>
+            <div style="font-size:.78rem;color:var(--muted,#64748b);margin-top:2px">Les chiffres ci-dessous se mettent à jour automatiquement.</div>
+          </div>
+          <div id="obs-region-current" style="font-weight:700;color:#1e40af;font-size:.95rem">France entière</div>
+        </div>
+        <div id="obs-france-map" style="max-width:520px;margin:0 auto"></div>
+      </div>
+
       <!-- Bloc analyse IA (rempli par JS si une analyse existe en base) -->
       <div id="obs-analyse-public" style="display:none;background:linear-gradient(135deg,#faf5ff 0%,#eef2ff 100%);border:1.5px solid #c4b5fd;border-radius:14px;padding:22px 28px;margin-bottom:32px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -195,14 +207,14 @@
 
       <div class="stats-row">
         <div class="stat-card">
-          <div class="value">4 820</div>
-          <div class="label">Médecins actifs en IDF</div>
-          <div class="trend trend-down">↓ −3.2% vs 2023</div>
+          <div class="value">—</div>
+          <div class="label">Médecins actifs</div>
+          <div class="trend"></div>
         </div>
         <div class="stat-card">
-          <div class="value">38%</div>
-          <div class="label">Zones sous-dotées en IDF</div>
-          <div class="trend trend-up">↑ +4pts vs 2022</div>
+          <div class="value">—</div>
+          <div class="label">Zones sous-dotées</div>
+          <div class="trend"></div>
         </div>
         <div class="stat-card">
           <div class="value">31 j</div>
@@ -341,6 +353,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="auth-header.js"></script>
+  <script src="france-map.js"></script>
   <script>
   (async () => {
     const SUPA_URL = 'https://faegpfkhlkkwmtaichin.supabase.co';
@@ -371,15 +384,8 @@
       document.getElementById('obs-analyse-contenu-pub').innerHTML = md2html(a.contenu);
     }
 
-    // ── KPIs ── (seulement validés)
-    const [{ data: kpis }, { data: tendances }, { data: histKpis }] = await Promise.all([
-      db.from('observatoire_kpis').select('*').eq('statut','validated'),
-      db.from('observatoire_kpis_tendance').select('*'),
-      db.from('observatoire_kpis_history').select('kpi_id,valeur_num,snapshot_at').order('snapshot_at',{ascending:true}),
-    ]);
-    const tendanceById = Object.fromEntries((tendances||[]).map(t => [t.kpi_id, t]));
-    const histByKpi = {};
-    (histKpis||[]).forEach(h => { (histByKpi[h.kpi_id] = histByKpi[h.kpi_id] || []).push(h); });
+    // ── Région par défaut : FR si on a des données, sinon IDF ────
+    let currentRegion = 'FR';
 
     function sparkline(points, width=80, height=24) {
       if (!points || points.length < 2) return '';
@@ -396,12 +402,59 @@
       </svg>`;
     }
 
-    if (kpis && kpis.length) {
-      kpis.forEach(k => {
+    function renderBarChart(containerId, rows) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (!rows || !rows.length) { container.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:8px">Aucune donnée pour cette région.</div>'; return; }
+      const max = Math.max(...rows.map(r => r.valeur_num || 0));
+      container.innerHTML = rows.map(r => {
+        const pct = max > 0 ? Math.round((r.valeur_num / max) * 100) : 0;
+        return `<div class="bar-row">
+          <div class="bar-row-label">${r.label}</div>
+          <div class="bar-row-track"><div class="bar-row-fill" style="width:${pct}%"></div></div>
+          <div class="bar-row-value">${r.valeur_fmt}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Charge tout, puis filtre par région ──
+    const [{ data: kpis }, { data: tendances }, { data: histKpis }, { data: series }] = await Promise.all([
+      db.from('observatoire_kpis').select('*').eq('statut','validated'),
+      db.from('observatoire_kpis_tendance').select('*'),
+      db.from('observatoire_kpis_history').select('kpi_id,region,valeur_num,snapshot_at').order('snapshot_at',{ascending:true}),
+      db.from('observatoire_series').select('*').eq('statut','validated').order('serie_id').order('rang'),
+    ]);
+
+    function renderForRegion(region) {
+      currentRegion = region;
+      document.getElementById('obs-region-current').textContent = (window.FranceMap.REGION_NAMES[region] || region);
+
+      // KPIs : on prend ceux de la région + les KPIs FR/legacy en fallback
+      const kpisForRegion = (kpis||[]).filter(k => (k.region || 'FR') === region || (k.region == null && region === 'FR'));
+      // Tendances et historique aussi filtrés
+      const tendanceById = Object.fromEntries(
+        (tendances||[]).filter(t => (t.region || 'FR') === region).map(t => [t.kpi_id, t])
+      );
+      const histByKpi = {};
+      (histKpis||[]).filter(h => (h.region || 'FR') === region).forEach(h => {
+        (histByKpi[h.kpi_id] = histByKpi[h.kpi_id] || []).push(h);
+      });
+
+      // Met à jour les cartes KPI en matchant par label
+      document.querySelectorAll('.stat-card .trend').forEach(t => t.textContent = '');
+      document.querySelectorAll('.stat-card .value').forEach(v => v.textContent = '—');
+      document.querySelectorAll('.stat-card svg').forEach(s => s.remove());
+
+      kpisForRegion.forEach(k => {
         const cards = document.querySelectorAll('.stat-card');
         cards.forEach(card => {
           const lbl = card.querySelector('.label');
-          if (lbl && lbl.textContent.trim() === k.label) {
+          // Match : soit le label exact, soit "Médecins actifs" → la carte "Médecins actifs en IDF"
+          const matches = lbl && (
+            lbl.textContent.trim() === k.label ||
+            (k.id === 'medecins_actifs' && lbl.textContent.includes('Médecins actifs'))
+          );
+          if (matches) {
             card.querySelector('.value').textContent = k.valeur;
             const trend = card.querySelector('.trend');
             const t = tendanceById[k.id];
@@ -416,7 +469,6 @@
                 trend.className = 'trend ' + (k.tendance_dir === 'up' ? 'trend-up' : k.tendance_dir === 'down' ? 'trend-down' : '');
               }
             }
-            // Sparkline si on a au moins 2 points d'historique
             const pts = histByKpi[k.id] || [];
             if (pts.length >= 2) {
               card.insertAdjacentHTML('beforeend', sparkline(pts));
@@ -424,42 +476,41 @@
           }
         });
       });
+
+      // Séries : filtre par région
+      const seriesRegion = (series||[]).filter(s => (s.region || 'FR') === region);
+      const byId = {};
+      seriesRegion.forEach(s => { (byId[s.serie_id] = byId[s.serie_id] || []).push(s); });
+
+      // demographie_idf (legacy) ou demographie (nouveau schéma)
+      renderBarChart('chart-demographie', byId['demographie'] || byId['demographie_idf']);
+      renderBarChart('chart-honoraires',  byId['honoraires_exercice']);
+
+      // Mise à jour du sous-titre démographie
+      const demo = (byId['demographie'] || byId['demographie_idf'] || [])[0];
+      if (demo) {
+        const el = document.getElementById('chart-sub-demographie');
+        if (el) el.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee}`;
+      }
     }
 
-    // ── Séries bar charts ──────────────────────────────────
-    const { data: series } = await db.from('observatoire_series')
-      .select('*')
-      .eq('statut','validated')
-      .order('serie_id').order('rang');
+    // Détecte les régions disponibles (basé sur la table KPIs)
+    const regionsDisponibles = [...new Set((kpis||[]).map(k => k.region || 'FR'))];
+    // Par défaut : France entière si dispo, sinon IDF, sinon la 1ère région trouvée
+    const defaultRegion = regionsDisponibles.includes('FR') ? 'FR'
+                       : regionsDisponibles.includes('11') ? '11'
+                       : (regionsDisponibles[0] || 'FR');
 
-    if (!series || !series.length) return;
-
-    const byId = {};
-    series.forEach(s => { (byId[s.serie_id] = byId[s.serie_id] || []).push(s); });
-
-    function renderBarChart(containerId, rows) {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      const max = Math.max(...rows.map(r => r.valeur_num || 0));
-      container.innerHTML = rows.map(r => {
-        const pct = max > 0 ? Math.round((r.valeur_num / max) * 100) : 0;
-        return `<div class="bar-row">
-          <div class="bar-row-label">${r.label}</div>
-          <div class="bar-row-track"><div class="bar-row-fill" style="width:${pct}%"></div></div>
-          <div class="bar-row-value">${r.valeur_fmt}</div>
-        </div>`;
-      }).join('');
+    // Initialise la carte interactive
+    if (window.FranceMap) {
+      FranceMap.render('#obs-france-map', {
+        mode: 'select',
+        selected: defaultRegion,
+        onSelect: (code, name) => renderForRegion(code),
+        showFranceEntiere: true,
+      });
     }
-
-    if (byId['demographie_idf'])    renderBarChart('chart-demographie',   byId['demographie_idf']);
-    if (byId['honoraires_exercice']) renderBarChart('chart-honoraires',   byId['honoraires_exercice']);
-
-    // Mise à jour source + date dans les sous-titres
-    const demo = (byId['demographie_idf'] || [])[0];
-    if (demo) {
-      const el = document.getElementById('chart-sub-demographie');
-      if (el) el.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee}`;
-    }
+    renderForRegion(defaultRegion);
   })();
   </script>
 </body>
