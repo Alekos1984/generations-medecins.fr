@@ -497,16 +497,36 @@ def write_series_pending(series, import_id):
 # ── Main ──────────────────────────────────────────────────────
 def main():
     log(f"=== Observatoire import — {datetime.now().isoformat()} ===")
-    import_id = None
+
+    # On crée le record d'import DÈS LE DÉBUT (statut='failed' par défaut) pour
+    # avoir une trace même si la suite crashe. On bascule à 'success' à la fin.
+    import_id = create_import_row("RPPS", "rpps.txt (en cours)", RPPS_STABLE_URL, 0,
+                                   statut="failed", erreur="Import en cours…", diag=DIAG)
+    log(f"   import_id (créé au début) = {import_id}")
+
     try:
         filename, dest_path = fetch_rpps("rpps.txt")
         sample_raw = read_raw_sample(dest_path, n_lines=100)
         kpis, series, nb_lignes = compute(dest_path)
 
-        # Historique (pas d'upload du fichier brut — 700 Mo, on garde juste l'URL stable)
-        import_id = create_import_row("RPPS", filename, RPPS_STABLE_URL, nb_lignes,
-                                       sample_raw=sample_raw, diag=DIAG)
-        log(f"   import_id = {import_id}")
+        # Met à jour le record avec les vraies métadonnées + statut=success
+        if import_id:
+            import json as _json
+            requests.patch(
+                f"{SUPABASE_URL}/rest/v1/observatoire_imports?id=eq.{import_id}",
+                headers=HEADERS,
+                json={
+                    "fichier":          filename,
+                    "nb_lignes_brutes": nb_lignes,
+                    "statut":           "success",
+                    "erreur":           None,
+                    "sample_raw":       (sample_raw or "")[:30000],
+                    "colonnes_detectees": _json.dumps(DIAG.get("colonnes", []), ensure_ascii=False)[:8000],
+                    "top_valeurs":      _json.dumps(DIAG, ensure_ascii=False, indent=2, default=str)[:30000],
+                    "log":              "\n".join(log_lines)[-8000:],
+                },
+                timeout=30,
+            )
 
         n_kpis   = write_kpis_pending(kpis, import_id)
         n_series = write_series_pending(series, import_id)
@@ -526,6 +546,8 @@ def main():
 
     except Exception as e:
         log(f"❌ Erreur : {e}")
+        import traceback
+        log(traceback.format_exc()[:4000])
         if import_id:
             requests.patch(
                 f"{SUPABASE_URL}/rest/v1/observatoire_imports?id=eq.{import_id}",
