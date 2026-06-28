@@ -1957,6 +1957,7 @@
     if (pendingCount) { banner.style.display = 'block'; document.getElementById('obs-pending-count').textContent = pendingCount; }
     else banner.style.display = 'none';
   }
+  window.loadObservatoire = loadObservatoire; // expose pour l'onchange inline du <select>
 
   // ── Déclenchement workflow GitHub Actions ───────────────────
   // Passe par une Netlify Function (le PAT est stocké en env var côté serveur,
