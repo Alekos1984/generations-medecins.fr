@@ -330,6 +330,11 @@ def compute(path):
                         "Colonnes introuvables. En-têtes contenant 'postal' / 'commune' / 'départ' / 'profes' : "
                         + " | ".join(h for h in headers if any(k in h.lower() for k in ("postal","commune","départ","profes")))
                     )
+                if not col_id:
+                    raise ValueError(
+                        "Colonne d'identifiant national PP introuvable. En-têtes contenant 'identif' : "
+                        + " | ".join(h for h in headers if "identif" in (h or "").lower())
+                    )
                 log(f"   colonnes IDF : cp='{col_cp}' / commune='{col_commune}' / dept(officiel)='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
                 log(f"   colonnes RPPS index : id_pp='{col_id_pp}' / id_nat='{col_id_nat}' / nom='{col_nom}' / prenom='{col_prenom}' / mode_ex='{col_mode_ex}' / libcom='{col_libcom}'")
                 if not col_id_pp:
@@ -373,45 +378,54 @@ def compute(path):
             for v in chunk[col_prof].fillna("").value_counts().head(50).items():
                 prof_counts[v[0]] = prof_counts.get(v[0], 0) + int(v[1])
 
-            # Médecins de tout le chunk → on les répartit par région
-            med_chunk = chunk[mask_prof]
-            for _, row in med_chunk.iterrows():
-                pid = row.get(col_id) if col_id else None
-                if not pid: continue
-                dept_raw = chunk_dept.loc[row.name] if row.name in chunk_dept.index else ""
-                region = dept_to_region(dept_raw)
-                if not region: continue  # médecin sans adresse exploitable
-                # Médecins uniques par région
-                if region not in medecins_par_region:
-                    medecins_par_region[region] = set()
-                if pid in medecins_par_region[region]:
-                    continue
-                medecins_par_region[region].add(pid)
-                # France entière en parallèle
-                medecins_par_region.setdefault("FR", set()).add(pid)
-                if col_savoir:
-                    spec_par_id_region[(region, pid)] = row.get(col_savoir) or "Autre"
-                    spec_par_id_region.setdefault(("FR", pid), row.get(col_savoir) or "Autre")
+            # ── Agrégation par région (vectorisée pour éviter le timeout) ──
+            # Au lieu d'iterrows sur 545k médecins, on enrichit le chunk avec
+            # _region et _pid puis on dédup au niveau du chunk avant la boucle.
+            med_chunk = chunk[mask_prof].copy()
+            if col_id and len(med_chunk):
+                med_chunk["_region"] = chunk_dept.loc[med_chunk.index].map(dept_to_region)
+                med_chunk = med_chunk[med_chunk["_region"].notna() & med_chunk[col_id].notna()]
+                # Première occurrence de chaque (region, pid) — un médecin peut
+                # avoir plusieurs sites dans la même région
+                med_unique = med_chunk.drop_duplicates(subset=[col_id, "_region"])
+                # Ajoute aux sets globaux + capture la spécialité au passage
+                for region, group in med_unique.groupby("_region"):
+                    s = medecins_par_region.setdefault(region, set())
+                    s_fr = medecins_par_region.setdefault("FR", set())
+                    if col_savoir:
+                        for pid, spec in zip(group[col_id].values,
+                                              group[col_savoir].fillna("Autre").values):
+                            if pid not in s:
+                                s.add(pid)
+                                spec_par_id_region[(region, pid)] = spec
+                            if pid not in s_fr:
+                                s_fr.add(pid)
+                                spec_par_id_region[("FR", pid)] = spec
+                    else:
+                        new_pids = set(group[col_id].values)
+                        s.update(new_pids); s_fr.update(new_pids)
 
             # ── Index complet des médecins (tous départements) pour la vérif
-            # des adhérents. Une ligne par identifiant_pp, dédupliquée.
-            # Note : pandas renvoie NaN (float) pour les cellules vides, pas
-            # None — d'où la fonction safe_str() locale.
+            # des adhérents — VECTORISÉ aussi.
             def safe_str(v):
                 if v is None: return ""
-                if isinstance(v, float) and v != v:  # NaN
-                    return ""
+                if isinstance(v, float) and v != v: return ""
                 return str(v).strip()
-            all_med = chunk[mask_prof]
-            for _, row in all_med.iterrows():
-                pp = safe_str(row.get(col_id_pp)) if col_id_pp else ""
-                if not pp or pp in RPPS_INDEX:
-                    continue
-                cp_val   = safe_str(row.get(col_cp))     if col_cp     else ""
-                dept_val = cp_val[:2] if cp_val[:2].isdigit() else ""
-                nom      = safe_str(row.get(col_nom))    if col_nom    else ""
-                prenom   = safe_str(row.get(col_prenom)) if col_prenom else ""
-                RPPS_INDEX[pp] = {
+
+            if col_id_pp and len(med_chunk):
+                # Dédup au niveau du chunk d'abord
+                idx_chunk = med_chunk.drop_duplicates(subset=[col_id_pp])
+                # Filtre les pid déjà dans RPPS_INDEX (chunks précédents)
+                idx_chunk = idx_chunk[~idx_chunk[col_id_pp].astype(str).str.strip().isin(RPPS_INDEX.keys())]
+                for _, row in idx_chunk.iterrows():
+                    pp = safe_str(row.get(col_id_pp))
+                    if not pp or pp in RPPS_INDEX:
+                        continue
+                    cp_val   = safe_str(row.get(col_cp))     if col_cp     else ""
+                    dept_val = cp_val[:2] if cp_val[:2].isdigit() else ""
+                    nom      = safe_str(row.get(col_nom))    if col_nom    else ""
+                    prenom   = safe_str(row.get(col_prenom)) if col_prenom else ""
+                    RPPS_INDEX[pp] = {
                     "identifiant_pp":        pp,
                     "identification_nat":    safe_str(row.get(col_id_nat))  if col_id_nat else None,
                     "nom":                   nom or None,
@@ -426,8 +440,10 @@ def compute(path):
                     "libelle_commune":       safe_str(row.get(col_libcom))   or None if col_libcom else None,
                 }
 
-            if total_lignes % 500_000 == 0:
-                log(f"   {total_lignes:,} lignes lues — {total_idf:,} médecins IDF jusqu'ici")
+            # Progress log toutes les 5 chunks (~500k lignes)
+            if total_lignes % 500_000 < 100_000:
+                nb_fr = len(medecins_par_region.get("FR", set()))
+                log(f"   {total_lignes:,} lignes lues — {nb_fr:,} médecins uniques (FR) jusqu'ici")
 
     except UnicodeDecodeError:
         log("   ⚠ encodage utf-8 ko, ré-essai latin-1")
