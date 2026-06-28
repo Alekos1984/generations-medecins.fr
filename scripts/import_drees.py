@@ -154,23 +154,11 @@ def compute(csv_text):
 
     # Spécialités IDF — toutes celles avec ≥ 5 médecins, après canonicalisation
     # pour fusionner les variantes (médecine générale, gynéco, etc.).
-    def canon_spec(raw):
-        if not raw: return "Autre"
-        sl = str(raw).strip().lower()
-        if "médecine générale" in sl or "medecine generale" in sl: return "Médecine générale"
-        if "gynéco" in sl or "gyneco" in sl: return "Gynécologie"
-        if "anesthés" in sl or "anesthes" in sl: return "Anesthésie-réanimation"
-        if "radiol" in sl or "imagerie médicale" in sl: return "Radiologie"
-        if "psychiatrie" in sl: return "Psychiatrie"
-        if "cardiologie" in sl: return "Cardiologie"
-        if "pédiatrie" in sl or "pediatrie" in sl: return "Pédiatrie"
-        if "dermatolog" in sl: return "Dermatologie"
-        if "ophtalmolog" in sl: return "Ophtalmologie"
-        if "rhumatolog" in sl: return "Rhumatologie"
-        if "neurolog" in sl: return "Neurologie"
-        if "gastro" in sl or "hépatolog" in sl: return "Gastro-entérologie"
-        if "oto-rhino" in sl or sl == "orl": return "ORL"
-        return str(raw).strip()[:60]
+    # Délègue à la même logique que import_observatoire.py (importer pour
+    # garantir la cohérence des labels entre les deux sources).
+    import sys as _sys, os as _os
+    _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+    from import_observatoire import canonicalize_specialite as canon_spec  # noqa
 
     series = []
     if col_spec:

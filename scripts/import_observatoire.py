@@ -15,6 +15,7 @@ Dépendances : requests, pandas, python-dotenv (voir scripts/requirements.txt)
 """
 
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -100,61 +101,123 @@ def dept_to_region(dept):
 # SM26 "Qualifié en Médecine Générale", SM53 "Spécialiste en Médecine
 # Générale", SM54 "Médecine Générale" → tout est "Médecine générale").
 # On normalise pour fusionner les variantes avant agrégation.
+_PARENTHETICAL_RE = re.compile(r"\s*\([^)]*\)")
+
 def canonicalize_specialite(raw):
+    """Fusionne les variantes RPPS vers la liste DES 2017 (~44 spécialités).
+
+    Règles :
+      - on retire d'abord les parenthèses (ex "Chirurgie maxillo-faciale
+        (réforme 2017)" → "Chirurgie maxillo-faciale")
+      - puis match sur mots-clés ordonnés du plus spécifique au plus général
+        (ex: "Méd cardiovasculaire opt cardio interventionnelle" → Cardiologie)
+    """
     if not raw:
         return "Autre"
-    s = str(raw).strip()
+    s = _PARENTHETICAL_RE.sub("", str(raw).strip()).strip()
     sl = s.lower()
-    # Médecine générale (3 codes RPPS regroupés)
-    if "médecine générale" in sl or "medecine generale" in sl:
-        return "Médecine générale"
-    if "gynéco" in sl or "gyneco" in sl:
-        return "Gynécologie"
-    if "anesthés" in sl or "anesthes" in sl:
-        return "Anesthésie-réanimation"
-    if "radiol" in sl or "radio-diagnostic" in sl or "imagerie médicale" in sl:
-        return "Radiologie"
+
+    # ── Cas qualifications / catégories non-spécialité ────────────
+    if "qualification" in sl or sl in ("autre",):
+        return "Autre"
+    if "recherche médicale" in sl or "recherche medicale" in sl:
+        return "Recherche médicale"
+
+    # ── SOUS-OPTIONS CARDIO → CARDIOLOGIE ─────────────────────────
+    # "Méd cardiovasculaire opt cardio interventionnelle", "...imagerie cardio
+    # d'expert", "...rythmo inter stimu card"
+    if "cardiovasculaire" in sl or "cardiologie" in sl or "cardio interventionnelle" in sl:
+        return "Cardiologie"
+
+    # ── CHIR PÉDIATRIQUE → toutes les sous-options + Chir infantile
+    if "chirurgie pédiatrique" in sl or "chirurgie pediatrique" in sl or "chirurgie infantile" in sl:
+        return "Chirurgie pédiatrique"
+
+    # ── PSYCHIATRIE (avant Pédopsychiatrie qui contient "psy") ─────
+    if "pédo-psychiatrie" in sl or "pedopsychiatrie" in sl or "pédopsychiatrie" in sl:
+        return "Pédopsychiatrie"
     if "psychiatrie" in sl:
         return "Psychiatrie"
-    if "cardiologie" in sl:
-        return "Cardiologie"
-    if "pédiatrie" in sl or "pediatrie" in sl:
-        return "Pédiatrie"
-    if "dermatolog" in sl:
-        return "Dermatologie"
-    if "ophtalmolog" in sl:
-        return "Ophtalmologie"
-    if "rhumatolog" in sl:
-        return "Rhumatologie"
-    if "neurolog" in sl:
-        return "Neurologie"
-    if "gastro-entéro" in sl or "gastroentéro" in sl or "hépatolog" in sl:
-        return "Gastro-entérologie"
-    if "oto-rhino" in sl or sl.strip() == "orl":
-        return "ORL"
-    if "endocrinolog" in sl:
-        return "Endocrinologie"
-    if "pneumolog" in sl:
-        return "Pneumologie"
-    if "néphrolog" in sl or "nephrolog" in sl:
-        return "Néphrologie"
+
+    # ── MÉDECINE GÉNÉRALE (SM26/SM53/SM54)
+    if "médecine générale" in sl or "medecine generale" in sl:
+        return "Médecine générale"
+
+    # ── GYNÉCO (3 variantes : médicale, obstétrique, médicale et obstétrique)
+    if "gynéco" in sl or "gyneco" in sl:
+        return "Gynécologie-obstétrique"
+
+    # ── ANESTHÉSIE-RÉA
+    if "anesthés" in sl or "anesthes" in sl:
+        return "Anesthésie-réanimation"
+    # ── RÉANIMATION (médicale, intensive) — distincte de l'anesthésie
+    if "réanimat" in sl or "reanimat" in sl:
+        return "Médecine intensive-réanimation"
+
+    # ── RADIO (diagnostic vs thérapie)
+    if "radio-thérap" in sl or "radio therap" in sl or "radiothérap" in sl or "radiotherap" in sl:
+        return "Radiothérapie"
+    if "radiol" in sl or "radio-diagnostic" in sl or "imagerie médicale" in sl or "imagerie medicale" in sl:
+        return "Radiologie et imagerie médicale"
+
+    # ── ORL — inclut "O.R.L et chirurgie cervico faciale", "ORL - chir cervico..."
+    if "oto-rhino" in sl or "o.r.l" in sl or sl.startswith("orl ") or sl == "orl" \
+       or "cervico-faciale" in sl or "cervico faciale" in sl:
+        return "ORL / Chirurgie cervico-faciale"
+
+    # ── STOMATOLOGIE / CHIR MAXILLO-FACIALE / CHIR ORALE (réforme 2017 a tout
+    # regroupé sous chir maxillo-faciale)
+    if "maxillo-faciale" in sl or "stomatologie" in sl or "chirurgie orale" in sl:
+        return "Chirurgie maxillo-faciale / Stomatologie"
+
+    # ── MÉDECINE INTERNE (inclut "et immunologie clinique")
+    if "médecine interne" in sl or "medecine interne" in sl:
+        return "Médecine interne"
+
+    # ── CHIRURGIES SPÉCIALISÉES (le mot-clé "chirurgie" est large, on traite
+    # les sous-spés AVANT le fallback Chirurgie générale)
+    if "neurochirurg" in sl or "neuro-chirurg" in sl:
+        return "Neuro-chirurgie"
+    if "chirurgie" in sl:
+        if "vasculaire" in sl:                       return "Chirurgie vasculaire"
+        if "viscérale" in sl or "viscerale" in sl:   return "Chirurgie viscérale et digestive"
+        if "orthopédique" in sl or "orthopedique" in sl: return "Chirurgie orthopédique et traumatologique"
+        if "plastique" in sl:                        return "Chirurgie plastique reconstructrice et esthétique"
+        if "thoracique" in sl or "cardio-vasculaire" in sl: return "Chirurgie thoracique et cardio-vasculaire"
+        if "urologique" in sl:                       return "Urologie"
+        if "générale" in sl or "generale" in sl:     return "Chirurgie générale"
+        return "Chirurgie générale"
     if "urologie" in sl:
         return "Urologie"
-    if "hématolog" in sl or "hematolog" in sl:
-        return "Hématologie"
-    if "oncolog" in sl:
-        return "Oncologie"
-    if "médecine du travail" in sl or "medecine du travail" in sl:
-        return "Médecine du travail"
-    if "médecine légale" in sl or "medecine legale" in sl:
-        return "Médecine légale"
-    if "santé publique" in sl or "sante publique" in sl:
-        return "Santé publique"
-    if "biolog" in sl:
-        return "Biologie médicale"
-    if "réanimat" in sl or "reanimat" in sl:
-        return "Réanimation"
-    # Tronque les libellés trop longs sans perdre le sens
+
+    # ── AUTRES SPÉCIALITÉS (1 mot-clé, pas de variante connue)
+    if "pédiatrie" in sl or "pediatrie" in sl:                  return "Pédiatrie"
+    if "dermatolog" in sl:                                       return "Dermatologie et vénéréologie"
+    if "ophtalmolog" in sl:                                      return "Ophtalmologie"
+    if "rhumatolog" in sl:                                       return "Rhumatologie"
+    if "neurolog" in sl:                                         return "Neurologie"
+    if "gastro" in sl or "hépato-gastro" in sl or "hépatolog" in sl: return "Hépato-gastro-entérologie"
+    if "endocrinolog" in sl or "diabéto" in sl or "diabeto" in sl: return "Endocrinologie-diabétologie-nutrition"
+    if "pneumolog" in sl:                                        return "Pneumologie"
+    if "néphrolog" in sl or "nephrolog" in sl:                  return "Néphrologie"
+    if "hématolog" in sl or "hematolog" in sl:                  return "Hématologie"
+    if "oncolog" in sl:                                          return "Oncologie médicale"
+    if "médecine du travail" in sl or "medecine du travail" in sl: return "Médecine du travail"
+    if "médecine légale" in sl or "medecine legale" in sl:     return "Médecine légale"
+    if "médecine d'urgence" in sl or "medecine d'urgence" in sl: return "Médecine d'urgence"
+    if "médecine vasculaire" in sl or "medecine vasculaire" in sl: return "Médecine vasculaire"
+    if "médecine nucléaire" in sl or "medecine nucleaire" in sl: return "Médecine nucléaire"
+    if "médecine physique" in sl or "medecine physique" in sl or "réadaptation" in sl or "readaptation" in sl:
+        return "Médecine physique et de réadaptation"
+    if "santé publique" in sl or "sante publique" in sl:        return "Santé publique"
+    if "biolog" in sl:                                           return "Biologie médicale"
+    if "génétique" in sl or "genetique" in sl:                   return "Génétique médicale"
+    if "anatomie" in sl and "pathologi" in sl:                   return "Anatomie et cytologie pathologiques"
+    if "maladies infectieuses" in sl or "tropicales" in sl:      return "Maladies infectieuses et tropicales"
+    if "allergolog" in sl:                                       return "Allergologie"
+    if "gériatrie" in sl or "geriatrie" in sl:                  return "Gériatrie"
+
+    # Tronque proprement les libellés inconnus restants
     return s[:60]
 
 # URL stable data.gouv.fr — redirige toujours vers la dernière version du
@@ -586,7 +649,31 @@ def write_kpis_pending(kpis, import_id):
 
 
 def write_series_pending(series, import_id):
-    """Pour chaque ligne : UPSERT sur (region, serie_id, label), écrit dans *_pending."""
+    """Pour chaque ligne : UPSERT sur (region, serie_id, label), écrit dans *_pending.
+
+    Avant d'écrire, on supprime les lignes orphelines : tout label dans
+    (region, serie_id) qui n'est PAS dans le nouveau batch est supprimé.
+    Ça évite de garder des spécialités héritées d'imports précédents (avant
+    canonicalisation, sous-options, fautes de frappe RPPS, etc.).
+    """
+    # Groupe les nouveaux labels par (region, serie_id)
+    new_labels = {}
+    for s in series:
+        key = (s.get("region", "FR"), s["serie_id"])
+        new_labels.setdefault(key, set()).add(s["label"])
+    # Supprime les orphelins
+    for (region, serie_id), labels in new_labels.items():
+        if not labels: continue
+        # On lit la liste actuelle puis on DELETE ceux pas dans labels
+        q = (f"{SUPABASE_URL}/rest/v1/observatoire_series"
+             f"?region=eq.{region}&serie_id=eq.{serie_id}&select=id,label")
+        existing = requests.get(q, headers=HEADERS, timeout=30).json() or []
+        orphan_ids = [str(r["id"]) for r in existing if r["label"] not in labels]
+        if orphan_ids:
+            log(f"   🧹 suppression de {len(orphan_ids)} ligne(s) orpheline(s) dans ({region},{serie_id})")
+            url = f"{SUPABASE_URL}/rest/v1/observatoire_series?id=in.(" + ",".join(orphan_ids) + ")"
+            requests.delete(url, headers=HEADERS, timeout=60)
+
     n = 0
     for s in series:
         region = s.get("region", "FR")
