@@ -147,9 +147,15 @@ RPPS_INDEX = {}   # identifiant_pp → dict des champs (dédupliqué)
 def push_rpps_index():
     """TRUNCATE + bulk insert dans rpps_medecins. Batches de 500 lignes."""
     if not RPPS_INDEX:
-        log("   ⚠ pas de médecins à indexer (RPPS_INDEX vide)")
+        log("   ⚠ pas de médecins à indexer (RPPS_INDEX vide) — "
+            "probablement col_id_pp introuvable dans le fichier source")
         return 0
     log(f"📤 Push de {len(RPPS_INDEX):,} médecins dans rpps_medecins (TRUNCATE + insert)…")
+    # Sample des 2 premières lignes pour vérifier visuellement ce qu'on envoie
+    sample = list(RPPS_INDEX.values())[:2]
+    log(f"   sample[0] = {sample[0] if sample else 'aucun'}")
+    if len(sample) > 1:
+        log(f"   sample[1] = {sample[1]}")
     # 1. Truncate via PostgREST (DELETE all rows)
     r = requests.delete(
         f"{SUPABASE_URL}/rest/v1/rpps_medecins?identifiant_pp=neq.__never__",
@@ -232,12 +238,20 @@ def compute(path):
                         "Colonnes introuvables. En-têtes contenant 'postal' / 'commune' / 'départ' / 'profes' : "
                         + " | ".join(h for h in headers if any(k in h.lower() for k in ("postal","commune","départ","profes")))
                     )
-                log(f"   colonnes : cp='{col_cp}' / commune='{col_commune}' / dept(officiel)='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
+                log(f"   colonnes IDF : cp='{col_cp}' / commune='{col_commune}' / dept(officiel)='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
+                log(f"   colonnes RPPS index : id_pp='{col_id_pp}' / id_nat='{col_id_nat}' / nom='{col_nom}' / prenom='{col_prenom}' / mode_ex='{col_mode_ex}' / libcom='{col_libcom}'")
+                if not col_id_pp:
+                    log("   ⚠⚠ col_id_pp introuvable — l'index rpps_medecins ne sera PAS peuplé. "
+                        "Colonnes contenant 'identifiant' : " +
+                        " | ".join(repr(h) for h in headers if "identifiant" in (h or "").lower()))
                 DIAG["col_cp"] = col_cp
                 DIAG["col_commune"] = col_commune
                 DIAG["col_dept"] = col_dept
                 DIAG["col_prof"] = col_prof
                 DIAG["col_savoir"] = col_savoir
+                DIAG["col_id_pp"] = col_id_pp
+                DIAG["col_nom"] = col_nom
+                DIAG["col_prenom"] = col_prenom
 
             total_lignes += len(chunk)
             chunk_prof = chunk[col_prof].fillna("").str.lower()
