@@ -138,13 +138,42 @@
       background: linear-gradient(90deg, var(--blue), var(--teal));
     }
     .bar-row-value { font-size: 0.78rem; font-weight: 700; color: var(--ink); }
+    .bar-row-spark { width: 60px; }
+    .bar-row.with-spark { grid-template-columns: 130px 1fr 56px 60px; }
 
+    /* Layout 2 colonnes : carte gauche / données droite */
+    .obs-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 460px) 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+      align-items: start;
+    }
+    .obs-map-col {
+      background: white;
+      border: 1.5px solid var(--line);
+      border-radius: var(--r);
+      padding: 20px;
+      position: sticky;
+      top: 16px;
+    }
+    .obs-map-header { margin-bottom: 12px; }
+    .obs-data-col .stats-row { margin-bottom: 0; }
+    .obs-data-col .stats-row { grid-template-columns: repeat(2, 1fr); }
+
+    @media (max-width: 980px) {
+      .obs-grid { grid-template-columns: 1fr; }
+      .obs-map-col { position: static; }
+      .obs-data-col .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
     @media (max-width: 800px) {
       .stats-row { grid-template-columns: 1fr 1fr; }
       .charts-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 480px) {
       .stats-row { grid-template-columns: 1fr 1fr; }
+      .bar-row.with-spark { grid-template-columns: 100px 1fr 50px; }
+      .bar-row-spark { display: none; }
     }
   </style>
 </head>
@@ -183,18 +212,6 @@
   <section class="section">
     <div class="section-inner">
 
-      <!-- Carte de France interactive (sélecteur de région) -->
-      <div style="background:white;border:1px solid var(--line,#e2e8f0);border-radius:14px;padding:18px 22px;margin-bottom:24px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:16px;flex-wrap:wrap">
-          <div>
-            <div style="font-weight:700;color:var(--ink,#152033);font-size:.95rem">📍 Choisis ta région</div>
-            <div style="font-size:.78rem;color:var(--muted,#64748b);margin-top:2px">Les chiffres ci-dessous se mettent à jour automatiquement.</div>
-          </div>
-          <div id="obs-region-current" style="font-weight:700;color:#1e40af;font-size:.95rem">France entière</div>
-        </div>
-        <div id="obs-france-map" style="max-width:520px;margin:0 auto"></div>
-      </div>
-
       <!-- Bloc analyse IA (rempli par JS si une analyse existe en base) -->
       <div id="obs-analyse-public" style="display:none;background:linear-gradient(135deg,#faf5ff 0%,#eef2ff 100%);border:1.5px solid #c4b5fd;border-radius:14px;padding:22px 28px;margin-bottom:32px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -205,120 +222,59 @@
         <div id="obs-analyse-contenu-pub" style="font-size:.95rem;line-height:1.6;color:#1f2937"></div>
       </div>
 
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="value">—</div>
-          <div class="label">Médecins actifs</div>
-          <div class="trend"></div>
+      <!-- Layout 2 colonnes : carte à gauche, données régionales à droite -->
+      <div class="obs-grid">
+        <!-- Colonne gauche : carte cliquable -->
+        <div class="obs-map-col">
+          <div class="obs-map-header">
+            <div style="font-weight:700;color:var(--ink,#152033);font-size:.95rem">📍 Choisis ta région</div>
+            <div style="font-size:.78rem;color:var(--muted,#64748b);margin-top:2px">Clique sur une région pour voir ses données.</div>
+          </div>
+          <div id="obs-france-map"></div>
+          <div id="obs-region-current" style="text-align:center;font-weight:800;color:#1e40af;font-size:1.1rem;margin-top:14px">Île-de-France</div>
         </div>
-        <div class="stat-card">
-          <div class="value">—</div>
-          <div class="label">Zones sous-dotées</div>
-          <div class="trend"></div>
-        </div>
-        <div class="stat-card">
-          <div class="value">31 j</div>
-          <div class="label">Délai moyen rdv généraliste</div>
-          <div class="trend trend-down">↑ +8j vs 2023</div>
-        </div>
-        <div class="stat-card">
-          <div class="value">26,5 €</div>
-          <div class="label">C moyen conventionnel</div>
-          <div class="trend trend-up">↑ +1€ depuis avenant n°9</div>
-        </div>
-      </div>
 
-      <!-- Carte placeholder -->
-      <div class="section-label" style="margin-bottom:10px">Cartographie</div>
-      <h2 class="section-title" style="margin-bottom:8px">Déserts médicaux en Île-de-France</h2>
-      <p class="section-sub">Densité médicale par commune. En cours de déploiement avec les données RPPS et CNAM.</p>
+        <!-- Colonne droite : données de la région sélectionnée -->
+        <div class="obs-data-col">
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="value">—</div>
+              <div class="label">Médecins actifs</div>
+              <div class="trend"></div>
+            </div>
+            <div class="stat-card">
+              <div class="value">—</div>
+              <div class="label">Zones sous-dotées</div>
+              <div class="trend"></div>
+            </div>
+            <div class="stat-card">
+              <div class="value">—</div>
+              <div class="label">Délai moyen rdv généraliste</div>
+              <div class="trend"></div>
+            </div>
+            <div class="stat-card">
+              <div class="value">—</div>
+              <div class="label">C moyen conventionnel</div>
+              <div class="trend"></div>
+            </div>
+          </div>
 
-      <div class="map-placeholder">
-        <div class="map-dots">
-          <div class="map-dot" style="width:18px;height:18px;background:#89c86a;top:35%;left:48%"></div>
-          <div class="map-dot" style="width:12px;height:12px;background:#58aab3;top:28%;left:55%"></div>
-          <div class="map-dot" style="width:22px;height:22px;background:#326aa2;top:45%;left:42%"></div>
-          <div class="map-dot" style="width:10px;height:10px;background:#dc2626;top:60%;left:65%"></div>
-          <div class="map-dot" style="width:14px;height:14px;background:#f59e0b;top:25%;left:35%"></div>
-          <div class="map-dot" style="width:8px;height:8px;background:#dc2626;top:70%;left:30%"></div>
-          <div class="map-dot" style="width:16px;height:16px;background:#89c86a;top:55%;left:52%"></div>
-          <div class="map-dot" style="width:11px;height:11px;background:#dc2626;top:40%;left:70%"></div>
-          <div class="map-dot" style="width:20px;height:20px;background:#326aa2;top:32%;left:62%"></div>
-        </div>
-        <div class="map-icon">🗺️</div>
-        <div class="map-label">Carte interactive — En cours de déploiement</div>
-        <div class="map-sub">Données RPPS · CNAM · INSEE · Mise à jour hebdomadaire</div>
-      </div>
-
-      <!-- Graphiques -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-title">Démographie médicale IDF par spécialité</div>
-          <div class="chart-sub" id="chart-sub-demographie">Nombre de médecins actifs — T1 2025</div>
-          <div class="bar-chart" id="chart-demographie">
-            <div class="bar-row">
-              <div class="bar-row-label">Généraliste</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:100%"></div></div>
-              <div class="bar-row-value">1 842</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Psychiatrie</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:38%"></div></div>
-              <div class="bar-row-value">698</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Cardiologie</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:29%"></div></div>
-              <div class="bar-row-value">534</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Pédiatrie</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:24%"></div></div>
-              <div class="bar-row-value">441</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Gynécologie</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:22%"></div></div>
-              <div class="bar-row-value">412</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Dermatologie</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:18%"></div></div>
-              <div class="bar-row-value">338</div>
+          <div class="chart-card" style="margin-top:18px">
+            <div class="chart-title">Démographie par spécialité — <span id="chart-region-name">Île-de-France</span></div>
+            <div class="chart-sub" id="chart-sub-demographie">Nombre de médecins actifs · sparkline = évolution depuis le 1er import</div>
+            <div class="bar-chart" id="chart-demographie">
+              <div style="color:var(--muted);font-size:.85rem;padding:8px">Sélectionne une région sur la carte.</div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="chart-card">
-          <div class="chart-title">Honoraires moyens par mode d'exercice</div>
-          <div class="chart-sub">Revenus nets annuels estimés — 2024</div>
-          <div class="bar-chart" id="chart-honoraires">
-            <div class="bar-row">
-              <div class="bar-row-label">Libéral S2</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:100%;background:linear-gradient(90deg,#17365f,#326aa2)"></div></div>
-              <div class="bar-row-value">96 k€</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Libéral S1</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:85%"></div></div>
-              <div class="bar-row-value">82 k€</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Mixte</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:72%;background:linear-gradient(90deg,var(--teal),var(--green))"></div></div>
-              <div class="bar-row-value">69 k€</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Salarié PH</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:60%;background:linear-gradient(90deg,#58aab3,#89c86a)"></div></div>
-              <div class="bar-row-value">58 k€</div>
-            </div>
-            <div class="bar-row">
-              <div class="bar-row-label">Remplaçant</div>
-              <div class="bar-row-track"><div class="bar-row-fill" style="width:48%;background:linear-gradient(90deg,#f59e0b,#f97316)"></div></div>
-              <div class="bar-row-value">46 k€</div>
-            </div>
-          </div>
+      <!-- Honoraires (full-width, indépendant de la région) -->
+      <div class="chart-card" style="margin-top:24px">
+        <div class="chart-title">Honoraires moyens par mode d'exercice</div>
+        <div class="chart-sub">Revenus nets annuels estimés — données nationales</div>
+        <div class="bar-chart" id="chart-honoraires">
+          <div style="color:var(--muted);font-size:.85rem;padding:8px">Données en cours d'intégration.</div>
         </div>
       </div>
 
@@ -402,32 +358,41 @@
       </svg>`;
     }
 
-    function renderBarChart(containerId, rows) {
+    function renderBarChart(containerId, rows, histByLabel) {
       const container = document.getElementById(containerId);
       if (!container) return;
       if (!rows || !rows.length) { container.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:8px">Aucune donnée pour cette région.</div>'; return; }
       const max = Math.max(...rows.map(r => r.valeur_num || 0));
       container.innerHTML = rows.map(r => {
         const pct = max > 0 ? Math.round((r.valeur_num / max) * 100) : 0;
-        return `<div class="bar-row">
+        const pts = histByLabel ? (histByLabel[r.label] || []) : [];
+        const spark = sparkline(pts, 60, 22);
+        const cls = spark ? 'bar-row with-spark' : 'bar-row';
+        const sparkCell = spark ? `<div class="bar-row-spark">${spark}</div>` : '';
+        return `<div class="${cls}">
           <div class="bar-row-label">${r.label}</div>
           <div class="bar-row-track"><div class="bar-row-fill" style="width:${pct}%"></div></div>
           <div class="bar-row-value">${r.valeur_fmt}</div>
+          ${sparkCell}
         </div>`;
       }).join('');
     }
 
     // ── Charge tout, puis filtre par région ──
-    const [{ data: kpis }, { data: tendances }, { data: histKpis }, { data: series }] = await Promise.all([
+    const [{ data: kpis }, { data: tendances }, { data: histKpis }, { data: series }, { data: histSeries }] = await Promise.all([
       db.from('observatoire_kpis').select('*').eq('statut','validated'),
       db.from('observatoire_kpis_tendance').select('*'),
       db.from('observatoire_kpis_history').select('kpi_id,region,valeur_num,snapshot_at').order('snapshot_at',{ascending:true}),
       db.from('observatoire_series').select('*').eq('statut','validated').order('serie_id').order('rang'),
+      db.from('observatoire_series_history').select('serie_id,label,region,valeur_num,snapshot_at').order('snapshot_at',{ascending:true}),
     ]);
 
     function renderForRegion(region) {
       currentRegion = region;
-      document.getElementById('obs-region-current').textContent = (window.FranceMap.REGION_NAMES[region] || region);
+      const regionName = (window.FranceMap.REGION_NAMES[region] || region);
+      document.getElementById('obs-region-current').textContent = regionName;
+      const chartRegionEl = document.getElementById('chart-region-name');
+      if (chartRegionEl) chartRegionEl.textContent = regionName;
 
       // Global KPIs (region='FR') shown for every region; regional KPIs only for the selected one
       const kpisForRegion = (kpis||[]).filter(k => k.region === 'FR' || k.region === region);
@@ -482,19 +447,25 @@
       const byId = {};
       seriesRegion.forEach(s => { (byId[s.serie_id] = byId[s.serie_id] || []).push(s); });
 
-      renderBarChart('chart-demographie', byId['demographie']);
+      // Historique séries pour cette région : map label → liste de points (chronologique)
+      const histByLabel = {};
+      (histSeries||[])
+        .filter(h => (h.region || 'FR') === region && h.serie_id === 'demographie')
+        .forEach(h => { (histByLabel[h.label] = histByLabel[h.label] || []).push(h); });
+
+      renderBarChart('chart-demographie', byId['demographie'], histByLabel);
       renderBarChart('chart-honoraires',  byId['honoraires_exercice']);
 
       // Mise à jour du sous-titre démographie
       const demo = (byId['demographie'] || [])[0];
-      if (demo) {
-        const el = document.getElementById('chart-sub-demographie');
-        if (el) el.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee}`;
+      const subEl = document.getElementById('chart-sub-demographie');
+      if (subEl) {
+        if (demo) subEl.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee} · sparkline = évolution depuis le 1er import`;
+        else subEl.textContent = 'Aucune donnée disponible pour cette région.';
       }
     }
 
-    // Par défaut : IDF ('11') car c'est là où les données sont importées ;
-    // les KPIs globaux (region='FR') s'affichent toujours via le filtre renderForRegion.
+    // Par défaut : IDF ('11') — région principale du mouvement
     const defaultRegion = '11';
 
     // Initialise la carte interactive

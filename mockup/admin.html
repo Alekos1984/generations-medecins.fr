@@ -1425,16 +1425,6 @@
           <p style="font-size:.85rem;color:var(--muted);margin-top:4px">Les imports automatiques (GitHub Actions mensuel, source RPPS / data.gouv.fr) déposent ici de nouvelles valeurs en attente. Valide pour publier sur la page publique.</p>
         </div>
 
-        <!-- Bandeau pending -->
-        <div id="obs-pending-banner" style="display:none;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:14px 18px;margin-bottom:24px">
-          <div style="font-weight:700;color:#92400e;font-size:.95rem;margin-bottom:4px">⏳ <span id="obs-pending-count">0</span> valeur(s) en attente de validation</div>
-          <div style="font-size:.8rem;color:#92400e">Les nouvelles valeurs proposées sont surlignées. Compare avec la valeur en cours, puis valide ou rejette.</div>
-          <div style="margin-top:10px;display:flex;gap:8px">
-            <button onclick="validateAllObsPending()" style="background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer">✓ Tout valider</button>
-            <button onclick="rejectAllObsPending()" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer">✕ Tout rejeter</button>
-          </div>
-        </div>
-
         <!-- Actions import -->
         <div style="margin-bottom:32px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
           <div style="flex:1;min-width:260px">
@@ -1458,53 +1448,62 @@
           <div id="obs-analyse-contenu" style="font-size:.88rem;color:var(--ink);line-height:1.55"></div>
         </div>
 
-        <!-- Sélecteur de région -->
-        <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <label style="font-size:.8rem;font-weight:700;color:var(--muted)">📍 RÉGION AFFICHÉE</label>
-          <select id="obs-region-select" onchange="loadObservatoire()" style="padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:.85rem;background:white;cursor:pointer;min-width:240px">
-            <option value="FR">🇫🇷 France entière</option>
-            <option value="11" selected>Île-de-France</option>
-            <option value="84">Auvergne-Rhône-Alpes</option>
-            <option value="93">Provence-Alpes-Côte d'Azur</option>
-            <option value="76">Occitanie</option>
-            <option value="75">Nouvelle-Aquitaine</option>
-            <option value="44">Grand Est</option>
-            <option value="32">Hauts-de-France</option>
-            <option value="52">Pays de la Loire</option>
-            <option value="53">Bretagne</option>
-            <option value="28">Normandie</option>
-            <option value="24">Centre-Val de Loire</option>
-            <option value="27">Bourgogne-Franche-Comté</option>
-            <option value="94">Corse</option>
-          </select>
-          <span style="font-size:.78rem;color:var(--muted)">Les KPIs et séries ci-dessous sont filtrés sur cette région.</span>
+        <!-- Rapport d'import : synthèse + tableau diff + bouton Tout valider -->
+        <div id="obs-import-report-wrapper">
+          <div id="obs-import-banner" style="display:none;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #f59e0b;border-radius:14px;padding:20px 26px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+              <div>
+                <div style="font-weight:800;color:#78350f;font-size:1.05rem">📥 Import en attente de validation</div>
+                <div id="obs-import-meta" style="font-size:.82rem;color:#78350f;margin-top:4px">—</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button onclick="validateAllObsImport()" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:.88rem;font-weight:800;cursor:pointer">✓ Valider tout l'import</button>
+                <button onclick="rejectAllObsImport()" style="background:white;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:10px 18px;font-size:.85rem;font-weight:700;cursor:pointer">✕ Rejeter l'import</button>
+              </div>
+            </div>
+            <div id="obs-import-synthese" style="font-size:.88rem;color:#451a03;line-height:1.55;background:white;border-radius:10px;padding:12px 16px;display:none"></div>
+          </div>
+
+          <div id="obs-no-pending" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:16px 22px;margin-bottom:20px;color:#14532d;font-size:.9rem;font-weight:600;display:none">
+            ✓ Aucun import en attente. Toutes les données sont à jour.
+          </div>
         </div>
 
-        <!-- KPIs -->
+        <!-- Diff KPIs (un seul tableau global, toutes régions confondues) -->
         <div style="margin-bottom:32px">
-          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Indicateurs clés (4 grandes stats)</div>
-          <div id="obs-kpis-list" style="display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Indicateurs clés — diff par région</div>
+          <div id="obs-kpis-diff" style="overflow-x:auto">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
         </div>
 
-        <!-- Séries -->
+        <!-- Diff séries démographie -->
         <div style="margin-bottom:32px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Démographie IDF par spécialité <span id="obs-demo-pending-count" style="color:#92400e;text-transform:none"></span></div>
-            <button id="obs-demo-validate-all" onclick="validateAllInSerie('demographie')" style="display:none;background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider toute la section</button>
+          <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Démographie par spécialité — diff toutes régions</div>
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <label style="font-size:.78rem;color:var(--muted)">Filtrer région :</label>
+            <select id="obs-diff-region" onchange="renderObsDiff()" style="padding:6px 10px;border:1.5px solid var(--line);border-radius:6px;font-family:inherit;font-size:.82rem">
+              <option value="">— Toutes —</option>
+              <option value="FR">🇫🇷 France entière</option>
+              <option value="11">Île-de-France</option>
+              <option value="84">Auvergne-Rhône-Alpes</option>
+              <option value="93">Provence-Alpes-Côte d'Azur</option>
+              <option value="76">Occitanie</option>
+              <option value="75">Nouvelle-Aquitaine</option>
+              <option value="44">Grand Est</option>
+              <option value="32">Hauts-de-France</option>
+              <option value="52">Pays de la Loire</option>
+              <option value="53">Bretagne</option>
+              <option value="28">Normandie</option>
+              <option value="24">Centre-Val de Loire</option>
+              <option value="27">Bourgogne-Franche-Comté</option>
+              <option value="94">Corse</option>
+            </select>
+            <label style="font-size:.78rem;color:var(--muted)">
+              <input type="checkbox" id="obs-diff-changes-only" onchange="renderObsDiff()" style="vertical-align:middle"> Changements seulement
+            </label>
           </div>
-          <div id="obs-series-demographie" style="display:flex;flex-direction:column;gap:8px">
-            <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:32px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Honoraires par mode d'exercice <span id="obs-hon-pending-count" style="color:#92400e;text-transform:none"></span></div>
-            <button id="obs-hon-validate-all" onclick="validateAllInSerie('honoraires_exercice')" style="display:none;background:#16a34a;color:white;border:none;border-radius:6px;padding:6px 14px;font-size:.78rem;font-weight:700;cursor:pointer">✓ Valider toute la section</button>
-          </div>
-          <div id="obs-series-honoraires" style="display:flex;flex-direction:column;gap:8px">
+          <div id="obs-series-diff" style="overflow-x:auto">
             <div style="color:var(--muted);font-size:.85rem">Chargement…</div>
           </div>
         </div>
@@ -1921,43 +1920,234 @@
     }
   };
 
+  // État global de la vue observatoire (caches)
+  let obsKpisCache   = [];
+  let obsSeriesCache = [];
+
+  const REGION_LABELS = {
+    'FR':'🇫🇷 France entière','11':'Île-de-France','24':'Centre-Val de Loire',
+    '27':'Bourgogne-Franche-Comté','28':'Normandie','32':'Hauts-de-France',
+    '44':'Grand Est','52':'Pays de la Loire','53':'Bretagne','75':'Nouvelle-Aquitaine',
+    '76':'Occitanie','84':'Auvergne-Rhône-Alpes','93':'Provence-Alpes-Côte d\'Azur','94':'Corse',
+  };
+
+  function fmtPct(oldVal, newVal) {
+    if (oldVal == null || oldVal === 0 || isNaN(oldVal) || newVal == null || isNaN(newVal)) return '—';
+    const pct = 100 * (Number(newVal) - Number(oldVal)) / Number(oldVal);
+    const sign = pct >= 0 ? '+' : '';
+    const cls = pct >= 0 ? '#16a34a' : '#dc2626';
+    return `<span style="color:${cls};font-weight:700">${sign}${pct.toFixed(1)}%</span>`;
+  }
+
   async function loadObservatoire() {
     loadObsAnalyse();
-    const regionSel = document.getElementById('obs-region-select');
-    const region = regionSel ? regionSel.value : '11';
-    // Global KPIs (region='FR') + regional KPIs fetched separately then merged
-    const [{ data: _globalKpis }, { data: _regionalKpis }] = await Promise.all([
-      sb.from('observatoire_kpis').select('*').eq('region', 'FR').order('id'),
-      sb.from('observatoire_kpis').select('*').eq('region', region).order('id'),
+    const [{ data: kpis }, { data: series }] = await Promise.all([
+      sb.from('observatoire_kpis').select('*').order('region').order('id'),
+      sb.from('observatoire_series').select('*').order('region').order('serie_id').order('rang'),
     ]);
-    const _kpiSeen = new Set();
-    const kpis = [...(_globalKpis||[]), ...(_regionalKpis||[])].filter(k => {
-      const key = k.id + '|' + k.region; return _kpiSeen.has(key) ? false : !!_kpiSeen.add(key);
-    });
-    document.getElementById('obs-kpis-list').innerHTML = (kpis||[]).length
-      ? kpis.map(obsKpiRow).join('')
-      : '<div style="color:var(--muted);font-size:.85rem">Aucun KPI — migration 028 à exécuter dans Supabase.</div>';
+    obsKpisCache   = kpis   || [];
+    obsSeriesCache = series || [];
 
-    const { data: series } = await sb.from('observatoire_series').select('*').eq('region', region).order('rang');
-    const demo = (series||[]).filter(s => s.serie_id === 'demographie');
-    const hon  = (series||[]).filter(s => s.serie_id === 'honoraires_exercice');
-    document.getElementById('obs-series-demographie').innerHTML = demo.length ? demo.map(obsSerieRow).join('') : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
-    document.getElementById('obs-series-honoraires').innerHTML  = hon.length  ? hon.map(obsSerieRow).join('')  : '<div style="color:var(--muted);font-size:.85rem">Aucune donnée</div>';
+    const pendingKpis   = obsKpisCache.filter(k => k.statut === 'pending').length;
+    const pendingSeries = obsSeriesCache.filter(s => s.statut === 'pending').length;
+    const totalPending  = pendingKpis + pendingSeries;
 
-    // Compte pending + affiche bouton "Valider toute la section" si applicable
-    const demoPending = demo.filter(s => s.statut === 'pending').length;
-    const honPending  = hon.filter(s => s.statut === 'pending').length;
-    document.getElementById('obs-demo-pending-count').textContent = demoPending ? ` (${demoPending} en attente)` : '';
-    document.getElementById('obs-hon-pending-count').textContent  = honPending  ? ` (${honPending} en attente)`  : '';
-    document.getElementById('obs-demo-validate-all').style.display = demoPending ? 'block' : 'none';
-    document.getElementById('obs-hon-validate-all').style.display  = honPending  ? 'block' : 'none';
+    const banner = document.getElementById('obs-import-banner');
+    const noPending = document.getElementById('obs-no-pending');
+    if (totalPending > 0) {
+      banner.style.display = 'block';
+      noPending.style.display = 'none';
+      // Récupère le dernier import_id pending pour les métadonnées
+      const pendingItems = [...obsKpisCache, ...obsSeriesCache].filter(x => x.statut === 'pending' && x.import_id);
+      const importId = pendingItems.length ? pendingItems[0].import_id : null;
+      let metaText = `${pendingKpis} KPI(s) + ${pendingSeries} ligne(s) de séries en attente.`;
+      if (importId) {
+        const { data: imp } = await sb.from('observatoire_imports').select('source,annee_donnees,created_at,nb_lignes_brutes').eq('id', importId).single();
+        if (imp) {
+          const dt = new Date(imp.created_at).toLocaleString('fr-FR');
+          metaText = `Import ${imp.source || ''} du ${dt} · ${imp.nb_lignes_brutes||0} lignes brutes · ${pendingKpis} KPI + ${pendingSeries} séries en attente.`;
+        }
+      }
+      document.getElementById('obs-import-meta').textContent = metaText;
+      // Synthèse IA si elle existe et date d'après l'import
+      const synthEl = document.getElementById('obs-import-synthese');
+      const { data: lastAnalyse } = await sb.from('observatoire_analyses').select('contenu,created_at').order('created_at',{ascending:false}).limit(1);
+      if (lastAnalyse && lastAnalyse.length) {
+        synthEl.style.display = 'block';
+        synthEl.innerHTML = md2html(lastAnalyse[0].contenu);
+      } else {
+        synthEl.style.display = 'none';
+      }
+    } else {
+      banner.style.display = 'none';
+      noPending.style.display = 'block';
+    }
 
-    const pendingCount = [...(kpis||[]), ...(series||[])].filter(x => x.statut === 'pending').length;
-    const banner = document.getElementById('obs-pending-banner');
-    if (pendingCount) { banner.style.display = 'block'; document.getElementById('obs-pending-count').textContent = pendingCount; }
-    else banner.style.display = 'none';
+    renderObsKpisDiff();
+    renderObsDiff();
   }
-  window.loadObservatoire = loadObservatoire; // expose pour l'onchange inline du <select>
+  window.loadObservatoire = loadObservatoire;
+
+  function md2html(md) {
+    if (!md) return '';
+    const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    return esc(md)
+      .replace(/^### (.+)$/gm, '<h4 style="margin:10px 0 4px;font-size:.92rem">$1</h4>')
+      .replace(/^## (.+)$/gm,  '<h3 style="margin:12px 0 6px;font-size:1rem;color:#5b21b6">$1</h3>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*?<\/li>\n?)+/gs, m => '<ul style="margin:4px 0 8px 18px;padding:0">' + m + '</ul>')
+      .replace(/\n\n+/g, '</p><p style="margin:6px 0">')
+      .replace(/^([^<])/m, '<p style="margin:6px 0">$1');
+  }
+
+  function renderObsKpisDiff() {
+    const container = document.getElementById('obs-kpis-diff');
+    if (!obsKpisCache.length) { container.innerHTML = '<div style="color:var(--muted);font-size:.85rem">Aucun KPI.</div>'; return; }
+    const rows = obsKpisCache.map(k => {
+      const oldV = k.valeur ?? '—';
+      const newV = k.valeur_pending ?? null;
+      const hasChange = newV != null && newV !== oldV;
+      const stateBadge = k.statut === 'pending'
+        ? '<span style="background:#fde68a;color:#92400e;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">EN ATTENTE</span>'
+        : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">VALIDÉ</span>';
+      // Extrait nombres pour le %
+      const num = v => { if (v == null) return null; const n = Number(String(v).replace(/[^\d.,-]/g,'').replace(',','.')); return isNaN(n) ? null : n; };
+      const pct = hasChange ? fmtPct(num(oldV), num(newV)) : '';
+      const newCell = hasChange
+        ? `<b style="color:#92400e">${newV}</b> ${pct}`
+        : '<span style="color:var(--muted)">—</span>';
+      return `<tr>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--line);font-size:.8rem">${REGION_LABELS[k.region]||k.region}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--line);font-size:.82rem"><b>${k.label||k.id}</b></td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--line);font-size:.85rem;text-align:right">${oldV}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--line);font-size:.85rem;text-align:right">${newCell}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--line);text-align:center">${stateBadge}</td>
+      </tr>`;
+    }).join('');
+    container.innerHTML = `<table style="width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden">
+      <thead><tr style="background:#f1f5f9">
+        <th style="padding:10px 12px;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Région</th>
+        <th style="padding:10px 12px;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Indicateur</th>
+        <th style="padding:10px 12px;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Actuel</th>
+        <th style="padding:10px 12px;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Nouveau (proposé)</th>
+        <th style="padding:10px 12px;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--muted)">État</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function renderObsDiff() {
+    const container = document.getElementById('obs-series-diff');
+    const regionFilter = document.getElementById('obs-diff-region').value;
+    const changesOnly  = document.getElementById('obs-diff-changes-only').checked;
+    let data = obsSeriesCache.filter(s => s.serie_id === 'demographie');
+    if (regionFilter) data = data.filter(s => s.region === regionFilter);
+    if (changesOnly) data = data.filter(s => s.statut === 'pending' && s.valeur_num_pending != null && s.valeur_num_pending !== s.valeur_num);
+    if (!data.length) { container.innerHTML = '<div style="color:var(--muted);font-size:.85rem">Aucune ligne à afficher.</div>'; return; }
+    const rows = data.map(s => {
+      const oldN = s.valeur_num;
+      const newN = s.valeur_num_pending;
+      const hasChange = newN != null && newN !== oldN;
+      const stateBadge = s.statut === 'pending'
+        ? '<span style="background:#fde68a;color:#92400e;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">EN ATTENTE</span>'
+        : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">VALIDÉ</span>';
+      const newCell = hasChange
+        ? `<b style="color:#92400e">${s.valeur_fmt_pending||newN}</b> ${fmtPct(oldN, newN)}`
+        : '<span style="color:var(--muted)">—</span>';
+      return `<tr>
+        <td style="padding:6px 12px;border-bottom:1px solid var(--line);font-size:.78rem">${REGION_LABELS[s.region]||s.region}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid var(--line);font-size:.82rem">${s.label}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid var(--line);font-size:.82rem;text-align:right">${s.valeur_fmt ?? '—'}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid var(--line);font-size:.82rem;text-align:right">${newCell}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid var(--line);text-align:center">${stateBadge}</td>
+      </tr>`;
+    }).join('');
+    container.innerHTML = `<table style="width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden">
+      <thead><tr style="background:#f1f5f9">
+        <th style="padding:10px 12px;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Région</th>
+        <th style="padding:10px 12px;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Spécialité</th>
+        <th style="padding:10px 12px;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Actuel</th>
+        <th style="padding:10px 12px;text-align:right;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Nouveau (proposé)</th>
+        <th style="padding:10px 12px;text-align:center;font-size:.72rem;text-transform:uppercase;color:var(--muted)">État</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:8px">${data.length} ligne(s) affichée(s)</div>`;
+  }
+  window.renderObsDiff = renderObsDiff;
+
+  // ── Validation en bloc : pousse TOUTES les lignes pending vers validated ─
+  window.validateAllObsImport = async function() {
+    const pendingKpis   = obsKpisCache.filter(k => k.statut === 'pending');
+    const pendingSeries = obsSeriesCache.filter(s => s.statut === 'pending');
+    if (!pendingKpis.length && !pendingSeries.length) { toast('Rien à valider'); return; }
+    if (!confirm(`Valider ${pendingKpis.length} KPI(s) + ${pendingSeries.length} ligne(s) de séries ? Cette action écrase les valeurs actuelles et crée un snapshot dans l'historique.`)) return;
+    const now = new Date().toISOString();
+    let okK = 0, okS = 0;
+    // KPIs : on garde la PK composite (id, region)
+    for (const k of pendingKpis) {
+      const newValeur = k.valeur_pending ?? k.valeur;
+      const newSource = k.source_pending ?? k.source;
+      const newAnnee  = k.annee_pending  ?? k.annee;
+      const newTend   = k.tendance_pending ?? k.tendance;
+      const newDir    = k.tendance_dir_pending ?? k.tendance_dir;
+      const { error } = await sb.from('observatoire_kpis').update({
+        valeur: newValeur, source: newSource, annee: newAnnee, tendance: newTend, tendance_dir: newDir,
+        statut: 'validated',
+        valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
+        source_pending: null, annee_pending: null, pending_at: null,
+        updated_at: now,
+      }).eq('id', k.id).eq('region', k.region);
+      if (!error) {
+        const numV = Number(String(newValeur).replace(/[^\d.,-]/g,'').replace(',','.'));
+        await sb.from('observatoire_kpis_history').insert({
+          kpi_id: k.id, region: k.region, valeur: String(newValeur),
+          valeur_num: isNaN(numV) ? null : numV,
+          source: newSource, annee: newAnnee, import_id: k.import_id || null,
+        });
+        okK++;
+      }
+    }
+    // Séries : PK = id (uuid)
+    for (const s of pendingSeries) {
+      const newNum = s.valeur_num_pending ?? s.valeur_num;
+      const newFmt = s.valeur_fmt_pending ?? s.valeur_fmt;
+      const newSrc = s.source_pending     ?? s.source;
+      const newAnn = s.annee_pending      ?? s.annee;
+      const { error } = await sb.from('observatoire_series').update({
+        valeur_num: newNum, valeur_fmt: newFmt, source: newSrc, annee: newAnn,
+        statut: 'validated',
+        valeur_num_pending: null, valeur_fmt_pending: null,
+        source_pending: null, annee_pending: null, pending_at: null,
+        updated_at: now,
+      }).eq('id', s.id);
+      if (!error) {
+        await sb.from('observatoire_series_history').insert({
+          serie_id: s.serie_id, label: s.label, region: s.region,
+          valeur_num: newNum, valeur_fmt: newFmt, rang: s.rang,
+          source: newSrc, annee: newAnn, import_id: s.import_id || null,
+        });
+        okS++;
+      }
+    }
+    toast(`✓ ${okK} KPI + ${okS} séries validés`, 'success');
+    loadObservatoire();
+  };
+
+  window.rejectAllObsImport = async function() {
+    if (!confirm('Rejeter TOUT l\'import en attente ? Les valeurs proposées seront effacées.')) return;
+    await sb.from('observatoire_kpis').update({
+      statut: 'validated', valeur_pending: null, tendance_pending: null, tendance_dir_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
+    }).eq('statut', 'pending');
+    await sb.from('observatoire_series').update({
+      statut: 'validated', valeur_num_pending: null, valeur_fmt_pending: null,
+      source_pending: null, annee_pending: null, pending_at: null,
+    }).eq('statut', 'pending');
+    toast('Import rejeté');
+    loadObservatoire();
+  };
 
   // ── Déclenchement workflow GitHub Actions ───────────────────
   // Passe par une Netlify Function (le PAT est stocké en env var côté serveur,
