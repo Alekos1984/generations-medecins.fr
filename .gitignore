@@ -6,3 +6,4 @@
 # Divers
 .DS_Store
 node_modules/
+scripts/__pycache__/
