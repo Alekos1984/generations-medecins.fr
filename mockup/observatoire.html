@@ -212,17 +212,7 @@
   <section class="section">
     <div class="section-inner">
 
-      <!-- Bloc analyse IA (rempli par JS si une analyse existe en base) -->
-      <div id="obs-analyse-public" style="display:none;background:linear-gradient(135deg,#faf5ff 0%,#eef2ff 100%);border:1.5px solid #c4b5fd;border-radius:14px;padding:22px 28px;margin-bottom:32px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <span style="font-size:1.1rem">🤖</span>
-          <span style="font-weight:700;color:#5b21b6;font-size:.95rem">Analyse mensuelle</span>
-          <span id="obs-analyse-date-pub" style="font-size:.75rem;color:#7c3aed;margin-left:auto"></span>
-        </div>
-        <div id="obs-analyse-contenu-pub" style="font-size:.95rem;line-height:1.6;color:#1f2937"></div>
-      </div>
-
-      <!-- Layout 2 colonnes : carte à gauche, données régionales à droite -->
+      <!-- Layout 2 colonnes : carte à gauche, démographie à droite -->
       <div class="obs-grid">
         <!-- Colonne gauche : carte cliquable -->
         <div class="obs-map-col">
@@ -234,32 +224,9 @@
           <div id="obs-region-current" style="text-align:center;font-weight:800;color:#1e40af;font-size:1.1rem;margin-top:14px">Île-de-France</div>
         </div>
 
-        <!-- Colonne droite : données de la région sélectionnée -->
+        <!-- Colonne droite : démographie par spécialité -->
         <div class="obs-data-col">
-          <div class="stats-row">
-            <div class="stat-card">
-              <div class="value">—</div>
-              <div class="label">Médecins actifs</div>
-              <div class="trend"></div>
-            </div>
-            <div class="stat-card">
-              <div class="value">—</div>
-              <div class="label">Zones sous-dotées</div>
-              <div class="trend"></div>
-            </div>
-            <div class="stat-card">
-              <div class="value">—</div>
-              <div class="label">Délai moyen rdv généraliste</div>
-              <div class="trend"></div>
-            </div>
-            <div class="stat-card">
-              <div class="value">—</div>
-              <div class="label">C moyen conventionnel</div>
-              <div class="trend"></div>
-            </div>
-          </div>
-
-          <div class="chart-card" style="margin-top:18px">
+          <div class="chart-card">
             <div class="chart-title">Démographie par spécialité — <span id="chart-region-name">Île-de-France</span></div>
             <div class="chart-sub" id="chart-sub-demographie">Nombre de médecins actifs · sparkline = évolution depuis le 1er import</div>
             <div class="bar-chart" id="chart-demographie">
@@ -278,11 +245,41 @@
         </div>
       </div>
 
-      <div class="coming-soon-block">
-        <span class="icon">🔄</span>
-        <h3>Données mises à jour chaque semaine</h3>
-        <p>Comparaisons internationales, évolution sur 10 ans, et API ouverte en cours de déploiement. Sources : RPPS, CNAM, DREES, INSEE.</p>
-        <a href="adherer.html" class="btn btn-primary">Être notifié →</a>
+      <!-- Indicateurs clés (en bas) -->
+      <div style="margin-top:32px">
+        <div class="section-label" style="margin-bottom:10px">Indicateurs clés</div>
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="value">—</div>
+            <div class="label">Médecins actifs</div>
+            <div class="trend"></div>
+          </div>
+          <div class="stat-card">
+            <div class="value">—</div>
+            <div class="label">Zones sous-dotées</div>
+            <div class="trend"></div>
+          </div>
+          <div class="stat-card">
+            <div class="value">—</div>
+            <div class="label">Délai moyen rdv généraliste</div>
+            <div class="trend"></div>
+          </div>
+          <div class="stat-card">
+            <div class="value">—</div>
+            <div class="label">C moyen conventionnel</div>
+            <div class="trend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analyse mensuelle IA (tout en bas) -->
+      <div id="obs-analyse-public" style="display:none;background:linear-gradient(135deg,#faf5ff 0%,#eef2ff 100%);border:1.5px solid #c4b5fd;border-radius:14px;padding:22px 28px;margin-top:32px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:1.1rem">🤖</span>
+          <span style="font-weight:700;color:#5b21b6;font-size:.95rem">Analyse mensuelle</span>
+          <span id="obs-analyse-date-pub" style="font-size:.75rem;color:#7c3aed;margin-left:auto"></span>
+        </div>
+        <div id="obs-analyse-contenu-pub" style="font-size:.95rem;line-height:1.6;color:#1f2937"></div>
       </div>
 
     </div>

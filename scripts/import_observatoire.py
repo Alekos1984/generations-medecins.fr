@@ -87,6 +87,51 @@ REGION_NAMES = {
     "94":"Corse","01":"Guadeloupe","02":"Martinique","03":"Guyane","04":"La Réunion","06":"Mayotte",
 }
 
+# Population INSEE 2024 (estimations) — utilisée pour la densité médicale
+REGION_POPULATION = {
+    "FR": 68_402_000, "11": 12_317_279, "24": 2_563_598, "27": 2_782_050,
+    "28": 3_293_749, "32": 5_969_004, "44": 5_547_575, "52": 3_852_557,
+    "53": 3_373_300, "75": 6_056_008, "76": 6_010_571, "84": 8_141_873,
+    "93": 5_198_028, "94": 350_416,
+    "01": 384_239, "02": 360_749, "03": 290_691, "04": 871_911, "06": 321_000,
+}
+
+def parse_age_from_dn(dn, current_year):
+    """Essaie d'extraire un âge depuis une date de naissance (formats variés RPPS).
+    Retourne None si non parseable ou aberrant."""
+    if dn is None: return None
+    s = str(dn).strip()
+    if not s or s.lower() == "nan": return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y"):
+        try:
+            age = current_year - datetime.strptime(s, fmt).year
+            if 20 < age < 100: return age
+        except ValueError:
+            pass
+    m = re.search(r"(19\d{2}|20[0-1]\d)", s)
+    if m:
+        age = current_year - int(m.group(1))
+        if 20 < age < 100: return age
+    return None
+
+def is_femme_from_civilite(civ):
+    """Retourne True/False/None depuis le champ civilité RPPS (Mme/M./Mr…)."""
+    if civ is None: return None
+    c = str(civ).strip().upper()
+    if not c or c == "NAN": return None
+    if "MME" in c or c == "F" or "MADAME" in c: return True
+    if c.startswith("M.") or c.startswith("M ") or c in ("M","MR","H") or "MONSIEUR" in c: return False
+    return None
+
+def is_liberal_from_mode(mode):
+    """True si exercice libéral, False si salarié, None si indéterminé."""
+    if mode is None: return None
+    m = str(mode).strip().lower()
+    if not m or m == "nan": return None
+    if "libéral" in m or "liberal" in m or m.startswith("lib"): return True
+    if "salarié" in m or "salarie" in m or "salari" in m: return False
+    return None
+
 def dept_to_region(dept):
     if not dept: return None
     d = str(dept).lstrip("0")  # "075" → "75"
@@ -357,7 +402,9 @@ def compute(path):
     # Dédup par région
     medecins_par_region = {}        # region → set(id)
     spec_par_id_region = {}         # (region, id) → spec canonique
+    attrs_par_id_region = {}        # (region, id) → tuple(civilite, mode_exercice, date_naissance)
     col_dept = col_prof = col_savoir = col_id = None
+    col_civilite = col_dnaiss = None
 
     try:
         reader = pd.read_csv(path, sep="|", encoding=encoding, dtype=str,
@@ -388,6 +435,9 @@ def compute(path):
                               or find_col(headers, "département", "structure") or find_col(headers, "departement", "structure"))
                 col_prof   = find_col(headers, "libellé profession") or find_col(headers, "libelle profession")
                 col_savoir = find_col(headers, "libellé savoir-faire") or find_col(headers, "libelle savoir-faire")
+                col_civilite = (find_col(headers, "libellé civilité") or find_col(headers, "libelle civilite")
+                                or find_col(headers, "civilité") or find_col(headers, "civilite"))
+                col_dnaiss   = (find_col(headers, "date", "naissance") or find_col(headers, "naissance"))
                 if not col_prof or not (col_cp or col_commune or col_dept):
                     raise ValueError(
                         "Colonnes introuvables. En-têtes contenant 'postal' / 'commune' / 'départ' / 'profes' : "
@@ -399,6 +449,7 @@ def compute(path):
                         + " | ".join(h for h in headers if "identif" in (h or "").lower())
                     )
                 log(f"   colonnes IDF : cp='{col_cp}' / commune='{col_commune}' / dept(officiel)='{col_dept}' / prof='{col_prof}' / savoir='{col_savoir}'")
+                log(f"   colonnes démographiques : civilite='{col_civilite}' / date_naissance='{col_dnaiss}' / mode_ex='{col_mode_ex}'")
                 log(f"   colonnes RPPS index : id_pp='{col_id_pp}' / id_nat='{col_id_nat}' / nom='{col_nom}' / prenom='{col_prenom}' / mode_ex='{col_mode_ex}' / libcom='{col_libcom}'")
                 if not col_id_pp:
                     log("   ⚠⚠ col_id_pp introuvable — l'index rpps_medecins ne sera PAS peuplé. "
@@ -451,22 +502,28 @@ def compute(path):
                 # Première occurrence de chaque (region, pid) — un médecin peut
                 # avoir plusieurs sites dans la même région
                 med_unique = med_chunk.drop_duplicates(subset=[col_id, "_region"])
-                # Ajoute aux sets globaux + capture la spécialité au passage
+                # Ajoute aux sets globaux + capture spécialité, civilité, mode, date_naissance
                 for region, group in med_unique.groupby("_region"):
                     s = medecins_par_region.setdefault(region, set())
                     s_fr = medecins_par_region.setdefault("FR", set())
-                    if col_savoir:
-                        for pid, spec in zip(group[col_id].values,
-                                              group[col_savoir].fillna("Autre").values):
-                            if pid not in s:
-                                s.add(pid)
-                                spec_par_id_region[(region, pid)] = spec
-                            if pid not in s_fr:
-                                s_fr.add(pid)
-                                spec_par_id_region[("FR", pid)] = spec
-                    else:
-                        new_pids = set(group[col_id].values)
-                        s.update(new_pids); s_fr.update(new_pids)
+                    pids_arr  = group[col_id].values
+                    specs_arr = (group[col_savoir].fillna("Autre").values
+                                 if col_savoir else ["Autre"] * len(group))
+                    civs_arr  = (group[col_civilite].fillna("").values
+                                 if col_civilite else [""] * len(group))
+                    modes_arr = (group[col_mode_ex].fillna("").values
+                                 if col_mode_ex else [""] * len(group))
+                    dns_arr   = (group[col_dnaiss].fillna("").values
+                                 if col_dnaiss else [""] * len(group))
+                    for pid, spec, civ, mode, dn in zip(pids_arr, specs_arr, civs_arr, modes_arr, dns_arr):
+                        if pid not in s:
+                            s.add(pid)
+                            spec_par_id_region[(region, pid)] = spec
+                            attrs_par_id_region[(region, pid)] = (civ, mode, dn)
+                        if pid not in s_fr:
+                            s_fr.add(pid)
+                            spec_par_id_region[("FR", pid)] = spec
+                            attrs_par_id_region[("FR", pid)] = (civ, mode, dn)
 
             # ── Index complet des médecins (tous départements) pour la vérif
             # des adhérents — VECTORISÉ aussi.
@@ -527,7 +584,7 @@ def compute(path):
         f"IDF = {len(medecins_par_region.get('11', set())):,} uniques")
     log(f"   par région : {DIAG['nb_par_region']}")
 
-    # KPIs : 1 ligne "medecins_actifs" par région (FR + 13 régions + DOM)
+    # KPIs : pour chaque région, on émet medecins_actifs + densité + démographie
     kpis = []
     for region, ids in medecins_par_region.items():
         n = len(ids)
@@ -543,6 +600,71 @@ def compute(path):
             "annee":        ANNEE,
             "region":       region,
         })
+
+        # Densité médicale (médecins / 100k habitants) — référence INSEE
+        pop = REGION_POPULATION.get(region)
+        if pop:
+            densite = 100_000 * n / pop
+            kpis.append({
+                "id":           "densite",
+                "valeur":       f"{densite:.0f} / 100k hab.",
+                "label":        f"Densité médicale — {label_region}",
+                "tendance":     None,
+                "tendance_dir": "neutral",
+                "source":       f"RPPS / INSEE pop. {pop:,}".replace(",", " "),
+                "annee":        ANNEE,
+                "region":       region,
+            })
+
+        # Démographie : âge moyen, % > 60 ans, % femmes, % libéraux
+        ages, n_femmes, n_civ_known, n_lib, n_mode_known = [], 0, 0, 0, 0
+        for pid in ids:
+            civ, mode, dn = attrs_par_id_region.get((region, pid), ("", "", ""))
+            a = parse_age_from_dn(dn, ANNEE)
+            if a is not None: ages.append(a)
+            f = is_femme_from_civilite(civ)
+            if f is not None: n_civ_known += 1; n_femmes += 1 if f else 0
+            l = is_liberal_from_mode(mode)
+            if l is not None: n_mode_known += 1; n_lib += 1 if l else 0
+
+        if ages:
+            age_moy = sum(ages) / len(ages)
+            pct_60  = 100 * sum(1 for a in ages if a >= 60) / len(ages)
+            kpis.append({
+                "id":           "age_moyen",
+                "valeur":       f"{age_moy:.0f} ans",
+                "label":        f"Âge moyen — {label_region}",
+                "tendance":     None, "tendance_dir": "neutral",
+                "source":       "RPPS", "annee": ANNEE, "region": region,
+            })
+            kpis.append({
+                "id":           "pct_plus_60",
+                "valeur":       f"{pct_60:.1f}%",
+                "label":        f"Médecins ≥ 60 ans — {label_region}",
+                "tendance":     None,
+                "tendance_dir": "down" if pct_60 < 25 else ("up" if pct_60 > 35 else "neutral"),
+                "source":       "RPPS", "annee": ANNEE, "region": region,
+            })
+        if n_civ_known >= 10:
+            pct_f = 100 * n_femmes / n_civ_known
+            kpis.append({
+                "id":           "pct_femmes",
+                "valeur":       f"{pct_f:.1f}%",
+                "label":        f"Médecins femmes — {label_region}",
+                "tendance":     None, "tendance_dir": "neutral",
+                "source":       f"RPPS (civilité, n={n_civ_known})",
+                "annee":        ANNEE, "region": region,
+            })
+        if n_mode_known >= 10:
+            pct_l = 100 * n_lib / n_mode_known
+            kpis.append({
+                "id":           "pct_liberaux",
+                "valeur":       f"{pct_l:.1f}%",
+                "label":        f"Médecins libéraux — {label_region}",
+                "tendance":     None, "tendance_dir": "neutral",
+                "source":       f"RPPS (mode d'exercice, n={n_mode_known})",
+                "annee":        ANNEE, "region": region,
+            })
 
     # Séries : top spécialités par région (canonicalisées, ≥ 5 médecins)
     series = []

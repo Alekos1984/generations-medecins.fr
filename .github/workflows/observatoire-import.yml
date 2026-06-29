@@ -44,3 +44,12 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/import_observatoire.py
         continue-on-error: true
+
+      # Sources externes (DREES délai rdv + ARS zonage médecins). Best-effort :
+      # tente plusieurs slugs candidats, log diagnostique dans l'admin.
+      - name: Lancer l'import sources externes
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/import_sources_externes.py
+        continue-on-error: true
