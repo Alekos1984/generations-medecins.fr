@@ -213,8 +213,14 @@ def create_import_row(source, filename, nb_lignes, statut="success", erreur=None
 
 
 def write_kpis_pending(kpis, import_id):
+    """UPSERT en pending sur (id, region). Si la ligne n'existe pas, INSERT
+    avec valeur='—' (placeholder). Bug fix : PATCH sans return=representation
+    renvoyait 204 même à 0 row, faisait croire à un succès et l'INSERT de
+    fallback ne se déclenchait jamais."""
     n = 0
+    now = datetime.now(timezone.utc).isoformat()
     for k in kpis:
+        region = k.get("region", "FR")
         payload = {
             "valeur_pending":       k["valeur"],
             "tendance_pending":     k.get("tendance"),
@@ -222,17 +228,27 @@ def write_kpis_pending(kpis, import_id):
             "source_pending":       k.get("source"),
             "annee_pending":        k.get("annee"),
             "import_id":            import_id,
-            "pending_at":           datetime.now(timezone.utc).isoformat(),
+            "pending_at":           now,
             "statut":               "pending",
         }
         r = requests.patch(
-            f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}",
-            headers=HEADERS, json=payload, timeout=30,
+            f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}&region=eq.{region}",
+            headers={**HEADERS, "Prefer": "return=representation"},
+            json=payload, timeout=30,
         )
-        if r.status_code == 200 and r.text == "[]":
-            insert = {**k, **payload, "id": k["id"]}
+        affected = 0
+        if r.status_code == 200:
+            try: affected = len(r.json())
+            except Exception: pass
+        if affected == 0:
+            insert = {
+                "id":     k["id"], "region": region, "valeur": "—",
+                "label":  k.get("label", k["id"]),
+                **payload,
+            }
             requests.post(f"{SUPABASE_URL}/rest/v1/observatoire_kpis",
-                          headers=HEADERS, json=insert, timeout=30)
+                          headers={**HEADERS, "Prefer": "return=minimal"},
+                          json=insert, timeout=30)
         n += 1
     return n
 

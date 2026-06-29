@@ -198,12 +198,22 @@ def write_kpi_pending(k, import_id):
     }
     r = requests.patch(
         f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}&region=eq.{region}",
-        headers=HEADERS, json=payload, timeout=30,
+        headers={**HEADERS, "Prefer": "return=representation"},
+        json=payload, timeout=30,
     )
-    if r.status_code == 200 and r.text == "[]":
-        insert = {**k, **payload}
+    affected = 0
+    if r.status_code == 200:
+        try: affected = len(r.json())
+        except Exception: pass
+    if affected == 0:
+        insert = {
+            "id":     k["id"], "region": region, "valeur": "—",
+            "label":  k.get("label", k["id"]),
+            **payload,
+        }
         requests.post(f"{SUPABASE_URL}/rest/v1/observatoire_kpis",
-                      headers=HEADERS, json=insert, timeout=30)
+                      headers={**HEADERS, "Prefer": "return=minimal"},
+                      json=insert, timeout=30)
 
 
 def create_import_row(source, statut, kpi_found):

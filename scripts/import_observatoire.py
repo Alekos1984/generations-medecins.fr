@@ -742,11 +742,16 @@ def update_import_row(import_id, nb_indicateurs):
 
 def write_kpis_pending(kpis, import_id):
     """Pour chaque KPI : écrit la nouvelle valeur dans les colonnes *_pending, statut='pending'.
-    Clé composite (id, region) — un KPI peut exister pour plusieurs régions."""
-    n = 0
+    Clé composite (id, region). Si la ligne n'existe pas, on l'INSÈRE avec
+    valeur='—' (placeholder) et la nouvelle valeur en pending — l'admin la
+    publie en validant.
+    Bug fix : sans `Prefer: return=representation` PostgREST renvoie 204
+    même si 0 lignes affectées → l'INSERT de fallback ne se déclenchait
+    jamais et les nouveaux KPIs (densité, age, etc.) étaient muets."""
+    n_patch = n_insert = n_fail = 0
+    now = datetime.now(timezone.utc).isoformat()
     for k in kpis:
         region = k.get("region", "FR")
-        # On UPDATE la ligne existante en ajoutant les valeurs pending
         payload = {
             "valeur_pending":       k["valeur"],
             "tendance_pending":     k.get("tendance"),
@@ -754,20 +759,45 @@ def write_kpis_pending(kpis, import_id):
             "source_pending":       k.get("source"),
             "annee_pending":        k.get("annee"),
             "import_id":            import_id,
-            "pending_at":           datetime.now(timezone.utc).isoformat(),
+            "pending_at":           now,
             "statut":               "pending",
         }
+        # PATCH avec return=representation pour détecter 0 lignes affectées
         r = requests.patch(
             f"{SUPABASE_URL}/rest/v1/observatoire_kpis?id=eq.{k['id']}&region=eq.{region}",
-            headers=HEADERS, json=payload, timeout=30,
+            headers={**HEADERS, "Prefer": "return=representation"},
+            json=payload, timeout=30,
         )
-        # Si le KPI n'existe pas encore, on l'insère directement (statut=pending)
-        if r.status_code == 200 and r.text == "[]":
-            insert = {**k, **payload, "id": k["id"]}
-            requests.post(f"{SUPABASE_URL}/rest/v1/observatoire_kpis",
-                          headers=HEADERS, json=insert, timeout=30)
-        n += 1
-    return n
+        if r.status_code == 200:
+            try: affected = len(r.json())
+            except Exception: affected = 0
+            if affected > 0:
+                n_patch += 1
+                continue
+        elif r.status_code not in (200, 204):
+            log(f"   ⚠ PATCH KPI {k['id']}/{region} → {r.status_code} : {r.text[:200]}")
+            n_fail += 1
+            continue
+        # 0 lignes affectées (ligne nouvelle) → INSERT avec placeholder
+        insert = {
+            "id":     k["id"],
+            "region": region,
+            "valeur": "—",  # placeholder, deviendra valeur_pending à la validation
+            "label":  k.get("label", k["id"]),
+            **payload,
+        }
+        ri = requests.post(
+            f"{SUPABASE_URL}/rest/v1/observatoire_kpis",
+            headers={**HEADERS, "Prefer": "return=minimal"},
+            json=insert, timeout=30,
+        )
+        if ri.status_code in (200, 201, 204):
+            n_insert += 1
+        else:
+            log(f"   ⚠ INSERT KPI {k['id']}/{region} → {ri.status_code} : {ri.text[:200]}")
+            n_fail += 1
+    log(f"   KPIs : {n_patch} mis à jour, {n_insert} créés, {n_fail} échecs")
+    return n_patch + n_insert
 
 
 def write_series_pending(series, import_id):
