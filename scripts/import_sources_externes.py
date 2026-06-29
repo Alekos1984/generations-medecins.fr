@@ -49,16 +49,43 @@ def log(msg):
 
 
 # ── Recherche data.gouv.fr ────────────────────────────────────
-def dgf_search(query, page_size=5):
-    """Cherche un dataset sur data.gouv.fr. Retourne la liste d'objets dataset."""
+def dgf_search(query, page_size=10):
+    """Cherche un dataset sur data.gouv.fr.
+    L'API data.gouv.fr préfère les requêtes sans accents et avec + entre mots."""
+    import unicodedata
+    # Retire les accents pour maximiser les chances de match
+    q = unicodedata.normalize("NFD", query).encode("ascii", "ignore").decode("ascii")
     try:
-        url = f"https://www.data.gouv.fr/api/1/datasets/?q={requests.utils.quote(query)}&page_size={page_size}"
-        r = requests.get(url, timeout=30)
+        url = f"https://www.data.gouv.fr/api/1/datasets/?q={requests.utils.quote(q)}&page_size={page_size}"
+        r = requests.get(url, timeout=30, headers={"Accept": "application/json"})
         r.raise_for_status()
         data = r.json()
-        return data.get("data", [])
+        results = data.get("data", [])
+        log(f"     data.gouv.fr search '{q}' → {len(results)} résultat(s)")
+        for ds in results[:5]:
+            log(f"       · {ds.get('title','?')[:80]} ({ds.get('slug','?')})")
+        return results
     except Exception as e:
-        log(f"   ⚠ dgf_search('{query}') failed: {e}")
+        log(f"   ⚠ dgf_search('{q}') failed: {e}")
+        return []
+
+
+# ── Recherche DREES (Opendatasoft) ────────────────────────────
+def drees_search(query, limit=10):
+    """Cherche un dataset sur data.drees via l'API Opendatasoft v2.1."""
+    try:
+        url = f"{DREES_BASE}/api/explore/v2.1/catalog/datasets?where=search(%22{requests.utils.quote(query)}%22)&limit={limit}"
+        r = requests.get(url, timeout=30, headers={"Accept": "application/json"})
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        log(f"     DREES search '{query}' → {len(results)} dataset(s)")
+        for ds in results[:5]:
+            slug = ds.get("dataset_id") or ds.get("metas",{}).get("default",{}).get("title","?")
+            title = ds.get("metas",{}).get("default",{}).get("title", "?")
+            log(f"       · {title[:80]} ({slug})")
+        return results
+    except Exception as e:
+        log(f"   ⚠ drees_search('{query}') failed: {e}")
         return []
 
 
@@ -84,68 +111,70 @@ def fetch_csv(url, sep=None):
 DREES_BASE = "https://data.drees.solidarites-sante.gouv.fr"
 
 def try_drees_delai_rdv():
-    """Tente plusieurs datasets DREES Opendatasoft autour du délai rdv."""
-    candidates = [
-        "delais-d-attente-pour-un-rendez-vous-avec-un-medecin",
-        "acces-aux-soins-delais-d-attente",
-        "renoncement-aux-soins-pour-raisons-financieres",
-        "premier-recours-medecin-generaliste",
+    """Cherche un dataset DREES sur le délai rdv via l'API search."""
+    queries = [
+        "delai rdv medecin",
+        "delai attente consultation",
+        "acces aux soins delai",
+        "premier recours generaliste",
     ]
-    tried = []
-    for slug in candidates:
-        url = f"{DREES_BASE}/api/explore/v2.1/catalog/datasets/{slug}/exports/csv?delimiter=%3B"
-        tried.append(slug)
-        try:
-            r = requests.head(url, timeout=20, allow_redirects=True)
-            if r.status_code != 200:
-                log(f"   · DREES slug '{slug}' → HTTP {r.status_code}")
+    for q in queries:
+        log(f"   · DREES search '{q}'")
+        results = drees_search(q, limit=10)
+        for ds in results:
+            slug = ds.get("dataset_id")
+            title = ds.get("metas",{}).get("default",{}).get("title", "")
+            if not slug:
                 continue
-        except Exception as e:
-            log(f"   · DREES slug '{slug}' → erreur HEAD : {e}")
-            continue
-        log(f"   ✓ DREES slug '{slug}' répond — tentative de parsing")
-        df, _ = fetch_csv(url)
-        if df is None or df.empty:
-            continue
-        log(f"     {len(df):,} lignes, colonnes : {list(df.columns)[:10]}")
-        # Cherche une colonne numérique vraisemblable
-        for col in df.columns:
-            if "delai" in col.lower() or "attente" in col.lower() or "jour" in col.lower():
-                try:
-                    nums = pd.to_numeric(df[col], errors="coerce").dropna()
-                    if len(nums) > 0:
-                        median = float(nums.median())
-                        if 1 <= median <= 365:
-                            return {
-                                "id":           "delai_rdv_mg",
-                                "valeur":       f"{median:.0f} j",
-                                "label":        "Délai moyen rdv généraliste",
-                                "tendance":     None, "tendance_dir": "neutral",
-                                "source":       f"DREES — {slug}",
-                                "annee":        ANNEE, "region": "FR",
-                            }
-                except Exception:
-                    pass
-        log(f"     ⚠ aucune colonne 'délai/attente/jour' parseable dans {slug}")
-    log(f"   ❌ aucun dataset DREES utilisable. Tentés : {tried}")
+            tl = title.lower()
+            if not any(k in tl for k in ("delai", "attente", "acces", "rdv", "rendez-vous", "premier recours")):
+                continue
+            log(f"     → essai dataset '{title}' ({slug})")
+            url = f"{DREES_BASE}/api/explore/v2.1/catalog/datasets/{slug}/exports/csv?delimiter=%3B"
+            df, _ = fetch_csv(url)
+            if df is None or df.empty:
+                continue
+            log(f"       {len(df):,} lignes, colonnes : {list(df.columns)[:10]}")
+            for col in df.columns:
+                cl = col.lower()
+                if "delai" in cl or "attente" in cl or "jour" in cl or "duree" in cl:
+                    try:
+                        nums = pd.to_numeric(df[col], errors="coerce").dropna()
+                        if len(nums) > 0:
+                            median = float(nums.median())
+                            if 1 <= median <= 365:
+                                return {
+                                    "id":           "delai_rdv_mg",
+                                    "valeur":       f"{median:.0f} j",
+                                    "label":        "Délai moyen rdv généraliste",
+                                    "tendance":     None, "tendance_dir": "neutral",
+                                    "source":       f"DREES — {slug}",
+                                    "annee":        ANNEE, "region": "FR",
+                                }
+                    except Exception:
+                        pass
+            log(f"       ⚠ aucune colonne numérique 'délai/attente/jour' parseable dans {slug}")
+    log("   ❌ aucun dataset DREES utilisable trouvé via search")
     return None
 
 
 # ── KPI 2 : Zones sous-dotées (zonage ARS) ────────────────────
 def try_zonage_ars():
-    """Cherche un dataset 'zonage médecins généralistes' sur data.gouv.fr."""
+    """Cherche un dataset 'zonage' sur data.gouv.fr."""
     queries = [
-        "zonage médecins généralistes",
-        "zones intervention prioritaire médecins",
-        "zonage conventionnel médecins",
+        "zonage medecins",
+        "zonage medical",
+        "zones intervention prioritaire",
+        "zip zac medecins",
+        "desert medical",
     ]
     for q in queries:
-        results = dgf_search(q, page_size=10)
-        log(f"   · data.gouv.fr '{q}' → {len(results)} dataset(s)")
+        results = dgf_search(q, page_size=15)
         for ds in results:
             title = ds.get("title", "")
             slug = ds.get("slug", "")
-            if "zonage" not in title.lower() and "zonage" not in slug.lower():
+            tl = title.lower()
+            if not any(k in tl for k in ("zonage", "zone", "desert", "sous-dot", "zip", "zac")):
                 continue
             log(f"     → essai dataset '{title}' ({slug})")
             resources = ds.get("resources") or []
@@ -159,16 +188,15 @@ def try_zonage_ars():
             if df is None or df.empty:
                 continue
             log(f"       {len(df):,} lignes, colonnes : {list(df.columns)[:8]}")
-            # Cherche une colonne de classement (ex: zip / zac / zone)
             cols_lower = [c.lower() for c in df.columns]
             zone_col = next((c for c, cl in zip(df.columns, cols_lower)
-                             if "zone" in cl or "classement" in cl or "zip" in cl), None)
+                             if "zone" in cl or "classement" in cl or "zip" in cl or "zac" in cl), None)
             if not zone_col:
                 log(f"       ⚠ pas de colonne zone/classement")
                 continue
-            vals = df[zone_col].fillna("").str.upper()
+            vals = df[zone_col].fillna("").astype(str).str.upper()
             total = len(vals)
-            n_sous_dotes = int((vals.str.contains("SOUS|ZIP|TRES")).sum())
+            n_sous_dotes = int((vals.str.contains("SOUS|ZIP|TRES|TRÈS|SOUS-DOT")).sum())
             if total > 0 and n_sous_dotes > 0:
                 pct = 100 * n_sous_dotes / total
                 return {
@@ -179,6 +207,7 @@ def try_zonage_ars():
                     "source":       f"ARS via data.gouv.fr — {slug}",
                     "annee":        ANNEE, "region": "FR",
                 }
+            log(f"       ⚠ pas de catégorie 'sous-dotée' trouvée dans la colonne {zone_col}")
     log("   ❌ aucun zonage ARS exploitable trouvé")
     return None
 
