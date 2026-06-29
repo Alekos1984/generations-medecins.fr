@@ -110,106 +110,109 @@ def fetch_csv(url, sep=None):
 # ── KPI 1 : Délai moyen rdv généraliste (DREES) ───────────────
 DREES_BASE = "https://data.drees.solidarites-sante.gouv.fr"
 
-def try_drees_delai_rdv():
-    """Cherche un dataset DREES sur le délai rdv via l'API search."""
-    queries = [
-        "delai rdv medecin",
-        "delai attente consultation",
-        "acces aux soins delai",
-        "premier recours generaliste",
-    ]
-    for q in queries:
-        log(f"   · DREES search '{q}'")
-        results = drees_search(q, limit=10)
-        for ds in results:
-            slug = ds.get("dataset_id")
-            title = ds.get("metas",{}).get("default",{}).get("title", "")
-            if not slug:
-                continue
-            tl = title.lower()
-            if not any(k in tl for k in ("delai", "attente", "acces", "rdv", "rendez-vous", "premier recours")):
-                continue
-            log(f"     → essai dataset '{title}' ({slug})")
-            url = f"{DREES_BASE}/api/explore/v2.1/catalog/datasets/{slug}/exports/csv?delimiter=%3B"
-            df, _ = fetch_csv(url)
-            if df is None or df.empty:
-                continue
-            log(f"       {len(df):,} lignes, colonnes : {list(df.columns)[:10]}")
-            for col in df.columns:
-                cl = col.lower()
-                if "delai" in cl or "attente" in cl or "jour" in cl or "duree" in cl:
-                    try:
-                        nums = pd.to_numeric(df[col], errors="coerce").dropna()
-                        if len(nums) > 0:
-                            median = float(nums.median())
-                            if 1 <= median <= 365:
-                                return {
-                                    "id":           "delai_rdv_mg",
-                                    "valeur":       f"{median:.0f} j",
-                                    "label":        "Délai moyen rdv généraliste",
-                                    "tendance":     None, "tendance_dir": "neutral",
-                                    "source":       f"DREES — {slug}",
-                                    "annee":        ANNEE, "region": "FR",
-                                }
-                    except Exception:
-                        pass
-            log(f"       ⚠ aucune colonne numérique 'délai/attente/jour' parseable dans {slug}")
-    log("   ❌ aucun dataset DREES utilisable trouvé via search")
-    return None
+def try_drees_apl():
+    """Récupère le dataset DREES APL (Accessibilité Potentielle Localisée).
+    L'APL est L'indicateur officiel français de mesure des déserts médicaux :
+      - APL > 4 consultations/an/hab : bien doté
+      - APL entre 2.5 et 4 : fragile
+      - APL < 2.5 : sous-doté (zone d'intervention prioritaire)
+      - APL < 1.5 : très sous-doté
+    Source : DREES, calculé à partir du SNDS + RPPS + INSEE.
 
-
-# ── KPI 2 : Zones sous-dotées (zonage ARS) ────────────────────
-def try_zonage_ars():
-    """Cherche un dataset 'zonage' sur data.gouv.fr."""
-    queries = [
-        "zonage medecins",
-        "zonage medical",
-        "zones intervention prioritaire",
-        "zip zac medecins",
-        "desert medical",
+    Émet 2 KPIs :
+      - apl_moyen FR : valeur moyenne nationale (consultations/an/hab)
+      - zones_sous_dotees FR : % communes avec APL < 2.5
+    """
+    # Slug connu (vu dans le précédent run search)
+    candidates = [
+        "530_l-accessibilite-potentielle-localisee-apl",
+        "l-accessibilite-potentielle-localisee-apl",
     ]
-    for q in queries:
-        results = dgf_search(q, page_size=15)
-        for ds in results:
-            title = ds.get("title", "")
-            slug = ds.get("slug", "")
-            tl = title.lower()
-            if not any(k in tl for k in ("zonage", "zone", "desert", "sous-dot", "zip", "zac")):
-                continue
-            log(f"     → essai dataset '{title}' ({slug})")
-            resources = ds.get("resources") or []
-            csv_res = [r for r in resources
-                       if (r.get("format") or "").lower() in ("csv", "tsv")
-                       and r.get("url")]
-            if not csv_res:
-                log(f"       ⚠ pas de ressource CSV")
-                continue
-            df, _ = fetch_csv(csv_res[0]["url"])
-            if df is None or df.empty:
-                continue
-            log(f"       {len(df):,} lignes, colonnes : {list(df.columns)[:8]}")
-            cols_lower = [c.lower() for c in df.columns]
-            zone_col = next((c for c, cl in zip(df.columns, cols_lower)
-                             if "zone" in cl or "classement" in cl or "zip" in cl or "zac" in cl), None)
-            if not zone_col:
-                log(f"       ⚠ pas de colonne zone/classement")
-                continue
-            vals = df[zone_col].fillna("").astype(str).str.upper()
-            total = len(vals)
-            n_sous_dotes = int((vals.str.contains("SOUS|ZIP|TRES|TRÈS|SOUS-DOT")).sum())
-            if total > 0 and n_sous_dotes > 0:
-                pct = 100 * n_sous_dotes / total
-                return {
-                    "id":           "zones_sous_dotees",
-                    "valeur":       f"{pct:.1f}%",
-                    "label":        "Communes en zone sous-dotée",
-                    "tendance":     None, "tendance_dir": "neutral",
-                    "source":       f"ARS via data.gouv.fr — {slug}",
-                    "annee":        ANNEE, "region": "FR",
-                }
-            log(f"       ⚠ pas de catégorie 'sous-dotée' trouvée dans la colonne {zone_col}")
-    log("   ❌ aucun zonage ARS exploitable trouvé")
-    return None
+    # Recherche fallback
+    if not candidates:
+        for q in ["accessibilite potentielle localisee", "apl medecins generalistes"]:
+            for ds in drees_search(q, limit=5):
+                slug = ds.get("dataset_id")
+                if slug and "apl" in slug.lower():
+                    candidates.append(slug)
+
+    found = []
+    for slug in candidates:
+        url = f"{DREES_BASE}/api/explore/v2.1/catalog/datasets/{slug}/exports/csv?delimiter=%3B"
+        log(f"   · DREES download '{slug}'")
+        df, _ = fetch_csv(url)
+        if df is None or df.empty:
+            continue
+        log(f"     {len(df):,} lignes, colonnes : {list(df.columns)[:12]}")
+
+        # Cherche une colonne profession + une colonne APL numérique
+        cols = list(df.columns)
+        apl_col = None
+        for c in cols:
+            cl = c.lower()
+            if "apl" in cl and ("medecin" in cl or "gene" in cl or cl.strip() == "apl"):
+                apl_col = c; break
+        if not apl_col:
+            apl_col = next((c for c in cols if "apl" in c.lower()), None)
+        prof_col = next((c for c in cols if "profession" in c.lower() or "metier" in c.lower()), None)
+        annee_col = next((c for c in cols if c.lower() in ("annee","année","year")), None)
+
+        if not apl_col:
+            log(f"     ⚠ pas de colonne APL trouvée")
+            continue
+        log(f"     col APL = '{apl_col}', col prof = '{prof_col}', col année = '{annee_col}'")
+
+        df_use = df.copy()
+        if prof_col:
+            # Garde uniquement les lignes "médecins généralistes"
+            mask = df_use[prof_col].fillna("").str.lower().str.contains("medecin|généraliste|generaliste|mg|gene")
+            df_use = df_use[mask]
+            log(f"     filtré sur 'généraliste' : {len(df_use):,} lignes")
+        if annee_col and len(df_use):
+            # Garde la dernière année dispo
+            annees = pd.to_numeric(df_use[annee_col], errors="coerce").dropna()
+            if len(annees):
+                annee_max = int(annees.max())
+                df_use = df_use[pd.to_numeric(df_use[annee_col], errors="coerce") == annee_max]
+                log(f"     année max = {annee_max} : {len(df_use):,} lignes")
+        if df_use.empty:
+            log("     ⚠ après filtres, 0 lignes")
+            continue
+
+        nums = pd.to_numeric(df_use[apl_col], errors="coerce").dropna()
+        if len(nums) < 10:
+            log(f"     ⚠ trop peu de valeurs numériques ({len(nums)})")
+            continue
+        apl_moyen = float(nums.mean())
+        n_sous = int((nums < 2.5).sum())
+        n_total = len(nums)
+        pct_sous = 100 * n_sous / n_total
+
+        log(f"     ✓ APL moyen = {apl_moyen:.2f} cons/an/hab, "
+            f"{n_sous}/{n_total} communes < 2.5 ({pct_sous:.1f}%)")
+
+        annee_kpi = annee_max if annee_col and len(annees) else ANNEE
+        found.append({
+            "id":           "apl_moyen",
+            "valeur":       f"{apl_moyen:.2f}",
+            "label":        "APL moyen (cons./an/hab.)",
+            "tendance":     None, "tendance_dir": "neutral",
+            "source":       f"DREES — APL (slug {slug})",
+            "annee":        annee_kpi, "region": "FR",
+        })
+        found.append({
+            "id":           "zones_sous_dotees",
+            "valeur":       f"{pct_sous:.1f}%",
+            "label":        "Communes en sous-dotation (APL < 2.5)",
+            "tendance":     None,
+            "tendance_dir": "down" if pct_sous > 30 else "neutral",
+            "source":       f"DREES — APL (slug {slug})",
+            "annee":        annee_kpi, "region": "FR",
+        })
+        return found
+
+    log("   ❌ aucun dataset APL accessible")
+    return []
 
 
 # ── Écriture Supabase (pending) ───────────────────────────────
@@ -269,16 +272,11 @@ def main():
     log(f"=== Sources externes — {datetime.now().isoformat()} ===")
     found = []
 
-    log("🔍 Tentative DREES — délai rdv généraliste")
-    k1 = try_drees_delai_rdv()
-    if k1: found.append(k1)
-
-    log("🔍 Tentative zonage ARS — zones sous-dotées")
-    k2 = try_zonage_ars()
-    if k2: found.append(k2)
+    log("🔍 DREES — APL (Accessibilité Potentielle Localisée)")
+    found.extend(try_drees_apl())
 
     import_id = create_import_row(
-        "EXT (DREES+ARS)", "success" if found else "failed",
+        "EXT (DREES APL)", "success" if found else "failed",
         len(found),
     )
     log(f"   import_id = {import_id}")
@@ -289,7 +287,6 @@ def main():
 
     if not found:
         log("⚠ aucun KPI n'a pu être récupéré depuis les sources externes.")
-        log("   Les datasets DREES / ARS sont à brancher manuellement.")
 
     log(f"✅ {len(found)} KPI(s) externe(s) en attente de validation.")
 
