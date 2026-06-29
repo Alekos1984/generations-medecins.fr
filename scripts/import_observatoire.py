@@ -850,8 +850,14 @@ def write_series_pending(series, import_id):
                 headers=HEADERS, json=payload, timeout=30,
             )
         else:
-            # Nouvelle ligne : on l'insère en pending (valeur_num/valeur_fmt vides côté validated)
-            insert = {**s, **payload}
+            # Nouvelle ligne : placeholder dans valeur courante, vraie valeur en pending
+            # (sinon le diff admin affiche "Actuel == Nouveau" et le user ne voit rien)
+            insert = {
+                **{key: val for key, val in s.items() if key not in ("valeur_num", "valeur_fmt")},
+                "valeur_num": None,
+                "valeur_fmt": "—",
+                **payload,
+            }
             requests.post(f"{SUPABASE_URL}/rest/v1/observatoire_series",
                           headers=HEADERS, json=insert, timeout=30)
         n += 1

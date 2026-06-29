@@ -2006,15 +2006,16 @@
     if (!obsKpisCache.length) { container.innerHTML = '<div style="color:var(--muted);font-size:.85rem">Aucun KPI.</div>'; return; }
     const rows = obsKpisCache.map(k => {
       const oldV = k.valeur ?? '—';
-      const newV = k.valeur_pending ?? null;
-      const hasChange = newV != null && newV !== oldV;
-      const stateBadge = k.statut === 'pending'
+      const newV = k.valeur_pending;
+      const isPending = k.statut === 'pending';
+      const stateBadge = isPending
         ? '<span style="background:#fde68a;color:#92400e;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">EN ATTENTE</span>'
         : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">VALIDÉ</span>';
       // Extrait nombres pour le %
       const num = v => { if (v == null) return null; const n = Number(String(v).replace(/[^\d.,-]/g,'').replace(',','.')); return isNaN(n) ? null : n; };
-      const pct = hasChange ? fmtPct(num(oldV), num(newV)) : '';
-      const newCell = hasChange
+      const pct = (isPending && newV != null && newV !== oldV) ? fmtPct(num(oldV), num(newV)) : '';
+      // Affiche la valeur pending si statut=pending, même si égale à valeur (cas d'INSERT initial)
+      const newCell = (isPending && newV != null)
         ? `<b style="color:#92400e">${newV}</b> ${pct}`
         : '<span style="color:var(--muted)">—</span>';
       return `<tr>
@@ -2048,12 +2049,14 @@
     const rows = data.map(s => {
       const oldN = s.valeur_num;
       const newN = s.valeur_num_pending;
-      const hasChange = newN != null && newN !== oldN;
-      const stateBadge = s.statut === 'pending'
+      const isPending = s.statut === 'pending';
+      const stateBadge = isPending
         ? '<span style="background:#fde68a;color:#92400e;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">EN ATTENTE</span>'
         : '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:6px;font-size:.7rem;font-weight:700">VALIDÉ</span>';
-      const newCell = hasChange
-        ? `<b style="color:#92400e">${s.valeur_fmt_pending||newN}</b> ${fmtPct(oldN, newN)}`
+      // Affiche valeur_fmt_pending si statut=pending (même si égale à valeur_fmt sur INSERT initial)
+      const pct = (isPending && newN != null && oldN != null && newN !== oldN) ? fmtPct(oldN, newN) : '';
+      const newCell = (isPending && (s.valeur_fmt_pending != null || newN != null))
+        ? `<b style="color:#92400e">${s.valeur_fmt_pending ?? newN}</b> ${pct}`
         : '<span style="color:var(--muted)">—</span>';
       return `<tr>
         <td style="padding:6px 12px;border-bottom:1px solid var(--line);font-size:.78rem">${REGION_LABELS[s.region]||s.region}</td>
@@ -2063,6 +2066,11 @@
         <td style="padding:6px 12px;border-bottom:1px solid var(--line);text-align:center">${stateBadge}</td>
       </tr>`;
     }).join('');
+    // Compteurs pour comprendre la nature des changements
+    const pending     = data.filter(s => s.statut === 'pending');
+    const nouvelles   = pending.filter(s => s.valeur_num == null || s.valeur_fmt === '—').length;
+    const modifiees   = pending.filter(s => s.valeur_num != null && s.valeur_num_pending != null && s.valeur_num !== s.valeur_num_pending).length;
+    const inchangees  = pending.filter(s => s.valeur_num != null && s.valeur_num === s.valeur_num_pending).length;
     container.innerHTML = `<table style="width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:8px;overflow:hidden">
       <thead><tr style="background:#f1f5f9">
         <th style="padding:10px 12px;text-align:left;font-size:.72rem;text-transform:uppercase;color:var(--muted)">Région</th>
@@ -2073,7 +2081,10 @@
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:8px">${data.length} ligne(s) affichée(s)</div>`;
+    <div style="font-size:.78rem;color:var(--muted);margin-top:8px;display:flex;gap:16px;flex-wrap:wrap">
+      <span><b>${data.length}</b> ligne(s) affichée(s)</span>
+      ${pending.length ? `<span style="color:#92400e">· <b>${pending.length}</b> en attente (${nouvelles} nouvelle(s) · ${modifiees} modifiée(s) · ${inchangees} inchangée(s))</span>` : ''}
+    </div>`;
   }
   window.renderObsDiff = renderObsDiff;
 
