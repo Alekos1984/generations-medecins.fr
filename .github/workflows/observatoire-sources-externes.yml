@@ -1,0 +1,32 @@
+name: Import Observatoire — sources externes uniquement
+
+# Workflow rapide (≤ 1 min) qui ne lance QUE le script sources externes
+# (DREES délai rdv + ARS zonage). Utile pour itérer sur les datasets
+# externes sans retélécharger les 700 Mo du RPPS.
+
+on:
+  workflow_dispatch:        # Lancement manuel uniquement
+
+jobs:
+  externes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Lancer l'import sources externes
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/import_sources_externes.py
