@@ -611,6 +611,10 @@ declare
         {
           "name": "Médecins Direct",
           "logo": "/logos/MeD.png"
+        },
+        {
+          "name": "DGOS",
+          "logo": "/logos/DGOS.png"
         }
       ]
     }
