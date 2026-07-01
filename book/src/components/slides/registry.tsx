@@ -10,6 +10,7 @@ import Pillars from './Pillars'
 import Events from './Events'
 import Projects from './Projects'
 import BigEvent from './BigEvent'
+import EventsAll from './EventsAll'
 import Features from './Features'
 import PartnersLogos from './PartnersLogos'
 import Budget from './Budget'
@@ -54,6 +55,8 @@ export function renderSlide(slide: Slide, ctx: SlideContext) {
       return <Projects {...slide.props} />
     case 'bigEvent':
       return <BigEvent {...slide.props} />
+    case 'eventsAll':
+      return <EventsAll {...slide.props} />
     case 'features':
       return <Features {...slide.props} />
     case 'partnersLogos':

@@ -1,0 +1,647 @@
+-- ============================================================================
+-- Custom book variant for DGOS (Direction Générale de l'Offre de Soins)
+-- Run this in Supabase SQL Editor to push the DGOS-specific slides to their
+-- partner_books row. Other partners are NOT touched.
+-- To revert DGOS to the default book at any time:
+--   select public.apply_default_book('dgos');
+-- ============================================================================
+
+update public.partner_books
+   set slides = $book$[
+  {
+    "type": "cover",
+    "props": {
+      "eyebrow": "PARTENARIAT • 2026",
+      "brand": "GÉNÉRATIONS MÉDECINS",
+      "titleLines": [
+        "Un pont",
+        "entre le ministère",
+        "et les médecins",
+        "de terrain"
+      ],
+      "subtitle": "Un réseau de plus de 3 000 médecins jeunes et engagés.\nUne base qualifiée, mobilisable pour vos études et vos politiques publiques.",
+      "footer": "BOOK PARTENAIRES • ÉDITION 2026"
+    }
+  },
+  {
+    "type": "summary",
+    "props": {
+      "title": "Sommaire",
+      "items": [
+        {
+          "chapter": "01",
+          "title": "Qui sommes-nous ?",
+          "description": "Audience, manifesto, bureau, médias",
+          "range": "Slides 03 – 06"
+        },
+        {
+          "chapter": "02",
+          "title": "Ce que nous vous apportons",
+          "description": "Bénéfices, audience, leviers d'activation",
+          "range": "Slides 07 – 09"
+        },
+        {
+          "chapter": "03",
+          "title": "Nos rendez-vous & plateforme",
+          "description": "Events, Big Event, outils membres",
+          "range": "Slides 10 – 12"
+        },
+        {
+          "chapter": "04",
+          "title": "Communauté & investissement",
+          "description": "Partenaires actuels, budget",
+          "range": "Slides 13 – 14"
+        },
+        {
+          "chapter": "05",
+          "title": "Engagement & contact",
+          "description": "Charte et points de contact",
+          "range": "Slides 15 – 16"
+        }
+      ]
+    }
+  },
+  {
+    "type": "stats",
+    "props": {
+      "eyebrow": "Notre audience",
+      "title": "Une audience importante",
+      "subtitle": "Le réseau Générations Médecins en chiffres.",
+      "stats": [
+        {
+          "label": "Adhérents IDF",
+          "value": 2000,
+          "suffix": "+",
+          "caption": "médecins en Île-de-France"
+        },
+        {
+          "label": "Adhérents AURA",
+          "value": 1000,
+          "suffix": "+",
+          "caption": "Auvergne-Rhône-Alpes"
+        },
+        {
+          "label": "Abonnés LinkedIn",
+          "value": 17000,
+          "caption": "Président GM — LinkedIn"
+        },
+        {
+          "label": "Contacts",
+          "value": 12000,
+          "caption": "Base Médecins en Grève"
+        },
+        {
+          "label": "Événements / an",
+          "value": 10,
+          "caption": "soirées networking qualifiées"
+        }
+      ],
+      "quote": "Un partenariat avec GM, c'est un accès direct à un terrain qualifié, une audience engagée et une crédibilité scientifique sans équivalent."
+    }
+  },
+  {
+    "type": "manifesto",
+    "props": {
+      "eyebrow": "01 • Qui sommes-nous",
+      "title": "Une organisation au service des médecins",
+      "subtitle": "Générations Médecins accompagne et défend les médecins.",
+      "verbs": [
+        "Informer.",
+        "Fédérer.",
+        "Accompagner."
+      ],
+      "body": "Nous accompagnons les médecins tout au long de leur carrière, de l'installation aux nouveaux modèles d'exercice. Une communauté active, des contenus utiles et des événements qui rapprochent ville et hôpital.",
+      "pillars": [
+        {
+          "num": "1",
+          "title": "Impact & terrain",
+          "text": "Services et contenus à forte valeur pour l'installation, l'exercice et la carrière."
+        },
+        {
+          "num": "2",
+          "title": "Projets structurants",
+          "text": "Plateformes, événements, baromètres pour la communauté médicale."
+        },
+        {
+          "num": "3",
+          "title": "Communauté active",
+          "text": "Newsletter, réseaux sociaux, rencontres et networking qualifié."
+        }
+      ]
+    }
+  },
+  {
+    "type": "bureau",
+    "props": {
+      "eyebrow": "01 • Qui sommes-nous",
+      "title": "Le bureau & nos KOLs",
+      "subtitle": "Un bureau composé de médecins reconnus, leaders d'opinion sur leurs thématiques.",
+      "members": [
+        {
+          "initials": "AB",
+          "name": "Dr. Alexis BOURLA",
+          "role": "Président",
+          "specialty": "Psychiatre",
+          "details": "Direction médicale — Clariane, NeuroStim, Cline Research, Masterclass Médicale",
+          "photoUrl": "/bureau/AB.png"
+        },
+        {
+          "initials": "MT",
+          "name": "Dr. Minh-Hanh TA",
+          "role": "Secrétaire générale",
+          "specialty": "Onco-radiothérapeute",
+          "details": "Board médical Résorose & Celene Care • Ancienne vice-présidente nationale de la SFjRO",
+          "photoUrl": "/bureau/MHT.png"
+        },
+        {
+          "initials": "PH",
+          "name": "Dr. Pierre HAMANN",
+          "role": "Vice-président",
+          "specialty": "Dermatologue",
+          "details": "Chef de Service Dermatologie — Kremlin-Bicêtre",
+          "photoUrl": "/bureau/PH.png"
+        },
+        {
+          "initials": "CC",
+          "name": "Dr. Cherifa CHEURFA",
+          "role": "Vice-présidente",
+          "specialty": "Anesthésiste-réanimateur",
+          "photoUrl": "/bureau/CC.png"
+        },
+        {
+          "initials": "LK",
+          "name": "Dr. Louise-Anne KLEIN",
+          "role": "Vice-présidente",
+          "specialty": "Gynécologue obstétricienne",
+          "photoUrl": "/bureau/LAK.png"
+        },
+        {
+          "initials": "FV",
+          "name": "Pr. Franck VERDONK",
+          "role": "Trésorier",
+          "specialty": "Anesthésiste-réanimateur",
+          "details": "Chef de Service de Réanimation — Saint-Antoine",
+          "photoUrl": "/bureau/FV.jpeg"
+        },
+        {
+          "initials": "RB",
+          "name": "Dr. Rivka BENDRIHEM",
+          "role": "Chargée de mission",
+          "specialty": "Radiologue",
+          "details": "Ancienne présidente de l'UNIR (Union Nationale des Internes en Radiologie)",
+          "photoUrl": "/bureau/RB.png"
+        },
+        {
+          "initials": "SH",
+          "name": "Dr. Soraya HUGAIN",
+          "role": "Chargée de mission",
+          "specialty": "Psychiatre hospitalier — Sainte-Anne",
+          "details": "Représentante à la commission régionale paritaire",
+          "photoUrl": "/bureau/SH.png"
+        }
+      ],
+      "footnote": "Plusieurs KOL au sein du bureau • Plusieurs vice-présidents de la FMF ou de syndicats verticaux • Plusieurs chefs de service • Multidisciplinarité forte."
+    }
+  },
+  {
+    "type": "media",
+    "props": {
+      "eyebrow": "01 • Présence dans les médias",
+      "title": "Une voix qui porte",
+      "subtitle": "Plateaux TV et presse médicale — GM est au cœur du débat médical.",
+      "tiles": [
+        {
+          "kicker": "Plateau TV",
+          "name": "New Deal Santé",
+          "caption": "Le show de Martin Blachier",
+          "image": "/media/new-deal-sante.png"
+        },
+        {
+          "kicker": "Presse médicale",
+          "name": "Egora",
+          "caption": "Couverture des prises de position du syndicat",
+          "image": "/media/Egora.png"
+        }
+      ],
+      "footnote": "Des prises de parole régulières qui renforcent la légitimité du réseau auprès des prescripteurs."
+    }
+  },
+  {
+    "type": "benefits",
+    "props": {
+      "eyebrow": "02 • L'opportunité",
+      "title": "Ce que nous pouvons apporter à la DGOS",
+      "subtitle": "Quatre leviers concrets pour renforcer votre action auprès des médecins.",
+      "benefits": [
+        {
+          "num": "01",
+          "title": "Enquêtes qualifiées et baromètres",
+          "body": "Une base de 3 000+ médecins mobilisable en quelques jours pour vos études, panels d’experts et baromètres.",
+          "items": [
+            "Sondages thématiques",
+            "Baromètres de satisfaction",
+            "Panels d'experts",
+            "Focus groups qualitatifs"
+          ],
+          "arrow": "Des insights terrain fiables pour éclairer vos décisions politiques."
+        },
+        {
+          "num": "02",
+          "title": "Diffuser vos politiques publiques avec impact",
+          "body": "Nos canaux touchent les médecins que les campagnes gouvernementales classiques peinent à atteindre.",
+          "items": [
+            "Aide à l'installation en zones sous-dotées",
+            "Adhésion aux CPTS et ESS",
+            "Nouveaux dispositifs réglementaires",
+            "Parcours de formation continue"
+          ],
+          "arrow": "Meilleur taux de lecture qu'une communication institutionnelle traditionnelle."
+        },
+        {
+          "num": "03",
+          "title": "Un vivier de médecins engagés",
+          "body": "Nos adhérents sont jeunes, motivés, prêts à s'engager sur les sujets structurants.",
+          "items": [
+            "Groupes de travail",
+            "Consultations publiques",
+            "Ambassadeurs de terrain",
+            "Testeurs de nouveaux dispositifs"
+          ],
+          "arrow": "Un réseau prêt à contribuer, pas juste à être informé."
+        },
+        {
+          "num": "04",
+          "title": "Un pont opérationnel avec le terrain",
+          "body": "Boucle de retour rapide entre la DGOS et le quotidien des médecins en cabinet ou à l'hôpital.",
+          "items": [
+            "Alertes anticipées sur les tensions",
+            "Retours qualitatifs sur les réformes",
+            "Cartographie régionale des enjeux",
+            "Accès direct aux KOL du bureau"
+          ],
+          "arrow": "Ne pas piloter à l'aveugle : voir ce qui se passe vraiment dans les cabinets et les services."
+        }
+      ],
+      "closing": "Nous ne sommes pas un lobby. Nous sommes une communauté de médecins jeunes et engagés, prête à travailler main dans la main avec la DGOS pour bâtir une politique de santé au plus près du terrain."
+    }
+  },
+  {
+    "type": "audience",
+    "props": {
+      "eyebrow": "02 • L'opportunité",
+      "title": "Notre audience en détail",
+      "subtitle": "Une communauté médicale segmentée et activable.",
+      "segments": [
+        {
+          "label": "Spécialistes",
+          "share": 70,
+          "description": "Cœur de cible — spé > MG"
+        },
+        {
+          "label": "< 10 ans depuis le DES",
+          "share": 90,
+          "description": "Jeunes médecins en installation"
+        },
+        {
+          "label": "Internes",
+          "share": 15,
+          "description": "Futurs prescripteurs et décideurs"
+        }
+      ],
+      "channels": [
+        {
+          "label": "Mailing",
+          "value": "12 000",
+          "caption": "membres actifs (base sondages)"
+        },
+        {
+          "label": "LinkedIn",
+          "value": "17 000",
+          "caption": "abonnés (Président GM IDF)"
+        },
+        {
+          "label": "Events mensuels",
+          "value": "360",
+          "caption": "contacts privilégiés lors d'événements privilégiés"
+        },
+        {
+          "label": "Big Event annuel",
+          "value": "200",
+          "caption": "participants qualifiés"
+        }
+      ],
+      "callout": "Là où tout le monde a déserté le présentiel, nous y maintenons nos événements à pleine capacité — pour créer du lien, fidéliser et bâtir une vraie communauté."
+    }
+  },
+  {
+    "type": "pillars",
+    "props": {
+      "eyebrow": "02 • L'opportunité",
+      "title": "Nos 3 piliers d'activation",
+      "subtitle": "Trois leviers d'engagement à activer selon vos objectifs partenariat.",
+      "pillars": [
+        {
+          "num": "01",
+          "title": "Newsletter récurrente",
+          "body": "Petites annonces, décryptages d'actualité, contenus pratiques pour la vie professionnelle des médecins.",
+          "tags": [
+            "12 000 destinataires",
+            "Hebdomadaire"
+          ]
+        },
+        {
+          "num": "02",
+          "title": "Events mensuels",
+          "body": "Soirées en petit comité, format afterwork qualitatif. Nos événements affichent COMPLET et donnent lieu à des relais sur nos réseaux sociaux.",
+          "tags": [
+            "10 / an",
+            "30 participants",
+            "COMPLETS"
+          ]
+        },
+        {
+          "num": "03",
+          "title": "Plateforme & contenus",
+          "body": "Mobilisation, lanceurs d'alerte, SOS juridique, outils d'aide à l'installation, consultation des adhérents.",
+          "tags": [
+            "Plateforme membre",
+            "Mise à jour continue"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "type": "eventsAll",
+    "props": {
+      "eyebrow": "03 • Nos rendez-vous",
+      "title": "Un dispositif événementiel double",
+      "subtitle": "10 rencontres mensuelles pour installer la proximité, plus un grand rendez-vous annuel fédérateur.",
+      "monthly": {
+        "kicker": "Format récurrent",
+        "heading": "Events Mensuels",
+        "facts": [
+          {
+            "value": "10",
+            "label": "Events / an"
+          },
+          {
+            "value": "20–35",
+            "label": "Participants"
+          },
+          {
+            "value": "19h–22h",
+            "label": "Format"
+          }
+        ],
+        "themes": [
+          "Innovation",
+          "Exercice",
+          "Entrepreneuriat",
+          "Médico-légal"
+        ],
+        "footnote": "Complets à chaque édition, relayés sur nos réseaux sociaux."
+      },
+      "bigEvent": {
+        "kicker": "Rendez-vous phare",
+        "heading": "The Big Event",
+        "facts": [
+          {
+            "value": "200",
+            "label": "Participants"
+          },
+          {
+            "value": "½ jour",
+            "label": "Format"
+          },
+          {
+            "value": "3",
+            "label": "Parcours"
+          },
+          {
+            "value": "1",
+            "label": "Soirée festive"
+          }
+        ],
+        "tracks": [
+          "Assistants, CCA, jeunes libéraux",
+          "Hospitaliers (PH, PHU, PU-PH)",
+          "Internes (partenariat ISNI)"
+        ],
+        "guest": "Soirée chez House Clinics"
+      }
+    }
+  },
+  {
+    "type": "features",
+    "props": {
+      "eyebrow": "04 • Plateforme",
+      "title": "Notre plateforme membre",
+      "subtitle": "Des outils concrets construits par et pour la communauté médicale.",
+      "features": [
+        {
+          "glyph": "⚖️",
+          "tag": "Juridique",
+          "title": "SOS juridique",
+          "body": "Une IA juridique + un avocat de garde : plus rapide, plus accessible et plus à jour qu'un juriste classique. Réponses concrètes, contextualisées au droit médical.",
+          "tools": [
+            {
+              "name": "Doctrine",
+              "logo": "/logos/Doctrine_logo.png"
+            },
+            {
+              "name": "SPI Avocats"
+            }
+          ]
+        },
+        {
+          "glyph": "🏥",
+          "tag": "Carrière",
+          "title": "Aide à l'installation",
+          "body": "Parcours pas-à-pas : choix du statut, cotations, démarches CPAM, montage de société, fiscalité. Mis à jour en continu par le bureau."
+        },
+        {
+          "glyph": "🗳️",
+          "tag": "Démocratie",
+          "title": "Consultation des adhérents",
+          "body": "Sondages thématiques, baromètres, votes — chaque adhérent pèse dans les positions du syndicat."
+        },
+        {
+          "glyph": "📢",
+          "tag": "Engagement",
+          "title": "Mobilisation & lanceurs d'alerte",
+          "body": "Espace sécurisé pour signaler des dérives, alimenter le plaidoyer, et coordonner les actions de terrain."
+        },
+        {
+          "glyph": "🧠",
+          "tag": "Contenus",
+          "title": "Décryptages d'actualité",
+          "body": "Newsletter hebdo et fiches courtes : on traduit les évolutions réglementaires et conventionnelles en actions concrètes."
+        }
+      ]
+    }
+  },
+  {
+    "type": "partnersLogos",
+    "props": {
+      "eyebrow": "04 • Nos partenaires",
+      "title": "Nos partenaires",
+      "partners": [
+        {
+          "name": "Crédit Agricole",
+          "logo": "/logos/CA.png"
+        },
+        {
+          "name": "La Médicale",
+          "logo": "/logos/LM.png"
+        },
+        {
+          "name": "One Gestion Privée",
+          "logo": "/logos/OGP.png"
+        },
+        {
+          "name": "Hack Your Care",
+          "logo": "/logos/HYC.png"
+        },
+        {
+          "name": "NeuroStim",
+          "logo": "/logos/NST.png"
+        },
+        {
+          "name": "Celene",
+          "logo": "/logos/CLN.jpg"
+        },
+        {
+          "name": "Amarsi",
+          "logo": "/logos/AMA.png"
+        },
+        {
+          "name": "Club Privé des Médecins",
+          "logo": "/logos/CPM.png"
+        },
+        {
+          "name": "Clariane",
+          "logo": "/logos/CLA.png"
+        },
+        {
+          "name": "Nebimage",
+          "logo": "/logos/NEB.png"
+        },
+        {
+          "name": "Novo Nordisk",
+          "logo": "/logos/NOV.png"
+        },
+        {
+          "name": "Médecins Direct",
+          "logo": "/logos/MeD.png"
+        }
+      ],
+      "subtitle": "Ils nous accompagnent déjà dans nos actions.",
+      "highlightName": ""
+    }
+  },
+  {
+    "type": "budget",
+    "props": {
+      "eyebrow": "05 • Investissement",
+      "title": "Nos besoins pour mener nos actions",
+      "subtitle": "Budget annuel global pour déployer le programme 2026 — détaillé poste par poste.",
+      "items": [
+        {
+          "label": "Events mensuels",
+          "detail": "4 000 € × 10 événements",
+          "amount": 40000,
+          "secured": 25
+        },
+        {
+          "label": "Location de salle",
+          "detail": "Lieux events + Big Event",
+          "amount": 5000,
+          "secured": 100
+        },
+        {
+          "label": "Développement des modules",
+          "detail": "Plateforme membre, SOS juridique, outils",
+          "amount": 50000,
+          "secured": 25
+        },
+        {
+          "label": "Budget communication",
+          "detail": "Production, réseaux, newsletter, design",
+          "amount": 25000,
+          "secured": 50
+        },
+        {
+          "label": "Big Event annuel",
+          "detail": "200 participants — ½ journée + soirée",
+          "amount": 30000,
+          "secured": 33
+        }
+      ],
+      "totalLabel": "Total annuel",
+      "securedLabel": "Déjà sécurisé"
+    }
+  },
+  {
+    "type": "charter",
+    "props": {
+      "eyebrow": "06 • Engagement",
+      "title": "Notre charte de partenariat",
+      "subtitle": "Une relation transparente, encadrée et bénéfique pour tous.",
+      "pillars": [
+        {
+          "glyph": "§",
+          "title": "Éthique & déontologie",
+          "body": "Conformité à l'éthique professionnelle, aux réglementations applicables et à la déontologie médicale."
+        },
+        {
+          "glyph": "○",
+          "title": "Indépendance",
+          "body": "Respect absolu de l'indépendance scientifique et éditoriale de Générations Médecins."
+        },
+        {
+          "glyph": "◆",
+          "title": "Transparence",
+          "body": "Engagement de transparence sur les actions menées, leurs résultats et le reporting trimestriel."
+        },
+        {
+          "glyph": "✚",
+          "title": "Co-création",
+          "body": "Co-construction des projets bénéficiant aux médecins, patients et système de santé."
+        }
+      ]
+    }
+  },
+  {
+    "type": "contact",
+    "props": {
+      "eyebrow": "Contact",
+      "title": "Construisons ensemble un partenariat utile.",
+      "body": "Échangeons sur vos objectifs et co-construisons l'activation qui vous ressemble.",
+      "channels": [
+        {
+          "glyph": "@",
+          "label": "Email",
+          "value": "idf@generations-medecins.fr"
+        },
+        {
+          "glyph": "⌂",
+          "label": "Site web",
+          "value": "generations-medecins.fr"
+        },
+        {
+          "glyph": "▣",
+          "label": "Réseaux",
+          "value": "Insta • LinkedIn • X • Facebook"
+        }
+      ],
+      "footer": "GÉNÉRATIONS MÉDECINS ÎLE-DE-FRANCE • BOOK PARTENAIRES 2026"
+    }
+  }
+]$book$::jsonb,
+       updated_at = now()
+ where partner_id = (select id from public.partners where slug = 'dgos');
+
+select jsonb_array_length(slides) as nb_slides
+  from public.partner_books
+  where partner_id = (select id from public.partners where slug = 'dgos');

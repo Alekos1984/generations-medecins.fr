@@ -18,6 +18,7 @@ export type Slide =
   | { type: 'events'; props: EventsProps }
   | { type: 'projects'; props: ProjectsProps }
   | { type: 'bigEvent'; props: BigEventProps }
+  | { type: 'eventsAll'; props: EventsAllProps }
   | { type: 'features'; props: FeaturesProps }
   | { type: 'partnersLogos'; props: PartnersLogosProps }
   | { type: 'budget'; props: BudgetProps }
@@ -226,6 +227,26 @@ export type ContactProps = {
   body?: string
   channels: { glyph: string; label: string; value: string }[]
   footer?: string
+}
+
+export type EventsAllProps = {
+  eyebrow?: string
+  title: string
+  subtitle?: string
+  monthly: {
+    kicker?: string
+    heading: string
+    facts: { value: string; label: string }[]
+    themes: string[]
+    footnote?: string
+  }
+  bigEvent: {
+    kicker?: string
+    heading: string
+    facts: { value: string; label: string }[]
+    tracks: string[]
+    guest?: string
+  }
 }
 
 export type BigEventProps = {
