@@ -87,14 +87,14 @@ export default function EventsAll(props: EventsAllProps) {
           </div>
 
           <div className="mt-6">
-            <div className="text-[12px] tracking-[0.3em] uppercase text-gold-400">3 Parcours</div>
-            <ul className="mt-3 space-y-2.5">
+            <div className="text-[13px] tracking-[0.3em] uppercase text-gold-400">3 Parcours</div>
+            <ul className="mt-3 space-y-3">
               {props.bigEvent.tracks.map((t) => (
                 <li
                   key={t}
-                  className="text-[19px] font-medium text-white flex gap-3 leading-snug rounded-lg bg-white/[0.06] border border-white/10 px-4 py-2.5"
+                  className="text-[26px] font-semibold text-white flex gap-4 leading-tight items-center rounded-xl bg-white/[0.08] border border-gold-500/25 px-5 py-4"
                 >
-                  <span className="text-gold-500 flex-none mt-0.5 text-[22px]">▸</span>
+                  <span className="text-gold-500 flex-none text-[30px] leading-none">▸</span>
                   <span>{t}</span>
                 </li>
               ))}

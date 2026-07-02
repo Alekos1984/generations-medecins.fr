@@ -96,5 +96,31 @@ export function renderSlide(slide: Slide, ctx: SlideContext) {
       return <Charter {...slide.props} />
     case 'contact':
       return <Contact {...slide.props} />
+    default: {
+      // Unknown slide type — surface a visible marker instead of rendering
+      // blank. Helps catch stale-deploy issues where the Supabase JSON
+      // references a slide type this build doesn't know about.
+      const s = slide as { type?: string }
+      if (typeof window !== 'undefined') {
+        // eslint-disable-next-line no-console
+        console.warn(`[gm-book] Unknown slide type "${s.type}" — deploy may be behind.`)
+      }
+      return (
+        <div className="h-full w-full flex items-center justify-center px-16 text-center">
+          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-8 py-6 max-w-xl">
+            <div className="text-[11px] tracking-[0.3em] uppercase text-red-300">
+              Slide non reconnue
+            </div>
+            <div className="mt-2 text-[18px] text-white">
+              Type <code className="text-gold-400">{s.type ?? '?'}</code> non pris en charge par cette build.
+            </div>
+            <div className="mt-3 text-[13px] text-navy-200">
+              Le déploiement Netlify est probablement en retard sur le JSON Supabase. Attendez un
+              instant, puis rechargez la page (Ctrl+Shift+R).
+            </div>
+          </div>
+        </div>
+      )
+    }
   }
 }
