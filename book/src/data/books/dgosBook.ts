@@ -296,8 +296,6 @@ const strategySlide: Slide = {
     ],
     propositions: {
       title: 'Trois propositions prêtes à défendre',
-      intro:
-        "Format apprécié par un conseiller de Matignon : trois problèmes, trois propositions concrètes, bénéfices clairs et freins anticipés.",
       items: [
         'Renforcer le temps médical en réduisant les tâches administratives.',
         "Améliorer l'attractivité des carrières hospitalières par des leviers organisationnels autant que financiers.",
