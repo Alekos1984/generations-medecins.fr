@@ -12,6 +12,7 @@ import Projects from './Projects'
 import BigEvent from './BigEvent'
 import EventsAll from './EventsAll'
 import WorkingGroups from './WorkingGroups'
+import Strategy from './Strategy'
 import Features from './Features'
 import PartnersLogos from './PartnersLogos'
 import Budget from './Budget'
@@ -60,6 +61,8 @@ export function renderSlide(slide: Slide, ctx: SlideContext) {
       return <EventsAll {...slide.props} />
     case 'workingGroups':
       return <WorkingGroups {...slide.props} />
+    case 'strategy':
+      return <Strategy {...slide.props} />
     case 'features':
       return <Features {...slide.props} />
     case 'partnersLogos':

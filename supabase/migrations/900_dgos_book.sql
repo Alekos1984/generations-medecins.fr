@@ -1,6 +1,4 @@
--- ============================================================================
 -- Custom book variant for DGOS
--- ============================================================================
 update public.partner_books
    set slides = $book$[
   {
@@ -38,20 +36,20 @@ update public.partner_books
         {
           "chapter": "03",
           "title": "Un interlocuteur privilégié",
-          "description": "CNAM, chantier lapins, groupes de travail",
-          "range": "Slides 10 – 12"
+          "description": "CNAM, lapins, groupes de travail, axes stratégiques",
+          "range": "Slides 10 – 13"
         },
         {
           "chapter": "04",
           "title": "Nos outils & rendez-vous",
           "description": "Events, plateforme, Médecins En Grève",
-          "range": "Slides 13 – 15"
+          "range": "Slides 14 – 16"
         },
         {
           "chapter": "05",
           "title": "Communauté & engagement",
           "description": "Partenaires, charte, contact",
-          "range": "Slides 16 – 18"
+          "range": "Slides 17 – 19"
         }
       ]
     }
@@ -488,6 +486,92 @@ update public.partner_books
     }
   },
   {
+    "type": "strategy",
+    "props": {
+      "eyebrow": "02 • Notre posture face au ministère",
+      "title": "Axes de réflexion stratégiques",
+      "subtitle": "Une vision, une hiérarchisation des priorités, des propositions concrètes — pensées avec la contrainte budgétaire et politique.",
+      "axes": [
+        {
+          "num": "01",
+          "title": "Vision 5–10 ans",
+          "tags": [
+            "Hôpital public",
+            "Libéral",
+            "Ville-hôpital",
+            "ESPIC"
+          ]
+        },
+        {
+          "num": "02",
+          "title": "Ressources humaines médicales",
+          "tags": [
+            "Pénurie",
+            "Recrutement hospitalier",
+            "Fidélisation",
+            "Attractivité"
+          ]
+        },
+        {
+          "num": "03",
+          "title": "Simplification",
+          "tags": [
+            "Inflation réglementaire",
+            "Indicateurs",
+            "Contrôles redondants",
+            "Certification"
+          ]
+        },
+        {
+          "num": "04",
+          "title": "Soutenabilité financière",
+          "tags": [
+            "Financement",
+            "Investissements",
+            "Innovation",
+            "Qualité vs dépenses"
+          ]
+        },
+        {
+          "num": "05",
+          "title": "Gouvernance",
+          "tags": [
+            "Corps médical",
+            "Chefs de service",
+            "Autonomie médicale"
+          ]
+        },
+        {
+          "num": "06",
+          "title": "Numérique & IA",
+          "tags": [
+            "Aide à la décision",
+            "Interopérabilité",
+            "Charge documentaire"
+          ]
+        },
+        {
+          "num": "07",
+          "title": "Préparer les crises",
+          "tags": [
+            "Résilience",
+            "Permanence des soins",
+            "Capacités hospitalières"
+          ]
+        }
+      ],
+      "propositions": {
+        "title": "Trois propositions prêtes à défendre",
+        "intro": "Format apprécié par un conseiller de Matignon : trois problèmes, trois propositions concrètes, bénéfices clairs et freins anticipés.",
+        "items": [
+          "Renforcer le temps médical en réduisant les tâches administratives.",
+          "Améliorer l'attractivité des carrières hospitalières par des leviers organisationnels autant que financiers.",
+          "Simplifier les normes qui mobilisent du temps sans bénéfice direct pour les patients."
+        ]
+      }
+    }
+  },
+  {
     "type": "eventsAll",
     "props": {
       "eyebrow": "03 • Nos rendez-vous",
@@ -739,7 +823,6 @@ update public.partner_books
 ]$book$::jsonb,
        updated_at = now()
  where partner_id = (select id from public.partners where slug = 'dgos');
-
 select jsonb_array_length(slides) as nb_slides
   from public.partner_books
   where partner_id = (select id from public.partners where slug = 'dgos');
