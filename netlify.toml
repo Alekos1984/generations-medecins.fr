@@ -8,6 +8,10 @@
 [functions."veille-cron"]
   schedule = "0 5 * * *"
 
+# Newsletter auto au vitriol : le 1er et le 15 du mois à 6h UTC
+[functions."newsletter-cron"]
+  schedule = "0 6 1,15 * *"
+
 [[headers]]
   for = "/*"
   [headers.values]
