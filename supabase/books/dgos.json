@@ -40,14 +40,14 @@
         {
           "chapter": "04",
           "title": "Nos outils & rendez-vous",
-          "description": "Events, plateforme membre, Médecins En Grève",
+          "description": "Events, plateforme, Médecins En Grève",
           "range": "Slides 13 – 15"
         },
         {
           "chapter": "05",
           "title": "Communauté & engagement",
-          "description": "Partenaires actuels, budget, charte, contact",
-          "range": "Slides 16 – 19"
+          "description": "Partenaires, charte, contact",
+          "range": "Slides 16 – 18"
         }
       ]
     }
@@ -190,7 +190,7 @@
           "photoUrl": "/bureau/SH.png"
         }
       ],
-      "footnote": "Plusieurs KOL au sein du bureau • Plusieurs vice-présidents de la FMF ou de syndicats verticaux • Plusieurs chefs de service • Multidisciplinarité forte."
+      "footnote": "Référents jeunes générations • Représentativité +++ face aux syndicats installés • Plusieurs vice-présidents de la FMF ou de syndicats verticaux • Chefs de service en place • Présence dans les commissions."
     }
   },
   {
@@ -374,7 +374,8 @@
           "body": "Présence régulière aux bilatérales CNAM. Remontées et propositions en amont des cycles conventionnels, pas seulement en réaction.",
           "tags": [
             "Bilatérales",
-            "Amont cyclique"
+            "Amont cyclique",
+            "Commissions"
           ]
         },
         {
@@ -382,8 +383,9 @@
           "title": "Voix des jeunes générations",
           "body": "Cible des prochaines réformes conventionnelles. Là où les autres syndicats représentent surtout les installés, nous portons la voix de celles et ceux qui vont installer leur cabinet dans les 10 ans.",
           "tags": [
-            "90% < 10 ans DES",
-            "15% internes"
+            "Référents jeunes",
+            "Représentativité +++",
+            "90% < 10 ans DES"
           ]
         },
         {
@@ -391,9 +393,9 @@
           "title": "Multi-activité",
           "body": "Hospitaliers déjà en commission, chefs de service, libéraux, mixtes. Aucun autre syndicat ne couvre autant de terrains d'exercice à la fois.",
           "tags": [
-            "Hôpital & Ville",
+            "Commissions ministérielles",
             "Chefs de service",
-            "Toutes spécialités"
+            "Hôpital & Ville"
           ]
         }
       ]
@@ -478,7 +480,7 @@
           "leadRole": "Chargée de mission — Radiologue"
         }
       ],
-      "footnote": "Chaque groupe est prêt à être saisi par la DGOS pour co-construire des propositions plutôt que de commenter des textes déjà finalisés."
+      "footnote": "Référents jeunes prêts à être saisis par la DGOS pour co-construire des propositions plutôt que de commenter des textes finalisés. Représentativité +++ dans les commissions déjà couvertes par les membres du bureau."
     }
   },
   {
@@ -672,48 +674,6 @@
       ],
       "subtitle": "Ils nous accompagnent déjà dans nos actions.",
       "highlightName": ""
-    }
-  },
-  {
-    "type": "budget",
-    "props": {
-      "eyebrow": "05 • Investissement",
-      "title": "Nos besoins pour mener nos actions",
-      "subtitle": "Budget annuel global pour déployer le programme 2026 — détaillé poste par poste.",
-      "items": [
-        {
-          "label": "Events mensuels",
-          "detail": "4 000 € × 10 événements",
-          "amount": 40000,
-          "secured": 25
-        },
-        {
-          "label": "Location de salle",
-          "detail": "Lieux events + Big Event",
-          "amount": 5000,
-          "secured": 100
-        },
-        {
-          "label": "Développement des modules",
-          "detail": "Plateforme membre, SOS juridique, outils",
-          "amount": 50000,
-          "secured": 25
-        },
-        {
-          "label": "Budget communication",
-          "detail": "Production, réseaux, newsletter, design",
-          "amount": 25000,
-          "secured": 50
-        },
-        {
-          "label": "Big Event annuel",
-          "detail": "200 participants — ½ journée + soirée",
-          "amount": 30000,
-          "secured": 33
-        }
-      ],
-      "totalLabel": "Total annuel",
-      "securedLabel": "Déjà sécurisé"
     }
   },
   {

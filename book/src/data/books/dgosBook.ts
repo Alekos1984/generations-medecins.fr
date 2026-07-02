@@ -42,6 +42,18 @@ function overrideStats(slide: Slide): Slide {
   }
 }
 
+function overrideBureau(slide: Slide): Slide {
+  if (slide.type !== 'bureau') return slide
+  return {
+    type: 'bureau',
+    props: {
+      ...slide.props,
+      footnote:
+        'Référents jeunes générations • Représentativité +++ face aux syndicats installés • Plusieurs vice-présidents de la FMF ou de syndicats verticaux • Chefs de service en place • Présence dans les commissions.',
+    },
+  }
+}
+
 function overrideBenefits(slide: Slide): Slide {
   if (slide.type !== 'benefits') return slide
   return {
@@ -127,21 +139,21 @@ const bilateralesSlide: Slide = {
         title: 'Interlocuteur récurrent',
         body:
           'Présence régulière aux bilatérales CNAM. Remontées et propositions en amont des cycles conventionnels, pas seulement en réaction.',
-        tags: ['Bilatérales', 'Amont cyclique'],
+        tags: ['Bilatérales', 'Amont cyclique', 'Commissions'],
       },
       {
         num: '02',
         title: 'Voix des jeunes générations',
         body:
           'Cible des prochaines réformes conventionnelles. Là où les autres syndicats représentent surtout les installés, nous portons la voix de celles et ceux qui vont installer leur cabinet dans les 10 ans.',
-        tags: ['90% < 10 ans DES', '15% internes'],
+        tags: ['Référents jeunes', 'Représentativité +++', '90% < 10 ans DES'],
       },
       {
         num: '03',
         title: 'Multi-activité',
         body:
           "Hospitaliers déjà en commission, chefs de service, libéraux, mixtes. Aucun autre syndicat ne couvre autant de terrains d'exercice à la fois.",
-        tags: ['Hôpital & Ville', 'Chefs de service', 'Toutes spécialités'],
+        tags: ['Commissions ministérielles', 'Chefs de service', 'Hôpital & Ville'],
       },
     ],
   },
@@ -234,7 +246,7 @@ const workingGroupsSlide: Slide = {
       },
     ],
     footnote:
-      "Chaque groupe est prêt à être saisi par la DGOS pour co-construire des propositions plutôt que de commenter des textes déjà finalisés.",
+      "Référents jeunes prêts à être saisis par la DGOS pour co-construire des propositions plutôt que de commenter des textes finalisés. Représentativité +++ dans les commissions déjà couvertes par les membres du bureau.",
   },
 }
 
@@ -339,8 +351,8 @@ function overrideSummary(slide: Slide): Slide {
         { chapter: '01', title: 'Qui sommes-nous ?', description: 'Audience, manifesto, bureau, médias', range: 'Slides 03 – 06' },
         { chapter: '02', title: "Ce que nous vous apportons", description: "Bénéfices, audience, leviers d'activation", range: 'Slides 07 – 09' },
         { chapter: '03', title: 'Un interlocuteur privilégié', description: 'CNAM, chantier lapins, groupes de travail', range: 'Slides 10 – 12' },
-        { chapter: '04', title: 'Nos outils & rendez-vous', description: 'Events, plateforme membre, Médecins En Grève', range: 'Slides 13 – 15' },
-        { chapter: '05', title: 'Communauté & engagement', description: 'Partenaires actuels, budget, charte, contact', range: 'Slides 16 – 19' },
+        { chapter: '04', title: 'Nos outils & rendez-vous', description: 'Events, plateforme, Médecins En Grève', range: 'Slides 13 – 15' },
+        { chapter: '05', title: 'Communauté & engagement', description: 'Partenaires, charte, contact', range: 'Slides 16 – 18' },
       ],
     },
   }
@@ -357,6 +369,7 @@ export const dgosBook: Book = (() => {
     // Slides that are dropped entirely for the DGOS book
     if (slide.type === 'testimonials') continue
     if (slide.type === 'packs') continue
+    if (slide.type === 'budget') continue
     // bigEvent is merged into the eventsAll slide we emit in place of 'events'
     if (slide.type === 'bigEvent') continue
 
@@ -364,6 +377,7 @@ export const dgosBook: Book = (() => {
     s = overrideCover(s)
     s = overrideSummary(s)
     s = overrideStats(s)
+    s = overrideBureau(s)
     s = overrideBenefits(s)
     s = mergeEventsAndBigEvent(s)
     s = stripDgosFromPartners(s)
