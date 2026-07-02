@@ -19,6 +19,7 @@ export type Slide =
   | { type: 'projects'; props: ProjectsProps }
   | { type: 'bigEvent'; props: BigEventProps }
   | { type: 'eventsAll'; props: EventsAllProps }
+  | { type: 'workingGroups'; props: WorkingGroupsProps }
   | { type: 'features'; props: FeaturesProps }
   | { type: 'partnersLogos'; props: PartnersLogosProps }
   | { type: 'budget'; props: BudgetProps }
@@ -247,6 +248,19 @@ export type EventsAllProps = {
     tracks: string[]
     guest?: string
   }
+}
+
+export type WorkingGroupsProps = {
+  eyebrow?: string
+  title: string
+  subtitle?: string
+  groups: {
+    name: string
+    theme?: string
+    lead?: string
+    leadRole?: string
+  }[]
+  footnote?: string
 }
 
 export type BigEventProps = {
