@@ -138,8 +138,41 @@
       background: linear-gradient(90deg, var(--blue), var(--teal));
     }
     .bar-row-value { font-size: 0.78rem; font-weight: 700; color: var(--ink); }
+    .bar-row-delta { font-size: 0.72rem; font-weight: 700; text-align: right; }
+    .bar-row-delta.up   { color: #16a34a; }
+    .bar-row-delta.down { color: #dc2626; }
+    .bar-row-delta.flat { color: var(--muted); }
     .bar-row-spark { width: 60px; }
-    .bar-row.with-spark { grid-template-columns: 130px 1fr 56px 60px; }
+    .bar-row.with-spark { grid-template-columns: 130px 1fr 56px 54px 60px; }
+
+    /* Onglets fenêtre temporelle (1M / 6M / 12M / 5A) */
+    .time-tabs {
+      display: inline-flex; gap: 2px;
+      background: var(--surface, #f5f7fb);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 3px;
+      flex-shrink: 0;
+    }
+    .time-tab {
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .time-tab:hover:not(.active) { color: var(--ink); }
+    .time-tab.active {
+      background: white;
+      color: var(--blue-dark);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .time-tab.disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* Layout 2 colonnes : carte gauche / données droite */
     .obs-grid {
@@ -227,9 +260,19 @@
         <!-- Colonne droite : démographie par spécialité -->
         <div class="obs-data-col">
           <div class="chart-card">
-            <div class="chart-title">Démographie par spécialité — <span id="chart-region-name">Île-de-France</span></div>
-            <div class="chart-sub" id="chart-sub-demographie">Nombre de médecins actifs · sparkline = évolution depuis le 1er import</div>
-            <div class="bar-chart" id="chart-demographie">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+              <div>
+                <div class="chart-title" style="margin-bottom:0">Démographie par spécialité — <span id="chart-region-name">Île-de-France</span></div>
+                <div class="chart-sub" id="chart-sub-demographie" style="margin-bottom:0">Nombre de médecins actifs · Δ% et sparkline = évolution sur la période sélectionnée</div>
+              </div>
+              <div class="time-tabs" role="tablist" aria-label="Fenêtre temporelle">
+                <button class="time-tab" data-win="1M"  onclick="setTimeWindow('1M')">1M</button>
+                <button class="time-tab" data-win="6M"  onclick="setTimeWindow('6M')">6M</button>
+                <button class="time-tab active" data-win="12M" onclick="setTimeWindow('12M')">12M</button>
+                <button class="time-tab" data-win="5A"  onclick="setTimeWindow('5A')">5A</button>
+              </div>
+            </div>
+            <div class="bar-chart" id="chart-demographie" style="margin-top:18px">
               <div style="color:var(--muted);font-size:.85rem;padding:8px">Sélectionne une région sur la carte.</div>
             </div>
           </div>
@@ -364,15 +407,57 @@
         const pct = max > 0 ? Math.round((r.valeur_num / max) * 100) : 0;
         const pts = histByLabel ? (histByLabel[r.label] || []) : [];
         const spark = sparkline(pts, 60, 22);
-        const cls = spark ? 'bar-row with-spark' : 'bar-row';
-        const sparkCell = spark ? `<div class="bar-row-spark">${spark}</div>` : '';
+        // Δ% depuis le 1er point de la fenêtre jusqu'au dernier
+        let deltaHtml = '';
+        if (pts.length >= 2) {
+          const first = Number(pts[0].valeur_num), last = Number(pts[pts.length-1].valeur_num);
+          if (isFinite(first) && isFinite(last) && first !== 0) {
+            const d = 100*(last-first)/first;
+            const cls = Math.abs(d) < 0.3 ? 'flat' : (d >= 0 ? 'up' : 'down');
+            const arr = cls === 'up' ? '↑' : cls === 'down' ? '↓' : '·';
+            deltaHtml = `<div class="bar-row-delta ${cls}">${arr} ${d >= 0 ? '+' : ''}${d.toFixed(1)}%</div>`;
+          }
+        }
+        if (!deltaHtml) deltaHtml = '<div class="bar-row-delta flat">—</div>';
+        const cls = 'bar-row with-spark';
+        const sparkCell = spark || '<div style="width:60px;height:22px;color:var(--muted);font-size:.65rem;text-align:center">—</div>';
         return `<div class="${cls}">
           <div class="bar-row-label">${r.label}</div>
           <div class="bar-row-track"><div class="bar-row-fill" style="width:${pct}%"></div></div>
           <div class="bar-row-value">${r.valeur_fmt}</div>
-          ${sparkCell}
+          ${deltaHtml}
+          <div class="bar-row-spark">${sparkCell}</div>
         </div>`;
       }).join('');
+    }
+
+    // ── Fenêtre temporelle (1M / 6M / 12M / 5A) ────────────────────
+    const TIME_WINDOWS = { '1M': 1, '6M': 6, '12M': 12, '5A': 60 };
+    let currentWindow = '12M';
+
+    window.setTimeWindow = function(win) {
+      if (!TIME_WINDOWS[win]) return;
+      currentWindow = win;
+      document.querySelectorAll('.time-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.win === win);
+      });
+      // Redessine avec la fenêtre voulue
+      if (typeof currentRegion !== 'undefined') renderForRegion(currentRegion);
+    };
+
+    function filterHistByWindow(list, months) {
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - months);
+      const cutoffTs = cutoff.getTime();
+      // Garde uniquement les snapshots dans la fenêtre
+      const filtered = list.filter(h => new Date(h.snapshot_at).getTime() >= cutoffTs);
+      // Si aucun point dans la fenêtre mais qu'il y a de l'historique global,
+      // on prend au moins le point le plus ancien avant la fenêtre pour donner un ancrage
+      if (filtered.length < 2 && list.length >= 2) {
+        const before = list.filter(h => new Date(h.snapshot_at).getTime() < cutoffTs);
+        if (before.length) filtered.unshift(before[before.length - 1]);
+      }
+      return filtered;
     }
 
     // ── Charge tout, puis filtre par région ──
@@ -444,21 +529,46 @@
       const byId = {};
       seriesRegion.forEach(s => { (byId[s.serie_id] = byId[s.serie_id] || []).push(s); });
 
-      // Historique séries pour cette région : map label → liste de points (chronologique)
-      const histByLabel = {};
+      // Historique séries pour cette région, groupé par label puis filtré par fenêtre
+      const rawByLabel = {};
       (histSeries||[])
         .filter(h => (h.region || 'FR') === region && h.serie_id === 'demographie')
-        .forEach(h => { (histByLabel[h.label] = histByLabel[h.label] || []).push(h); });
+        .forEach(h => { (rawByLabel[h.label] = rawByLabel[h.label] || []).push(h); });
+      // Applique la fenêtre temporelle courante
+      const months = TIME_WINDOWS[currentWindow];
+      const histByLabel = {};
+      Object.keys(rawByLabel).forEach(lbl => {
+        histByLabel[lbl] = filterHistByWindow(rawByLabel[lbl], months);
+      });
 
       renderBarChart('chart-demographie', byId['demographie'], histByLabel);
       renderBarChart('chart-honoraires',  byId['honoraires_exercice']);
+
+      // Grise l'onglet 5A si on n'a pas assez d'historique global
+      const totalHistPoints = Object.values(rawByLabel).reduce((s, arr) => s + arr.length, 0);
+      const oldestTs = totalHistPoints
+        ? Math.min(...Object.values(rawByLabel).flatMap(arr => arr.map(h => new Date(h.snapshot_at).getTime())))
+        : null;
+      document.querySelectorAll('.time-tab').forEach(b => {
+        const winMonths = TIME_WINDOWS[b.dataset.win];
+        const requiredCutoff = Date.now() - winMonths * 30 * 24 * 3600 * 1000;
+        const enoughData = oldestTs !== null && oldestTs <= requiredCutoff + 15*24*3600*1000;
+        b.classList.toggle('disabled', !enoughData && winMonths >= 12);
+        b.title = enoughData
+          ? `Évolution sur ${b.textContent}`
+          : `Pas encore assez d'historique (démarré ${oldestTs ? new Date(oldestTs).toLocaleDateString('fr-FR') : '—'})`;
+      });
 
       // Mise à jour du sous-titre démographie
       const demo = (byId['demographie'] || [])[0];
       const subEl = document.getElementById('chart-sub-demographie');
       if (subEl) {
-        if (demo) subEl.textContent = `Nombre de médecins actifs — Source : ${demo.source} ${demo.annee} · sparkline = évolution depuis le 1er import`;
-        else subEl.textContent = 'Aucune donnée disponible pour cette région.';
+        const winLabel = { '1M':'1 mois', '6M':'6 mois', '12M':'12 mois', '5A':'5 ans' }[currentWindow];
+        if (demo) {
+          const nbPts = totalHistPoints;
+          subEl.innerHTML = `Nombre de médecins actifs · Source : ${demo.source} ${demo.annee} · Δ% et sparkline sur <b>${winLabel}</b>` +
+            (nbPts < 2 ? ' <span style="color:#b45309">· historique en construction (1er import juin 2026)</span>' : '');
+        } else subEl.textContent = 'Aucune donnée disponible pour cette région.';
       }
     }
 
