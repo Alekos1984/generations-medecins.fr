@@ -1215,7 +1215,14 @@
               </div>
               <div class="form-group" style="margin-bottom:16px">
                 <label>Accroche <span style="font-weight:400;color:var(--muted)">— en tête, italique, avant la salutation</span></label>
-                <textarea id="nl-accroche" rows="2" placeholder="Ce mois-ci, voici ce que nous avons accompli ensemble…" oninput="updateNlPreview()" style="resize:vertical"></textarea>
+                <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:5px">
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('nl-accroche','bold')" title="Gras" style="font-weight:800">B</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('nl-accroche','italic')" title="Italique" style="font-style:italic">I</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('nl-accroche','createLink')" title="Lien">🔗</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('nl-accroche','removeFormat')" title="Effacer">✕</button>
+                </div>
+                <div id="nl-accroche" contenteditable="true" data-placeholder="Ce mois-ci, voici ce que nous avons accompli ensemble…" oninput="updateNlPreview()"
+                  style="min-height:60px;max-height:200px;overflow-y:auto;font-family:inherit;font-size:.9rem;border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;background:white;line-height:1.55;font-style:italic;color:#2a3a50"></div>
               </div>
 
               <!-- Blocs de contenu -->
@@ -1289,7 +1296,17 @@
               </div>
               <div class="form-group" style="margin-bottom:16px">
                 <label>Corps</label>
-                <textarea id="cp-corps" rows="9" placeholder="Rédigez ici le contenu du communiqué…" oninput="updateCpPreview()" style="resize:vertical"></textarea>
+                <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:5px">
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','bold')" title="Gras" style="font-weight:800">B</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','italic')" title="Italique" style="font-style:italic">I</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','formatBlock','h3')" title="Intertitre">H3</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','formatBlock','p')" title="Paragraphe">¶</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','insertUnorderedList')" title="Liste">•&nbsp;Liste</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','createLink')" title="Lien">🔗</button>
+                  <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="richFmt('cp-corps','removeFormat')" title="Effacer">✕</button>
+                </div>
+                <div id="cp-corps" contenteditable="true" data-placeholder="Rédigez ici le contenu du communiqué…" oninput="updateCpPreview()"
+                  style="min-height:200px;max-height:600px;overflow-y:auto;font-family:inherit;font-size:.9rem;border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;background:white;line-height:1.7"></div>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
                 <div class="form-group" style="margin:0">
@@ -2803,6 +2820,21 @@
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   }
 
+  // Éditeur WYSIWYG générique pour n'importe quel div[contenteditable]
+  // (accroche NL, corps CP, etc.) — sans besoin de synchro spécifique
+  window.richFmt = function(elemId, cmd, val) {
+    const el = document.getElementById(elemId);
+    if (!el) return;
+    el.focus();
+    if (cmd === 'createLink') {
+      const url = prompt('Adresse du lien (https://…) :');
+      if (url) document.execCommand('createLink', false, url);
+    } else {
+      document.execCommand(cmd, false, val || null);
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
   // Éditeur de contenu (WYSIWYG) pour un bloc texte de la newsletter
   window.blkFmt = function(id, cmd, val) {
     const el = document.getElementById(`blk-text-${id}`);
@@ -2960,11 +2992,13 @@
         #n-editor a{color:var(--blue);text-decoration:underline}
         .blk-fmt-btn{border:1px solid var(--line);background:#fff;border-radius:5px;padding:3px 8px;font-size:.72rem;cursor:pointer;font-family:inherit;color:var(--ink)}
         .blk-fmt-btn:hover{background:var(--surface)}
-        [id^="blk-text-"] h3{font-size:1.02rem;font-weight:800;color:#152033;margin:6px 0 6px}
-        [id^="blk-text-"] p{margin:0 0 10px}
-        [id^="blk-text-"] strong{font-weight:700;color:#152033}
-        [id^="blk-text-"] ul{margin:0 0 10px 22px}
-        [id^="blk-text-"] a{color:var(--blue);text-decoration:underline}
+        [id^="blk-text-"] h3, #cp-corps h3{font-size:1.02rem;font-weight:800;color:#152033;margin:6px 0 6px}
+        [id^="blk-text-"] p,  #cp-corps p, #nl-accroche p{margin:0 0 10px}
+        [id^="blk-text-"] strong, #cp-corps strong, #nl-accroche strong{font-weight:700;color:#152033}
+        [id^="blk-text-"] ul, #cp-corps ul{margin:0 0 10px 22px}
+        [id^="blk-text-"] a, #cp-corps a, #nl-accroche a{color:var(--blue);text-decoration:underline}
+        /* Placeholders des contentEditable */
+        [contenteditable][data-placeholder]:empty:before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
       `;
       document.head.appendChild(st);
     }
@@ -3721,13 +3755,15 @@
 
   function buildNlHtml() {
     const subj     = document.getElementById('nl-subject').value.trim();
-    const accroche = document.getElementById('nl-accroche').value.trim();
+    const accEl    = document.getElementById('nl-accroche');
+    const accHtml  = accEl ? (accEl.innerHTML || '').trim() : '';
+    const accText  = accEl ? (accEl.textContent || '').trim() : '';
     const ctaText  = document.getElementById('nl-cta-text').value.trim();
     const ctaUrl   = document.getElementById('nl-cta-url').value.trim();
     const logoUrl  = window.location.origin + '/logoGM.jpeg';
 
-    const accrocheHtml = accroche
-      ? `<tr><td style="padding:0 0 22px"><p style="margin:0;font-size:17px;color:#2a3a50;line-height:1.8;font-style:italic">${accroche.replace(/\n/g,'<br>')}</p></td></tr>`
+    const accrocheHtml = (accHtml && accText)
+      ? `<tr><td style="padding:0 0 22px"><div style="font-size:17px;color:#2a3a50;line-height:1.8;font-style:italic">${accHtml}</div></td></tr>`
       : '';
 
     // Style email-safe injecté sur le HTML rich des blocs (Gmail/Outlook n'appliquent
@@ -3799,17 +3835,27 @@
   // ── Communiqué builder ───────────────────────────────────────
   function buildCpHtml() {
     const titre      = document.getElementById('cp-titre').value.trim();
-    const corps      = document.getElementById('cp-corps').value.trim();
+    const corpsEl    = document.getElementById('cp-corps');
+    const corpsHtmlRaw = corpsEl ? (corpsEl.innerHTML || '').trim() : '';
+    const corpsText  = corpsEl ? (corpsEl.textContent || '').trim() : '';
     const cNom       = document.getElementById('cp-contact-nom').value.trim();
     const cTel       = document.getElementById('cp-contact-tel').value.trim();
     const cEmail     = document.getElementById('cp-contact-email').value.trim();
     const dateStr    = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     const logoUrl    = window.location.origin + '/logoGM.jpeg';
 
-    const corpsHtml = corps
-      ? corps.split(/\n\n+/).map(p =>
-          `<p style="margin:0 0 16px;font-size:14px;color:#2a3445;line-height:1.8">${p.replace(/\n/g,'<br>')}</p>`
-        ).join('')
+    // Inline les styles email-safe sur le HTML rich du corps
+    const inlineCp = (html) => (html || '')
+      .replace(/<h3([^>]*)>/gi, '<h3$1 style="font-size:16px;color:#1a2332;margin:16px 0 10px;font-weight:800;font-family:\'Helvetica Neue\',Arial,sans-serif">')
+      .replace(/<h2([^>]*)>/gi, '<h2$1 style="font-size:18px;color:#1a2332;margin:18px 0 12px;font-weight:800;font-family:\'Helvetica Neue\',Arial,sans-serif">')
+      .replace(/<p([^>]*)>/gi, '<p$1 style="margin:0 0 16px;font-size:14px;color:#2a3445;line-height:1.8">')
+      .replace(/<strong([^>]*)>/gi, '<strong$1 style="font-weight:700;color:#1a2332">')
+      .replace(/<em([^>]*)>/gi, '<em$1 style="font-style:italic">')
+      .replace(/<a([^>]*)href/gi, '<a$1 style="color:#1a5c3e;text-decoration:underline" href')
+      .replace(/<ul([^>]*)>/gi, '<ul$1 style="margin:0 0 16px 22px;padding:0;font-size:14px;color:#2a3445;line-height:1.7">');
+
+    const corpsHtml = (corpsHtmlRaw && corpsText)
+      ? inlineCp(corpsHtmlRaw)
       : '<p style="color:#aab0bb;font-size:14px;font-style:italic">Corps du communiqué…</p>';
 
     const contactHtml = (cNom || cTel || cEmail) ? `
@@ -4084,7 +4130,7 @@
     // Préremplit le composeur existant : le HTML final est construit par
     // buildNlHtml comme pour une newsletter manuelle (mêmes gabarits Brevo)
     document.getElementById('nl-subject').value  = n.objet || '';
-    document.getElementById('nl-accroche').value = n.accroche || '';
+    document.getElementById('nl-accroche').innerHTML = mdToBlockHtml(n.accroche || '');
     document.getElementById('nl-cta-text').value = n.cta_text || '';
     document.getElementById('nl-cta-url').value  = n.cta_url || '';
     nlBlocks = (n.blocs || []).map(b => ({
