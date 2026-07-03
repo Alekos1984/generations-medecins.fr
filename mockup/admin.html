@@ -2803,6 +2803,23 @@
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   }
 
+  // Éditeur de contenu (WYSIWYG) pour un bloc texte de la newsletter
+  window.blkFmt = function(id, cmd, val) {
+    const el = document.getElementById(`blk-text-${id}`);
+    if (!el) return;
+    el.focus();
+    if (cmd === 'createLink') {
+      const url = prompt('Adresse du lien (https://…) :');
+      if (url) document.execCommand('createLink', false, url);
+    } else {
+      document.execCommand(cmd, false, val || null);
+    }
+    // Sync l'état interne + preview
+    const b = nlBlocks.find(x => x.id === id);
+    if (b) { b.html = el.innerHTML; b.text = el.textContent; }
+    updateNlPreview();
+  };
+
   // Éditeur de contenu (WYSIWYG, même approche que courrier-editeur)
   window.newsFmt = function(cmd, val) {
     document.getElementById('n-editor').focus();
@@ -2941,6 +2958,13 @@
         #n-editor p{margin:0 0 10px}
         #n-editor ul,#n-editor ol{margin:0 0 10px 22px}
         #n-editor a{color:var(--blue);text-decoration:underline}
+        .blk-fmt-btn{border:1px solid var(--line);background:#fff;border-radius:5px;padding:3px 8px;font-size:.72rem;cursor:pointer;font-family:inherit;color:var(--ink)}
+        .blk-fmt-btn:hover{background:var(--surface)}
+        [id^="blk-text-"] h3{font-size:1.02rem;font-weight:800;color:#152033;margin:6px 0 6px}
+        [id^="blk-text-"] p{margin:0 0 10px}
+        [id^="blk-text-"] strong{font-weight:700;color:#152033}
+        [id^="blk-text-"] ul{margin:0 0 10px 22px}
+        [id^="blk-text-"] a{color:var(--blue);text-decoration:underline}
       `;
       document.head.appendChild(st);
     }
@@ -3541,7 +3565,10 @@
     nlBlocks.forEach(b => {
       if (b.type === 'text') {
         const el = document.getElementById(`blk-text-${b.id}`);
-        if (el) b.text = el.value;
+        if (el) {
+          b.html = el.innerHTML;
+          b.text = el.textContent;
+        }
       } else {
         const u = document.getElementById(`blk-img-url-${b.id}`);
         const c = document.getElementById(`blk-img-cap-${b.id}`);
@@ -3549,6 +3576,31 @@
         if (c) b.caption = c.value;
       }
     });
+  }
+
+  // Petit échappeur HTML pour les initialisations depuis du texte brut
+  function escHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Convertit un markdown minimal (celui du LLM : **gras**, *italique*,
+  // [texte](url), lignes vides = nouveaux paragraphes) vers du HTML éditable.
+  // On reste sciemment restrictif : pas de rendu complet Markdown, juste
+  // ce que le prompt LLM génère et que l'utilisateur peut modifier ensuite.
+  function mdToBlockHtml(md) {
+    if (!md) return '';
+    const paragraphs = String(md).split(/\n{2,}/);
+    return paragraphs.map(p => {
+      let s = escHtml(p.trim());
+      s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+      s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" style="color:#2a6db8;text-decoration:underline">$1</a>');
+      s = s.replace(/\n/g, '<br>');
+      // Ligne entièrement en gras seule → intertitre H3
+      const soloBold = s.match(/^<strong>([^<]+)<\/strong>$/);
+      if (soloBold) return `<h3 style="font-size:1.02rem;color:#152033;margin:0 0 8px">${soloBold[1]}</h3>`;
+      return `<p style="margin:0 0 10px">${s}</p>`;
+    }).join('');
   }
 
   function renderBlocks() {
@@ -3570,10 +3622,24 @@
         style="padding:4px 9px;border-radius:5px;border:1px solid #f0c0c0;background:#fff5f5;color:#c0392b;font-size:.72rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">✕</button>`;
 
       if (b.type === 'text') {
+        // Éditeur rich-text minimal : contentEditable + toolbar (B, I, H3, lien, liste, clear)
+        // b.html contient le HTML complet du bloc ; b.text conserve une version texte de repli
+        const initHtml = b.html || (b.text ? escHtml(b.text).replace(/\n\n+/g,'</p><p>').replace(/\n/g,'<br>').replace(/^/,'<p>').replace(/$/,'</p>') : '');
         return `<div style="display:flex;gap:8px;align-items:flex-start;background:var(--surface);padding:10px 12px;border-radius:10px;border:1px solid var(--line)">
           ${nav}
-          <textarea id="blk-text-${b.id}" rows="4" placeholder="Votre texte…" oninput="onBlockInput(${b.id},'text')"
-            style="flex:1;resize:vertical;font-family:inherit;font-size:.84rem;border:1.5px solid var(--line);border-radius:7px;padding:8px 10px">${b.text || ''}</textarea>
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div class="blk-toolbar" style="display:flex;gap:2px;flex-wrap:wrap">
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'bold')" title="Gras" style="font-weight:800">B</button>
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'italic')" title="Italique" style="font-style:italic">I</button>
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'formatBlock','h3')" title="Intertitre">H3</button>
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'formatBlock','p')" title="Paragraphe">¶</button>
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'insertUnorderedList')" title="Liste">•&nbsp;Liste</button>
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'createLink')" title="Lien">🔗</button>
+              <button type="button" class="blk-fmt-btn" onmousedown="event.preventDefault()" onclick="blkFmt(${b.id},'removeFormat')" title="Effacer la mise en forme">✕</button>
+            </div>
+            <div id="blk-text-${b.id}" contenteditable="true" oninput="onBlockInput(${b.id},'text')"
+              style="min-height:100px;max-height:400px;overflow-y:auto;font-family:inherit;font-size:.84rem;border:1.5px solid var(--line);border-radius:7px;padding:8px 10px;background:white;line-height:1.55">${initHtml}</div>
+          </div>
           ${del}
         </div>`;
       } else {
@@ -3599,10 +3665,9 @@
   window.addBlock = function(type) {
     saveBlockValues();
     const id = ++nlBlockCtr;
-    nlBlocks.push({ id, type, text: '', url: '', caption: '' });
+    nlBlocks.push({ id, type, text: '', html: '', url: '', caption: '' });
     renderBlocks();
     updateNlPreview();
-    // Focus nouvelle textarea si texte
     if (type === 'text') setTimeout(() => document.getElementById(`blk-text-${id}`)?.focus(), 50);
   };
 
@@ -3626,7 +3691,10 @@
   window.onBlockInput = function(id, field) {
     const b = nlBlocks.find(b => b.id === id);
     if (!b) return;
-    if (field === 'text')    { b.text    = document.getElementById(`blk-text-${id}`)?.value || ''; }
+    if (field === 'text')    {
+      const el = document.getElementById(`blk-text-${id}`);
+      if (el) { b.html = el.innerHTML; b.text = el.textContent; }
+    }
     if (field === 'img-url') {
       b.url = document.getElementById(`blk-img-url-${id}`)?.value || '';
       const thumb = document.getElementById(`blk-img-thumb-${id}`);
@@ -3662,12 +3730,22 @@
       ? `<tr><td style="padding:0 0 22px"><p style="margin:0;font-size:17px;color:#2a3a50;line-height:1.8;font-style:italic">${accroche.replace(/\n/g,'<br>')}</p></td></tr>`
       : '';
 
+    // Style email-safe injecté sur le HTML rich des blocs (Gmail/Outlook n'appliquent
+     // pas de feuille de style externe, on inline les règles importantes)
+    const inlineRichHtml = (html) => (html || '')
+      .replace(/<h3([^>]*)>/gi, '<h3$1 style="font-size:17px;color:#1a2332;margin:0 0 10px;font-weight:800">')
+      .replace(/<h2([^>]*)>/gi, '<h2$1 style="font-size:19px;color:#1a2332;margin:0 0 12px;font-weight:800">')
+      .replace(/<p([^>]*)>/gi, '<p$1 style="margin:0 0 14px;font-size:15px;color:#2a3445;line-height:1.75">')
+      .replace(/<strong([^>]*)>/gi, '<strong$1 style="font-weight:700;color:#1a2332">')
+      .replace(/<em([^>]*)>/gi, '<em$1 style="font-style:italic">')
+      .replace(/<a([^>]*)href/gi, '<a$1 style="color:#2a6db8;text-decoration:underline" href')
+      .replace(/<ul([^>]*)>/gi, '<ul$1 style="margin:0 0 14px 22px;padding:0;font-size:15px;color:#2a3445;line-height:1.7">');
+
     const blocksHtml = nlBlocks.map(b => {
       if (b.type === 'text') {
-        if (!b.text.trim()) return '';
-        return b.text.split(/\n\n+/).map(p =>
-          `<tr><td style="padding:0 0 16px"><p style="margin:0;font-size:15px;color:#2a3445;line-height:1.75">${p.replace(/\n/g,'<br>')}</p></td></tr>`
-        ).join('');
+        const html = (b.html && b.html.trim()) || (b.text ? escHtml(b.text).replace(/\n/g,'<br>') : '');
+        if (!html.trim() || html === '<br>' || html === '<p><br></p>') return '';
+        return `<tr><td style="padding:0 0 8px">${inlineRichHtml(html)}</td></tr>`;
       } else {
         if (!b.url) return '';
         return `<tr><td style="padding:0 0 20px">
@@ -4009,7 +4087,14 @@
     document.getElementById('nl-accroche').value = n.accroche || '';
     document.getElementById('nl-cta-text').value = n.cta_text || '';
     document.getElementById('nl-cta-url').value  = n.cta_url || '';
-    nlBlocks = (n.blocs || []).map(b => ({ id: ++nlBlockCtr, type: 'text', text: b.text || '', url: '', caption: '' }));
+    nlBlocks = (n.blocs || []).map(b => ({
+      id: ++nlBlockCtr,
+      type: 'text',
+      text: b.text || '',
+      html: mdToBlockHtml(b.text || ''),   // markdown LLM → HTML éditable rich
+      url: '',
+      caption: '',
+    }));
     renderBlocks();
     updateNlPreview();
     await sb.from('newsletters_auto').update({
