@@ -419,23 +419,27 @@
 
       <div class="sidebar-section-label">Contenu</div>
 
-      <button class="sidebar-link" onclick="showSection('decrypteurs-admin')" id="nav-decrypteurs-admin">
-        <span class="icon">📰</span><span>Articles</span>
-      </button>
-      <button class="sidebar-link super-admin-only" onclick="showSection('veille')" id="nav-veille" style="display:none">
-        <span class="icon">🔍</span><span>Veille</span>
-      </button>
       <button class="sidebar-link" onclick="showSection('plaidoyer-admin')" id="nav-plaidoyer-admin">
         <span class="icon">⚖️</span><span>Plaidoyer</span>
       </button>
-      <div class="sidebar-section-label">Courriers</div>
-      <button class="sidebar-link" onclick="showSection('mass-mailing')" id="nav-mass-mailing">
-        <span class="icon">📣</span><span>Mass-Mailing</span>
+
+      <div class="sidebar-section-label">Communication</div>
+      <button class="sidebar-link" onclick="showSection('articles')" id="nav-articles">
+        <span class="icon">📝</span><span>Articles</span>
+      </button>
+      <button class="sidebar-link" onclick="showSection('decrypteurs')" id="nav-decrypteurs">
+        <span class="icon">📰</span><span>Décrypteurs</span>
+      </button>
+      <button class="sidebar-link super-admin-only" onclick="showSection('newsletter')" id="nav-newsletter" style="display:none">
+        <span class="icon">📧</span><span>Newsletter</span>
+      </button>
+      <button class="sidebar-link super-admin-only" onclick="showSection('communique')" id="nav-communique" style="display:none">
+        <span class="icon">📣</span><span>Communiqués de presse</span>
       </button>
 
-      <div class="sidebar-section-label super-admin-only" style="display:none">Communication</div>
-      <button class="sidebar-link super-admin-only" onclick="showSection('communication')" id="nav-communication" style="display:none">
-        <span class="icon">📨</span><span>Communication</span>
+      <div class="sidebar-section-label">Courriers</div>
+      <button class="sidebar-link" onclick="showSection('mass-mailing')" id="nav-mass-mailing">
+        <span class="icon">✉️</span><span>Mass-Mailing</span>
       </button>
 
       <div class="sidebar-section-label">Juridique</div>
@@ -625,86 +629,86 @@
       </div>
 
       <!-- Section: Articles admin (Décrypteurs + News) -->
-      <div id="section-decrypteurs-admin" class="section-panel">
+      <div id="section-decrypteurs" class="section-panel">
+        <div class="main-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="main-title">Décrypteurs</div>
+            <div class="main-sub">Articles de veille validés + articles manuels</div>
+          </div>
+          <button onclick="triggerVeille()" id="btn-trigger-veille" style="background:var(--teal);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">
+            ▶ Lancer la veille maintenant
+          </button>
+        </div>
+        <div id="veille-status" style="margin-bottom:12px;font-size:13px;color:var(--muted)"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="main-sub" style="margin:0">Articles de veille validés + articles manuels.</div>
+          <button id="btn-toggle-new-article" class="btn-primary-sm" onclick="toggleNewDecrypteur()">+ Nouvel article</button>
+        </div>
+
+        <div class="banner-info" style="background:rgba(42,109,184,0.07);border:1.5px solid rgba(42,109,184,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.83rem;color:var(--blue-dark);display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">ℹ️</span>
+          <span>Cette liste regroupe les articles <strong>importés par la veille</strong> (validés) et les articles écrits manuellement. « Rejeter » dépublie un article de veille (réversible) ; « Supprimer » efface un article manuel. « + Nouvel article » permet d'en écrire un à la main.</span>
+        </div>
+
+        <div id="new-decrypteur-form" style="display:none" class="card-form">
+          <h3>Nouvel article</h3>
+          <div class="form-grid">
+            <div class="form-group"><label>Titre</label><input type="text" id="d-titre" placeholder="Avenant n°9…"></div>
+            <div class="form-group"><label>Slug (URL)</label><input type="text" id="d-slug" placeholder="avenant-9-analyse"></div>
+            <div class="form-group"><label>Catégorie</label>
+              <select id="d-categorie">
+                <option value="avenant">Avenant</option>
+                <option value="plfss">PLFSS</option>
+                <option value="decret">Décret</option>
+                <option value="jurisprudence">Jurisprudence</option>
+                <option value="urssaf">URSSAF</option>
+                <option value="numerique">Numérique</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Date de publication</label><input type="date" id="d-date"></div>
+            <div class="form-group full"><label>Résumé (chapô)</label><textarea id="d-resume" placeholder="En quelques phrases…"></textarea></div>
+            <div class="form-group full"><label>Contenu HTML</label><textarea id="d-contenu" style="min-height:160px" placeholder="<p>Corps de l'article…</p>"></textarea></div>
+            <div class="form-group"><label>Auteur</label><input type="text" id="d-auteur" placeholder="Rédaction GM"></div>
+            <div class="form-group"><label>Accès</label>
+              <select id="d-acces">
+                <option value="public">Public</option>
+                <option value="membres">Membres seulement</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+            <button class="btn-primary-sm" onclick="saveDecrypteur()">Soumettre pour validation</button>
+          </div>
+        </div>
+
+        <div id="decrypteurs-table-wrap" class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Titre</th><th>Catégorie</th><th>Date</th><th>Accès</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="decrypteurs-tbody">
+              <tr><td colspan="5" class="table-loading">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="section-articles" class="section-panel">
         <div class="main-header">
           <div>
             <div class="main-title">Articles</div>
-            <div class="main-sub">Décrypteurs (veille + manuels) et News rédigées à la main</div>
+            <div class="main-sub">News rédigées à la main, publiées sur la page News du site et en page d'accueil</div>
           </div>
         </div>
 
-        <!-- Onglets -->
-        <div style="display:flex;gap:0;margin-bottom:28px;border-bottom:2px solid var(--line)">
-          <button id="atab-decrypteur" onclick="showArticleTab('decrypteur')"
-            style="padding:10px 20px;font-family:inherit;font-size:.85rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid var(--blue);color:var(--blue);margin-bottom:-2px">
-            📰 Décrypteurs
-          </button>
-          <button id="atab-news" onclick="showArticleTab('news')"
-            style="padding:10px 20px;font-family:inherit;font-size:.85rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);margin-bottom:-2px">
-            📣 News
-          </button>
-        </div>
-
-        <!-- ===== Panel Décrypteurs ===== -->
-        <div id="apanel-decrypteur">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <div class="main-sub" style="margin:0">Articles de veille validés + articles manuels.</div>
-            <button id="btn-toggle-new-article" class="btn-primary-sm" onclick="toggleNewDecrypteur()">+ Nouvel article</button>
-          </div>
-
-          <div class="banner-info" style="background:rgba(42,109,184,0.07);border:1.5px solid rgba(42,109,184,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.83rem;color:var(--blue-dark);display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.1rem">ℹ️</span>
-            <span>Cette liste regroupe les articles <strong>importés par la veille</strong> (validés) et les articles écrits manuellement. Les articles de veille rejetés n'apparaissent pas ici. « + Nouvel article » permet d'en écrire un à la main.</span>
-          </div>
-
-          <div id="new-decrypteur-form" style="display:none" class="card-form">
-            <h3>Nouvel article</h3>
-            <div class="form-grid">
-              <div class="form-group"><label>Titre</label><input type="text" id="d-titre" placeholder="Avenant n°9…"></div>
-              <div class="form-group"><label>Slug (URL)</label><input type="text" id="d-slug" placeholder="avenant-9-analyse"></div>
-              <div class="form-group"><label>Catégorie</label>
-                <select id="d-categorie">
-                  <option value="avenant">Avenant</option>
-                  <option value="plfss">PLFSS</option>
-                  <option value="decret">Décret</option>
-                  <option value="jurisprudence">Jurisprudence</option>
-                  <option value="urssaf">URSSAF</option>
-                  <option value="numerique">Numérique</option>
-                </select>
-              </div>
-              <div class="form-group"><label>Date de publication</label><input type="date" id="d-date"></div>
-              <div class="form-group full"><label>Résumé (chapô)</label><textarea id="d-resume" placeholder="En quelques phrases…"></textarea></div>
-              <div class="form-group full"><label>Contenu HTML</label><textarea id="d-contenu" style="min-height:160px" placeholder="<p>Corps de l'article…</p>"></textarea></div>
-              <div class="form-group"><label>Auteur</label><input type="text" id="d-auteur" placeholder="Rédaction GM"></div>
-              <div class="form-group"><label>Accès</label>
-                <select id="d-acces">
-                  <option value="public">Public</option>
-                  <option value="membres">Membres seulement</option>
-                </select>
-              </div>
-            </div>
-            <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
-              <button class="btn-primary-sm" onclick="saveDecrypteur()">Soumettre pour validation</button>
-            </div>
-          </div>
-
-          <div id="decrypteurs-table-wrap" class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Titre</th><th>Catégorie</th><th>Date</th><th>Accès</th><th>Actions</th></tr>
-              </thead>
-              <tbody id="decrypteurs-tbody">
-                <tr><td colspan="5" class="table-loading">Chargement…</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ===== Panel News ===== -->
-        <div id="apanel-news" style="display:none">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div id="apanel-news">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
             <div class="main-sub" style="margin:0">Articles écrits à la main, publiés sur la page News du site et en page d'accueil.</div>
-            <button id="btn-toggle-new-news" class="btn-primary-sm" onclick="toggleNewNews()">+ Nouvelle News</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="btn-generer-article-auto" class="btn-primary-sm" onclick="openGenerateArticleModal()" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">✨ Générer automatiquement</button>
+              <button id="btn-toggle-new-news" class="btn-primary-sm" onclick="toggleNewNews()">+ Nouvelle News</button>
+            </div>
           </div>
 
           <div id="new-news-form" style="display:none" class="card-form">
@@ -1159,10 +1163,10 @@
       </div>
 
       <!-- Section: Communication (super-admin) -->
-      <div id="section-communication" class="section-panel">
+      <div id="section-newsletter" class="section-panel">
         <div class="main-header">
-          <div class="main-title">Communication</div>
-          <div class="main-sub">Envoi de newsletters et communiqués de presse</div>
+          <div class="main-title">Newsletter</div>
+          <div class="main-sub">Envoi de la newsletter aux adhérents</div>
         </div>
 
         <!-- Sub-tabs -->
@@ -1170,10 +1174,6 @@
           <button id="ctab-newsletter" onclick="showCommTab('newsletter')"
             style="padding:10px 20px;font-family:inherit;font-size:.85rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid var(--blue);color:var(--blue);margin-bottom:-2px">
             📧 Newsletter
-          </button>
-          <button id="ctab-communique" onclick="showCommTab('communique')"
-            style="padding:10px 20px;font-family:inherit;font-size:.85rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);margin-bottom:-2px">
-            📣 Communiqué de presse
           </button>
           <button id="ctab-historique" onclick="showCommTab('historique')"
             style="padding:10px 20px;font-family:inherit;font-size:.85rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);margin-bottom:-2px">
@@ -1274,8 +1274,38 @@
           </div>
         </div>
 
+        <!-- Historique panel -->
+        <div id="cpanel-historique" style="display:none">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Sujet</th>
+                  <th>Envoyé le</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="historique-tbody">
+                <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:32px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="section-communique" class="section-panel">
+        <div class="main-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div class="main-title">Communiqués de presse</div>
+            <div class="main-sub">Envoi de communiqués aux contacts presse</div>
+          </div>
+          <button onclick="showSection('newsletter');showCommTab('historique')" style="background:none;border:1.5px solid var(--line);color:var(--muted);border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap">📋 Voir l'historique des envois →</button>
+        </div>
+
         <!-- Communiqué panel -->
-        <div id="cpanel-communique" style="display:none">
+        <div id="cpanel-communique">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
 
             <!-- Colonne gauche : champs -->
@@ -1339,116 +1369,6 @@
           </div>
         </div>
 
-        <!-- Historique panel -->
-        <div id="cpanel-historique" style="display:none">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Sujet</th>
-                  <th>Envoyé le</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="historique-tbody">
-                <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:32px">Chargement…</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Section: Veille automatisée (super-admin) -->
-      <div id="section-veille" class="section-panel">
-        <div style="display:flex;align-items:flex-start;gap:24px">
-
-          <!-- Colonne principale -->
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
-              <div>
-                <div class="main-title">Veille automatisée</div>
-                <div class="main-sub">Articles importés automatiquement ce matin — rejeter pour dépublier</div>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                <button class="btn" onclick="viderVeille()" style="background:#fff;color:#c0392b;border:1.5px solid #e74c3c;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
-                  🗑 Vider la veille
-                </button>
-                <button onclick="checkVeille()" id="btn-check-veille" style="background:#fff;color:var(--blue);border:1.5px solid var(--blue);padding:9px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">
-                  🔍 Tester les flux
-                </button>
-                <button class="btn" onclick="triggerVeille()" id="btn-trigger-veille" style="background:var(--teal);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">
-                  ▶ Lancer la veille maintenant
-                </button>
-              </div>
-            </div>
-            <div id="veille-status" style="margin-bottom:16px;font-size:14px;color:var(--muted)"></div>
-
-            <!-- Filtre date -->
-            <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
-              <label style="font-size:14px;color:var(--muted)">Date :</label>
-              <input type="date" id="veille-date-filter" style="border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;color:var(--text)">
-              <button class="btn-outline" onclick="loadVeille()" style="padding:6px 14px;font-size:13px">Filtrer</button>
-            </div>
-
-            <div id="veille-grid" style="display:grid;gap:16px"></div>
-            <div id="veille-empty" style="display:none;text-align:center;padding:48px;color:var(--muted)">
-              Aucun article importé automatiquement pour cette date.
-            </div>
-          </div>
-
-          <!-- Encart sources -->
-          <div style="flex-shrink:0;width:240px;background:#f8fafc;border:1.5px solid var(--line);border-radius:12px;padding:18px;position:sticky;top:80px">
-            <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">Sources surveillées</div>
-
-            <div style="font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 6px">Revues médicales</div>
-            <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">
-              <li style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>Quotidien du Médecin
-              </li>
-              <li style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>Egora
-              </li>
-              <li style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>Medscape
-              </li>
-              <li style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>JIM
-              </li>
-              <li style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0"></span>What's up Doc
-              </li>
-            </ul>
-
-            <div style="font-size:12px;font-weight:600;color:var(--muted);margin:14px 0 6px">Thématiques nationales</div>
-            <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px">
-              <li style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#555;line-height:1.3">
-                <span style="width:8px;height:8px;border-radius:50%;background:#2a6db8;flex-shrink:0;margin-top:3px"></span>Convention / CNAM
-              </li>
-              <li style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#555;line-height:1.3">
-                <span style="width:8px;height:8px;border-radius:50%;background:#2a6db8;flex-shrink:0;margin-top:3px"></span>Syndicats / négociations
-              </li>
-              <li style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#555;line-height:1.3">
-                <span style="width:8px;height:8px;border-radius:50%;background:#2a6db8;flex-shrink:0;margin-top:3px"></span>Honoraires / secteurs
-              </li>
-              <li style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#555;line-height:1.3">
-                <span style="width:8px;height:8px;border-radius:50%;background:#2a6db8;flex-shrink:0;margin-top:3px"></span>CARMF / PLFSS
-              </li>
-              <li style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#555;line-height:1.3">
-                <span style="width:8px;height:8px;border-radius:50%;background:#2a6db8;flex-shrink:0;margin-top:3px"></span>Démographie médicale
-              </li>
-            </ul>
-
-            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.5">
-              Via Google News (anti-bot)<br>
-              Cron : tous les jours à 7h00<br>
-              Filtre national, articles &lt; 36 h<br>
-              Classification : GPT-4o-mini
-            </div>
-          </div>
-
-        </div>
       </div>
 
       <!-- Section: Observatoire -->
@@ -1543,6 +1463,32 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- Modale génération automatique d'article (News) par LLM -->
+  <div class="modal-overlay" id="gen-article-overlay" onclick="closeGenerateArticleModal(event)">
+    <div class="modal" style="min-width:600px;max-width:720px;width:90vw;max-height:88vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0">
+        <h3 style="margin:0">✨ Générer un article automatiquement</h3>
+        <button onclick="closeGenerateArticleModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+      <p style="font-size:.82rem;color:var(--muted);margin:0 0 16px">Colle des liens, des notes ou du texte brut. Un LLM rédige un article complet (350-600 mots) + une image de header, et dépose le tout en brouillon dans la liste ci-dessous — à relire avant publication.</p>
+
+      <div id="gen-article-form" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
+        <div class="form-group" style="margin:0">
+          <label>Matière (liens, notes, texte brut…)</label>
+          <textarea id="gen-article-input" rows="8" placeholder="Ex : https://exemple.fr/article-avenant-9 — l'avenant prévoit une revalorisation du tarif de consultation à 30€ à partir de décembre 2024, en contrepartie d'un engagement sur les actes complexes…" style="resize:vertical"></textarea>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Indication pour l'image <span style="font-weight:400;color:var(--muted)">(optionnel)</span></label>
+          <input type="text" id="gen-article-hero-hint" placeholder="Ex : cabinet médical moderne, ambiance sobre et institutionnelle">
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button id="gen-article-submit-btn" class="btn-primary-sm" onclick="submitGenerateArticle()">✨ Générer l'article</button>
+          <span id="gen-article-status" style="font-size:.82rem;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Modale détails d'un import (sample brut + colonnes + log) -->
@@ -2455,8 +2401,10 @@
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
     document.getElementById('section-' + id).classList.add('active');
     document.getElementById('nav-' + id).classList.add('active');
-    if (id === 'communication') { loadBrevoLists(); initNlPreview(); loadNewslettersAuto(); }
-    if (id === 'veille') { loadVeille(); }
+    if (id === 'articles') { loadNews(); }
+    if (id === 'decrypteurs') { loadDecrypteurs(); }
+    if (id === 'newsletter') { loadBrevoLists(); initNlPreview(); loadNewslettersAuto(); }
+    if (id === 'communique') { loadBrevoLists(); updateCpPreview(); }
     if (id === 'mass-mailing') { loadMassMailing(); }
     if (id === 'doctrine') { loadDoctrine(); }
     if (id === 'greve') { loadGreve(); }
@@ -2697,16 +2645,29 @@
       const sourceLabel = d.auto_import
         ? `<span style="font-size:0.7rem;color:var(--teal);font-weight:700">VEILLE${d.source ? ' · ' + esc(d.source) : ''}</span>`
         : `<span style="font-size:0.7rem;color:var(--muted);font-weight:700">MANUEL</span>`;
+      // Les articles de veille se rejettent (réversible, dépublie sans effacer) ;
+      // les articles manuels se suppriment (définitif).
+      const actionBtn = d.auto_import
+        ? `<button class="btn-action btn-supprimer" onclick="rejectDecrypteurVeille('${d.id}')">Rejeter</button>`
+        : `<button class="btn-action btn-supprimer" onclick="deleteDecrypteur('${d.id}')">Supprimer</button>`;
       return `
       <tr>
         <td style="font-weight:700">${esc(d.titre)}<br>${sourceLabel}</td>
         <td>${tagsHtml}</td>
         <td style="color:var(--muted);font-size:0.78rem">${fmtDate(d.publie_le)}</td>
         <td>${d.acces === 'public' ? '<span class="status-badge status-actif">Public</span>' : '<span class="status-badge status-attente">Membres</span>'}</td>
-        <td><button class="btn-action btn-supprimer" onclick="deleteDecrypteur('${d.id}')">Supprimer</button></td>
+        <td>${actionBtn}</td>
       </tr>`;
     }).join('');
   }
+
+  window.rejectDecrypteurVeille = async function(id) {
+    if (!confirm('Rejeter cet article de veille ? Il disparaîtra de la liste (réversible en base si besoin).')) return;
+    const { error } = await sb.from('decrypteurs').update({ publie: false, veille_statut: 'rejete' }).eq('id', id);
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    toast('Article de veille rejeté');
+    loadDecrypteurs();
+  };
 
   window.toggleNewDecrypteur = function() {
     const form  = document.getElementById('new-decrypteur-form');
@@ -2748,16 +2709,6 @@
   };
 
   // ── News (articles écrits à la main) ────────────────────────
-  window.showArticleTab = function(tab) {
-    ['decrypteur','news'].forEach(t => {
-      document.getElementById('apanel-' + t).style.display = t === tab ? '' : 'none';
-      const btn = document.getElementById('atab-' + t);
-      btn.style.borderBottomColor = t === tab ? 'var(--blue)' : 'transparent';
-      btn.style.color = t === tab ? 'var(--blue)' : 'var(--muted)';
-    });
-    if (tab === 'news') loadNews();
-  };
-
   let newsTagsLoaded = false;
   async function loadNewsTags() {
     const box = document.getElementById('n-tags-box');
@@ -2958,14 +2909,16 @@
 
   async function loadNews() {
     const tbody = document.getElementById('news-tbody');
-    const { data, error } = await sb.from('news')
-      .select('id,titre,categorie,publie_le,publie,acces')
-      .order('publie_le', { ascending: false });
+    const [{ data, error }, { data: briefs }] = await Promise.all([
+      sb.from('news').select('id,titre,categorie,publie_le,publie,acces').order('publie_le', { ascending: false }),
+      sb.from('news_auto_briefs').select('created_news_id').eq('statut', 'done').not('created_news_id', 'is', null),
+    ]);
     if (error) { tbody.innerHTML = `<tr><td colspan="5" style="color:#c0392b;padding:16px">Erreur : ${esc(error.message)}</td></tr>`; return; }
-    if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Aucune News. « + Nouvelle News » pour en écrire une.</td></tr>'; return; }
+    if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Aucune News. « + Nouvelle News » pour en écrire une, ou « ✨ Générer automatiquement ».</td></tr>'; return; }
+    const autoIds = new Set((briefs || []).map(b => b.created_news_id));
     tbody.innerHTML = data.map(n => `
       <tr>
-        <td style="font-weight:700">${esc(n.titre)}</td>
+        <td style="font-weight:700">${esc(n.titre)}${autoIds.has(n.id) ? ' <span style="font-size:.68rem;background:#f3e8ff;color:#7c3aed;border-radius:6px;padding:1px 7px;font-weight:700;vertical-align:middle">✨ IA</span>' : ''}</td>
         <td style="text-transform:capitalize;color:var(--muted)">${esc(n.categorie || '—')}</td>
         <td style="color:var(--muted);font-size:.78rem">${fmtDate(n.publie_le)}</td>
         <td>${n.publie ? '<span class="status-badge status-actif">Publié</span>' : '<span class="status-badge status-attente">Brouillon</span>'}</td>
@@ -2976,6 +2929,77 @@
         </td>
       </tr>`).join('');
   }
+
+  // ── Génération automatique d'article (News) par LLM ─────────────
+  window.openGenerateArticleModal = function() {
+    document.getElementById('gen-article-input').value = '';
+    document.getElementById('gen-article-hero-hint').value = '';
+    document.getElementById('gen-article-status').textContent = '';
+    document.getElementById('gen-article-submit-btn').disabled = false;
+    document.getElementById('gen-article-submit-btn').textContent = '✨ Générer l\'article';
+    document.getElementById('gen-article-overlay').classList.add('open');
+  };
+
+  window.closeGenerateArticleModal = function(ev) {
+    if (ev && ev.target.id !== 'gen-article-overlay') return;
+    document.getElementById('gen-article-overlay').classList.remove('open');
+  };
+
+  window.submitGenerateArticle = async function() {
+    const rawInput = document.getElementById('gen-article-input').value.trim();
+    const heroHint = document.getElementById('gen-article-hero-hint').value.trim();
+    if (rawInput.length < 20) { toast('Colle un peu plus de matière (min. 20 caractères)', 'error'); return; }
+
+    const btn = document.getElementById('gen-article-submit-btn');
+    const status = document.getElementById('gen-article-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ Génération…';
+    status.textContent = 'Rédaction puis génération de l\'image — compte 1 à 2 minutes.';
+
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error('Session expirée, reconnecte-toi');
+      const resPromise = fetch('/.netlify/functions/generer-article-background', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawInput, heroHint }),
+      });
+
+      // Poll news_auto_briefs pendant que la background function tourne
+      const t0 = Date.now();
+      const pollTimer = setInterval(async () => {
+        const { data } = await sb.from('news_auto_briefs').select('id,statut,erreur,created_news_id')
+          .order('created_at', { ascending: false }).limit(1);
+        const last = data && data[0];
+        if (last && (last.statut === 'done' || last.statut === 'error')) {
+          clearInterval(pollTimer);
+          btn.disabled = false;
+          btn.textContent = '✨ Générer l\'article';
+          if (last.statut === 'done') {
+            status.textContent = '✓ Article généré — il apparaît en brouillon dans la liste.';
+            toast('Article généré ✓ — relis-le avant de publier', 'success');
+            loadNews();
+            setTimeout(() => closeGenerateArticleModal(), 1800);
+          } else {
+            status.textContent = '✕ ' + (last.erreur || 'Échec de la génération');
+            toast('Échec génération : ' + (last.erreur || '?'), 'error');
+          }
+        } else if (Date.now() - t0 > 180000) {
+          clearInterval(pollTimer);
+          status.textContent = 'Toujours en cours côté serveur — ferme et vérifie la liste dans une minute.';
+          btn.disabled = false;
+          btn.textContent = '✨ Générer l\'article';
+        }
+      }, 6000);
+
+      await resPromise; // laisse la requête suivre son cours ; le polling gère l'UI
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '✨ Générer l\'article';
+      status.textContent = '✕ ' + e.message;
+      toast('Erreur : ' + e.message, 'error');
+    }
+  };
 
   // Init formulaire News : styles éditeur + slug auto
   (function initNewsForm() {
@@ -3517,14 +3541,17 @@
     });
   }
 
+  // Newsletter et Historique sont deux onglets de la même section
+  // (section-newsletter) ; Communiqué est maintenant une section à part
+  // entière sans onglets.
   window.showCommTab = function(tab) {
-    ['newsletter','communique','historique'].forEach(t => {
+    ['newsletter','historique'].forEach(t => {
       document.getElementById('cpanel-' + t).style.display = t === tab ? '' : 'none';
       const btn = document.getElementById('ctab-' + t);
       btn.style.borderBottomColor = t === tab ? 'var(--blue)' : 'transparent';
       btn.style.color = t === tab ? 'var(--blue)' : 'var(--muted)';
     });
-    if (tab !== 'historique') loadBrevoLists();
+    if (tab === 'newsletter') loadBrevoLists();
     if (tab === 'historique') loadHistorique();
   };
 
@@ -5216,98 +5243,6 @@
     'Syndicat':            '#7f8c8d',
   };
 
-  async function loadVeille() {
-    const grid  = document.getElementById('veille-grid');
-    const empty = document.getElementById('veille-empty');
-    const dateInput = document.getElementById('veille-date-filter');
-
-    // Set today's date as default if not set
-    if (!dateInput.value) {
-      dateInput.value = new Date().toISOString().slice(0, 10);
-    }
-    const filterDate = dateInput.value;
-    // Filtre sur created_at (date d'import) et non publie_le (date de l'article source)
-    const dayStart = filterDate + 'T00:00:00.000Z';
-    const dayEnd   = filterDate + 'T23:59:59.999Z';
-
-    grid.innerHTML = '<div style="color:var(--muted);font-size:14px;padding:24px">Chargement…</div>';
-    empty.style.display = 'none';
-
-    const { data, error } = await sb
-      .from('decrypteurs')
-      .select('id, titre, source, url, publie_le, resume, tags, veille_statut, publie')
-      .eq('auto_import', true)
-      .gte('created_at', dayStart)
-      .lte('created_at', dayEnd)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      grid.innerHTML = `<div style="color:var(--red);font-size:14px;padding:24px">Erreur : ${error.message}</div>`;
-      return;
-    }
-
-    if (!data || !data.length) {
-      grid.innerHTML = '';
-      empty.style.display = 'block';
-      return;
-    }
-
-    const stripHtml = (s) => (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-    grid.innerHTML = data.map(a => {
-      const tags = (a.tags || []).map(t => {
-        const color = VEILLE_TAGS_COLORS[t] || '#888';
-        return `<span style="background:${color}15;color:${color};border:1px solid ${color}40;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600">${t}</span>`;
-      }).join(' ');
-
-      const isRejected = a.veille_statut === 'rejete' || !a.publie;
-      const statusBadge = isRejected
-        ? `<span style="background:#ffeaea;color:#c0392b;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:600">Rejeté</span>`
-        : `<span style="background:#eafaf1;color:#27ae60;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:600">Publié</span>`;
-
-      const sourceNom = a.source || '';
-
-      return `
-        <div id="veille-card-${a.id}" style="background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:20px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start${isRejected ? ';opacity:.55' : ''}">
-          <div>
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-              ${statusBadge}
-              ${sourceNom ? `<span style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">${sourceNom}</span>` : ''}
-              <span style="font-size:12px;color:var(--muted)">${a.publie_le || ''}</span>
-            </div>
-            <div style="font-weight:700;font-size:15px;margin-bottom:8px;line-height:1.4">${stripHtml(a.titre)}</div>
-            ${a.resume ? `<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px">${stripHtml(a.resume)}</div>` : ''}
-            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-              ${tags}
-              ${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="font-size:12px;color:#fff;background:var(--blue);border-radius:6px;padding:3px 10px;text-decoration:none;font-weight:600;flex-shrink:0">Lire l'article${a.source && !/google/i.test(a.source) ? ' sur ' + a.source : ''} ↗</a>` : ''}
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
-            ${isRejected
-              ? `<button onclick="veilleRestore('${a.id}')" style="border:1.5px solid var(--green);color:var(--green);background:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">✓ Republier</button>`
-              : `<button onclick="veilleReject('${a.id}')" style="border:1.5px solid #e74c3c;color:#e74c3c;background:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap">✕ Rejeter</button>`
-            }
-          </div>
-        </div>`;
-    }).join('');
-  }
-
-  window.veilleReject = async function(id) {
-    const { error } = await sb.from('decrypteurs').update({ publie: false, veille_statut: 'rejete' }).eq('id', id);
-    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
-    toast('Article rejeté');
-    const card = document.getElementById('veille-card-' + id);
-    if (card) card.style.opacity = '.4';
-    loadVeille();
-  };
-
-  window.veilleRestore = async function(id) {
-    const { error } = await sb.from('decrypteurs').update({ publie: true, veille_statut: 'publie' }).eq('id', id);
-    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
-    toast('Article republié');
-    loadVeille();
-  };
-
   let veilleEnCours = false; // verrou anti-double-clic
 
   window.triggerVeille = async function() {
@@ -5381,7 +5316,7 @@
         const iv = setInterval(async () => {
           const elapsed = Date.now() - start;
           const nb = await compteImportes();
-          loadVeille();
+          loadDecrypteurs();
           if (elapsed >= DUREE_MS) {
             clearInterval(iv);
             renderProgress(100, nb, true);
@@ -5402,74 +5337,6 @@
       status.innerHTML = `<span style="color:var(--red)">Erreur réseau : ${e.message}</span>`;
       terminer(false);
     }
-  };
-
-  window.checkVeille = async function() {
-    const btn    = document.getElementById('btn-check-veille');
-    const status = document.getElementById('veille-status');
-    btn.disabled = true;
-    btn.textContent = '⏳ Test en cours…';
-    status.textContent = '';
-    try {
-      const { data: { session: s } } = await sb.auth.getSession();
-      const token = s?.access_token;
-      const res = await fetch('/.netlify/functions/veille-check', {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 403) { status.textContent = 'Accès refusé (super-admin requis).'; status.style.color = 'var(--red)'; return; }
-      if (!res.ok) { status.textContent = 'Erreur : ' + res.status; status.style.color = 'var(--red)'; return; }
-      const data = await res.json();
-
-      // Afficher variables d'environnement
-      const envRows = Object.entries(data.env).map(([k, v]) =>
-        `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;background:${v === true ? '#eafaf1' : '#fff8f8'};color:${v === true ? '#27ae60' : '#c0392b'}">${k}: ${v === true ? '✓' : (v === false ? '✗ NON DÉFINI' : v)}</span>`
-      ).join('');
-
-      // Afficher résultats par flux
-      const feedRows = data.feeds.map(f =>
-        `<tr style="border-bottom:1px solid var(--line)">
-          <td style="padding:6px 10px;font-size:13px;font-weight:600">${f.nom}</td>
-          <td style="padding:6px 10px;font-size:13px;text-align:center">
-            <span style="padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700;background:${f.ok ? '#eafaf1' : '#fff8f8'};color:${f.ok ? '#27ae60' : '#c0392b'}">${f.status}</span>
-          </td>
-          <td style="padding:6px 10px;font-size:13px;text-align:center">${f.items} articles</td>
-          <td style="padding:6px 10px;font-size:12px;color:var(--muted)">${f.titles?.join(' · ') || (f.error || '')}</td>
-        </tr>`
-      ).join('');
-
-      status.innerHTML = `
-        <div style="background:#f8fafc;border:1.5px solid var(--line);border-radius:10px;padding:16px;margin-bottom:8px">
-          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Variables d'environnement</div>
-          <div>${envRows}</div>
-        </div>
-        <div style="background:#f8fafc;border:1.5px solid var(--line);border-radius:10px;overflow:hidden">
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr style="background:var(--surface)">
-              <th style="padding:8px 10px;font-size:12px;font-weight:700;color:var(--muted);text-align:left">Flux</th>
-              <th style="padding:8px 10px;font-size:12px;font-weight:700;color:var(--muted)">Statut</th>
-              <th style="padding:8px 10px;font-size:12px;font-weight:700;color:var(--muted)">Articles</th>
-              <th style="padding:8px 10px;font-size:12px;font-weight:700;color:var(--muted);text-align:left">Titres (aperçu)</th>
-            </tr></thead>
-            <tbody>${feedRows}</tbody>
-          </table>
-        </div>`;
-      status.style.color = 'inherit';
-    } catch (e) {
-      status.textContent = 'Erreur réseau : ' + e.message;
-      status.style.color = 'var(--red)';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '🔍 Tester les flux';
-    }
-  };
-
-  window.viderVeille = async function() {
-    if (!confirm('Supprimer DÉFINITIVEMENT tous les articles importés automatiquement ?\n\nCela nettoie la base (utile pour repartir de zéro). Les articles créés manuellement ne sont pas touchés.')) return;
-    const { error } = await sb.from('decrypteurs').delete().eq('auto_import', true);
-    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
-    toast('Veille vidée');
-    loadVeille();
   };
 
 })();
