@@ -36,6 +36,13 @@
       margin-bottom: 14px;
     }
     .member-name { font-size: 1rem; font-weight: 800; color: var(--blue-dark); margin-bottom: 2px; }
+    .member-numero {
+      display: inline-flex; align-items: center;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em;
+      color: var(--teal); background: rgba(56,168,181,0.1);
+      border-radius: 999px; padding: 2px 9px; margin-bottom: 8px;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+    }
     .member-spec { font-size: 0.8rem; color: var(--muted); margin-bottom: 14px; }
     .member-status {
       display: inline-flex; align-items: center; gap: 5px;
@@ -215,6 +222,7 @@
         <div class="member-sidebar">
           <div class="member-avatar" id="avatar-initiales">?</div>
           <div class="member-name" id="sidebar-name">…</div>
+          <div class="member-numero" id="sidebar-numero" style="display:none">N° —</div>
           <div class="member-spec" id="sidebar-spec">…</div>
           <div class="member-status status-attente" id="sidebar-status">⏳ En attente de validation</div>
 
@@ -417,6 +425,11 @@
     const initiales = ((membre.prenom||'?')[0] + (membre.nom||'?')[0]).toUpperCase();
     document.getElementById('avatar-initiales').textContent = initiales;
     document.getElementById('sidebar-name').textContent = `Dr ${membre.prenom} ${membre.nom}`;
+    if (membre.numero_adherent) {
+      const numEl = document.getElementById('sidebar-numero');
+      numEl.textContent = `N° ${membre.numero_adherent}`;
+      numEl.style.display = 'inline-flex';
+    }
     document.getElementById('sidebar-spec').textContent = membre.specialite || '';
     document.getElementById('main-prenom').textContent = membre.prenom || 'Médecin';
 
@@ -444,6 +457,7 @@
       salarie:'Salarié', mixte:'Mixte', remplacant:'Remplaçant', interne:'Interne',
     }[v] || v)).join(', ');
     const fields = [
+      { label:'N° adhérent', val: membre.numero_adherent || '—' },
       { label:'Prénom', val: membre.prenom },
       { label:'Nom', val: membre.nom },
       { label:'Email', val: membre.email },

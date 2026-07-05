@@ -1576,6 +1576,7 @@
   <div id="membre-edit-overlay" onclick="if(event.target===this)closeMemberModal()">
     <div id="membre-edit-modal">
       <h3 id="membre-edit-title">Modifier le profil</h3>
+      <div id="me-numero-display" style="display:inline-flex;font-size:.72rem;font-weight:700;font-family:monospace;color:var(--teal);background:rgba(56,168,181,.1);border-radius:999px;padding:2px 10px;margin-bottom:14px"></div>
       <div class="form-grid">
         <div class="form-group"><label>Prénom</label><input id="me-prenom" type="text"></div>
         <div class="form-group"><label>Nom</label><input id="me-nom" type="text"></div>
@@ -2493,6 +2494,7 @@
           <td>
             <div class="td-name" style="cursor:pointer;color:var(--blue);text-decoration:underline;text-underline-offset:3px" onclick="openMemberModal('${m.id}')">${esc(m.prenom)} ${esc(m.nom)}</div>
             <div class="td-email">${esc(m.email)}</div>
+            ${m.numero_adherent ? `<div style="font-size:.68rem;font-family:monospace;color:var(--teal);font-weight:700;margin-top:2px">${esc(m.numero_adherent)}</div>` : ''}
           </td>
           <td style="font-size:0.82rem">${esc(m.telephone || '—')}</td>
           <td style="font-size:0.82rem">${esc(m.code_postal || '—')}</td>
@@ -3429,6 +3431,7 @@
     document.getElementById('me-est-interne').checked  = !!m.est_interne;
     document.getElementById('me-statut').value         = m.statut || 'en_attente';
     document.getElementById('membre-edit-title').textContent = `${m.prenom} ${m.nom}`;
+    document.getElementById('me-numero-display').textContent = m.numero_adherent ? `N° ${m.numero_adherent}` : '';
 
     // Super-admin only fields
     const subAdminGroup = document.getElementById('me-subadmin-group');
