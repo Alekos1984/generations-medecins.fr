@@ -1,4 +1,5 @@
--- Default book template — applies in one Run
+-- Default book template — one-paste SQL that redefines
+-- apply_default_book and immediately re-applies it to every active partner.
 create or replace function public.apply_default_book(p_slug text)
 returns int language plpgsql security definer
 set search_path = public, extensions
@@ -615,6 +616,14 @@ declare
         {
           "name": "DGOS",
           "logo": "/logos/DGOS.png"
+        },
+        {
+          "name": "Région Île-de-France",
+          "logo": "/logos/RegionIDF.webp"
+        },
+        {
+          "name": "LCL",
+          "logo": "/logos/LCL.png"
         }
       ]
     }

@@ -16,6 +16,8 @@ const knownPartners = [
   { name: 'Novo Nordisk', logo: partnerLogoBySlug('NOV.png') },
   { name: 'Médecins Direct', logo: partnerLogoBySlug('MeD.png') },
   { name: 'DGOS', logo: partnerLogoBySlug('DGOS.png') },
+  { name: 'Région Île-de-France', logo: partnerLogoBySlug('RegionIDF.webp') },
+  { name: 'LCL', logo: partnerLogoBySlug('LCL.png') },
 ]
 
 export const defaultBook: Book = {

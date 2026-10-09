@@ -608,6 +608,14 @@
         {
           "name": "DGOS",
           "logo": "/logos/DGOS.png"
+        },
+        {
+          "name": "Région Île-de-France",
+          "logo": "/logos/RegionIDF.webp"
+        },
+        {
+          "name": "LCL",
+          "logo": "/logos/LCL.png"
         }
       ]
     }

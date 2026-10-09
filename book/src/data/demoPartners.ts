@@ -18,4 +18,6 @@ export const demoPartners: PublicPartner[] = [
   { id: '11', slug: 'novo-nordisk',            name: 'Novo Nordisk',             logo_url: '/logos/NOV.png', display_order: 11 },
   { id: '12', slug: 'medecins-direct',         name: 'Médecins Direct',          logo_url: '/logos/MeD.png', display_order: 12 },
   { id: '13', slug: 'dgos',                    name: 'DGOS',                     logo_url: '/logos/DGOS.png', display_order: 13 },
+  { id: '14', slug: 'region-idf',              name: 'Région Île-de-France',     logo_url: '/logos/RegionIDF.webp', display_order: 14 },
+  { id: '15', slug: 'lcl',                     name: 'LCL',                      logo_url: '/logos/LCL.png', display_order: 15 },
 ]
