@@ -3267,6 +3267,21 @@
 
   // ── Bureau (membres affichés sur bureau.html) ───────────────
   const BUREAU_GROUPES = ['presidence', 'secretariat', 'mission'];
+  const BUREAU_GROUPE_LABELS = { presidence: 'Président et vice-président·e·s', secretariat: 'Secrétariat & Trésorerie', mission: 'Chargées de mission' };
+
+  function bureauNextOrdre(groupe, excludeId) {
+    const sib = bureauCache.filter(m => m.groupe === groupe && m.id !== excludeId);
+    return sib.length ? Math.max(...sib.map(m => m.ordre)) + 1 : 1;
+  }
+
+  window.changeBureauGroupe = async function(id, groupe) {
+    const m = bureauCache.find(x => x.id === id);
+    if (!m || !groupe || m.groupe === groupe) return;
+    const { error } = await sb.from('bureau_membres').update({ groupe, ordre: bureauNextOrdre(groupe, id) }).eq('id', id);
+    if (error) { toast('Erreur : ' + error.message, 'error'); loadBureauAdmin(); return; }
+    toast('Déplacé vers « ' + BUREAU_GROUPE_LABELS[groupe] + ' » ✓', 'success');
+    loadBureauAdmin();
+  };
   let bureauCache = [];
 
   function bureauInitiales(nom) {
@@ -3308,6 +3323,10 @@
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           <button onclick="moveBureauMembre('${m.id}',-1)" ${i === 0 ? 'disabled' : ''} title="Monter" style="border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;${i === 0 ? 'opacity:.3;cursor:default' : ''}">↑</button>
           <button onclick="moveBureauMembre('${m.id}',1)" ${i === membres.length - 1 ? 'disabled' : ''} title="Descendre" style="border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;${i === membres.length - 1 ? 'opacity:.3;cursor:default' : ''}">↓</button>
+          <select onchange="changeBureauGroupe('${m.id}', this.value)" title="Déplacer vers un autre groupe" style="border:1px solid var(--line);background:#fff;border-radius:6px;height:26px;font-size:.75rem;max-width:130px;cursor:pointer">
+            <option value="">Déplacer vers…</option>
+            ${BUREAU_GROUPES.filter(g => g !== m.groupe).map(g => `<option value="${g}">${esc(BUREAU_GROUPE_LABELS[g])}</option>`).join('')}
+          </select>
           <button class="btn-action" onclick="openBureauModal('${m.id}')">Modifier</button>
           <button class="btn-action" onclick="toggleBureauActif('${m.id}', ${m.actif})">${m.actif ? 'Masquer' : 'Afficher'}</button>
           <button class="btn-action btn-supprimer" onclick="deleteBureauMembre('${m.id}')">Supprimer</button>
@@ -3396,6 +3415,8 @@
 
     let error;
     if (id) {
+      const cur = bureauCache.find(x => x.id === id);
+      if (cur && cur.groupe !== payload.groupe) payload.ordre = bureauNextOrdre(payload.groupe, id);
       ({ error } = await sb.from('bureau_membres').update(payload).eq('id', id));
     } else {
       // Nouveau membre : placé en dernière position de son groupe
