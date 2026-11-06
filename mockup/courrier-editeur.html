@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Éditeur de courrier — Générations Médecins</title>
+  <title>Éditeur de courrier - Générations Médecins</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
@@ -270,7 +270,7 @@
       </div>
 
       <div class="doc-signature" id="doc-signature">
-        <span class="sig-placeholder" id="sig-text">— votre signature —</span>
+        <span class="sig-placeholder" id="sig-text">- votre signature -</span>
         <div class="sig-electronique" id="sig-elec" style="display:none"></div>
       </div>
     </div>
@@ -449,7 +449,7 @@
     };
 
     // Config des champs du robot par variable name (correspond aux {{variables}} des templates)
-    // question: ce que le robot demande — formulé pour un médecin libéral
+    // question: ce que le robot demande - formulé pour un médecin libéral
     // type: text | textarea | date | url | address | dept
     // placeholder: exemple
     // llm: prompt OpenAI pour reformulation (null = champ précis, bouton grisé avec message explicatif)
@@ -726,7 +726,7 @@
         llm: 'Tu es juriste en droit immobilier. Reformule cette description de travaux en termes techniques formels adaptés à une mise en demeure au bailleur. Précise les obligations légales du bailleur. Réponds uniquement avec le texte reformulé.',
       },
       description_incident: {
-        question: 'Décrivez l\'incident (agression, menaces, etc.) — soyez factuel, l\'IA peut aider à formuler.',
+        question: 'Décrivez l\'incident (agression, menaces, etc.) - soyez factuel, l\'IA peut aider à formuler.',
         type: 'textarea', placeholder: 'Le patient a proféré des menaces verbales puis…',
         llm: 'Tu es juriste. Reformule cette description d\'incident en style factuel, neutre et chronologique, adapté à un signalement officiel ou un dépôt de plainte. Réponds uniquement avec le texte reformulé.',
       },
@@ -761,7 +761,7 @@
     function getDeptTplFromCode(code) { return DEPT_MAP[code]?.tpl || code; }
 
     // ── Rendu du template ─────────────────────────────────────────────────────
-    // prenom_nom intentionnellement SANS "Dr" — le template l'écrit lui-même
+    // prenom_nom intentionnellement SANS "Dr" - le template l'écrit lui-même
     function renderDocument(tpl, extra) {
       const ville = membre?.ville || getVilleFromCP(membre?.code_postal);
       const map = {
@@ -1120,7 +1120,7 @@
     async function rppsLookup(rpps, targetEl, statusEl) {
       statusEl.textContent = '🔍 Recherche via Annuaire Santé…';
       try {
-        // FHIR PractitionerRole endpoint — ANS (Agence du Numérique en Santé)
+        // FHIR PractitionerRole endpoint - ANS (Agence du Numérique en Santé)
         const url = `https://api.annuaire.sante.fr/fhir/v1/PractitionerRole` +
           `?practitioner.identifier=urn%3Aoid%3A1.2.250.1.71.4.2.1%7C${encodeURIComponent(rpps)}&_count=10`;
         const r = await fetch(url, { headers: { Accept: 'application/fhir+json' } });
@@ -1142,7 +1142,7 @@
           statusEl.textContent = '✓ Adresse trouvée via Annuaire Santé';
           statusEl.className = 'rpps-status ok';
         } else {
-          statusEl.innerHTML = '<strong>Plusieurs adresses trouvées — choisissez :</strong><br>';
+          statusEl.innerHTML = '<strong>Plusieurs adresses trouvées - choisissez :</strong><br>';
           addresses.forEach(a => {
             const btn = document.createElement('button');
             btn.type = 'button'; btn.className = 'tool-btn';
@@ -1154,7 +1154,7 @@
           });
         }
       } catch (e) {
-        statusEl.textContent = '⚠️ Annuaire indisponible — saisissez l\'adresse manuellement.';
+        statusEl.textContent = '⚠️ Annuaire indisponible - saisissez l\'adresse manuellement.';
       }
     }
 

@@ -1,5 +1,5 @@
 /**
- * auth-header.js — injecté sur toutes les pages publiques.
+ * auth-header.js - injecté sur toutes les pages publiques.
  * - Non connecté : ajoute un lien "Se connecter" à côté du bouton Adhérer.
  * - Connecté     : remplace le bouton Adhérer par un avatar + menu déroulant.
  */
@@ -43,7 +43,7 @@
       el.textContent = 'Accéder à mon espace →';
     });
 
-    /* Étape 2 — utilisateur connecté : charger le profil */
+    /* Étape 2 - utilisateur connecté : charger le profil */
     const { data: membre } = await sb
       .from('membres')
       .select('prenom, nom, statut')
@@ -102,7 +102,7 @@
         <button class="ua-danger" data-action="logout"><span class="ua-icon">🚪</span> Se déconnecter</button>
       </div>`;
 
-    /* Event delegation sur widget — pas de getElementById sur ses enfants */
+    /* Event delegation sur widget - pas de getElementById sur ses enfants */
     widget.addEventListener('click', function (e) {
       e.stopPropagation();
       if (e.target.closest('[data-action="logout"]')) {

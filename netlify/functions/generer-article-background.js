@@ -1,5 +1,5 @@
 /**
- * Netlify Background Function — Génération d'un article (News) par LLM (≤ 15 min)
+ * Netlify Background Function - Génération d'un article (News) par LLM (≤ 15 min)
  *
  * Déclenchée depuis l'admin (section Articles > "✨ Générer automatiquement") :
  * l'admin colle de la matière (liens, notes, texte brut) + une indication
@@ -12,7 +12,7 @@
  *   4. Met à jour la ligne news_auto_briefs (statut, created_news_id)
  *
  * Pas de filesystem local utilisé (l'image passe direct de l'API OpenAI
- * vers Supabase Storage) — cohérent avec l'environnement serverless.
+ * vers Supabase Storage) - cohérent avec l'environnement serverless.
  *
  * Env vars requis : OPENAI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY,
  *                   SUPABASE_SERVICE_ROLE_KEY
@@ -88,11 +88,13 @@ RÈGLES IMPÉRATIVES :
 3. Pars du principe que le lecteur ne connaît PAS le sujet : commence par le contextualiser (de quoi s'agit-il, pourquoi ça concerne les médecins libéraux) avant d'entrer dans le détail.
 4. Vulgarisation : explique chaque terme technique, sigle ou dispositif la première fois qu'il apparaît.
 5. Fidélité stricte : n'invente jamais de chiffre, de date, de citation ou de résultat qui ne figure pas dans la matière fournie. En cas de doute, reste général plutôt que d'inventer un détail précis.
-6. Ton : factuel, clair, professionnel, engagé sans être polémique — ce n'est pas la newsletter au vitriol, c'est un article d'information du site.
+6. Ton : factuel, clair, professionnel, engagé sans être polémique - ce n'est pas la newsletter au vitriol, c'est un article d'information du site.
 7. Longueur : 350 à 600 mots.
 8. Format du corps : HTML simple avec des balises <p>, <h2> pour les intertitres, <strong> pour l'emphase, <ul><li> si une liste est pertinente. Pas de <html>/<body>, juste le corps.
 
-SORTIE — JSON strict :
+RÈGLE ABSOLUE : n'utilise jamais de tiret cadratin (—), ni dans le texte ni dans les titres ; préfère virgules, points ou deux-points.
+
+SORTIE - JSON strict :
 {
   "titre": "titre de l'article, informatif, pas racoleur",
   "resume": "chapô de 2-3 phrases repris dans les cartes de la page News",
@@ -146,7 +148,7 @@ async function genererArticle(briefId, rawInput, heroHint) {
   const logLines = [];
   const log = (m) => { console.log(m); logLines.push(m); };
 
-  log(`Génération article — brief ${briefId}`);
+  log(`Génération article - brief ${briefId}`);
   const article = await writeArticle(rawInput);
   if (!article.titre || !article.contenu_html) {
     throw new Error(`Rédaction gpt-4o incomplète : ${JSON.stringify(article).slice(0, 300)}`);
@@ -176,7 +178,7 @@ async function genererArticle(briefId, rawInput, heroHint) {
     image_url: imageUrl,
     auteur: 'Rédaction GM',
     acces: 'public',
-    publie: false, // brouillon — l'admin relit et publie depuis la liste Articles
+    publie: false, // brouillon - l'admin relit et publie depuis la liste Articles
     publie_le: new Date().toISOString().slice(0, 10),
   };
 
@@ -227,7 +229,7 @@ exports.handler = async (event) => {
     const result = await genererArticle(brief.id, rawInput, heroHint);
     return { statusCode: 200, body: JSON.stringify(result) };
   } catch (e) {
-    console.error('Génération article — échec :', e.message);
+    console.error('Génération article - échec :', e.message);
     await fetch(`${SB()}/rest/v1/news_auto_briefs?id=eq.${brief.id}`, {
       method: 'PATCH',
       headers: sbHeaders(),

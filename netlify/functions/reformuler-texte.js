@@ -1,5 +1,5 @@
 // Reformulation de texte via OpenAI GPT-4o-mini
-// POST { text: string, fieldKey: string }  — requires valid Supabase JWT
+// POST { text: string, fieldKey: string }  - requires valid Supabase JWT
 // Returns { reformule: string }
 
 const SB   = process.env.SUPABASE_URL;

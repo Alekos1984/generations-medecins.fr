@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOS Juridique — Générations Médecins</title>
+  <title>SOS Juridique - Générations Médecins</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
@@ -172,7 +172,7 @@
     <div class="consult-hero-inner">
       <a href="espace-membre.html" class="back-link">← Retour à mon espace</a>
       <h1>🚨 SOS Juridique</h1>
-      <p>Posez vos questions de droit médical. Elles sont analysées via <strong>Doctrine.fr</strong> — la base de données juridique de référence — et vous recevez une synthèse claire avec les points clés. Pour les cas complexes, possibilité d'escalade vers notre avocat partenaire <strong>SPI Avocats</strong>.</p>
+      <p>Posez vos questions de droit médical. Elles sont analysées via <strong>Doctrine.fr</strong> - la base de données juridique de référence - et vous recevez une synthèse claire avec les points clés. Pour les cas complexes, possibilité d'escalade vers notre avocat partenaire <strong>SPI Avocats</strong>.</p>
     </div>
   </div>
 
@@ -224,11 +224,11 @@
       <div style="margin-bottom:16px">
         <label class="form-label">Votre question juridique</label>
         <textarea class="form-field" id="question-input" placeholder="Décrivez votre situation et votre question : contexte, dates clés, problème rencontré…&#10;&#10;Ex. : Mon bailleur augmente mon loyer de 15% alors que je suis en bail professionnel. Quelles sont mes protections légales ?"></textarea>
-        <div class="form-hint">💡 Soyez précis sur le contexte. Vous pouvez mentionner des noms — ils seront automatiquement supprimés avant transmission.</div>
+        <div class="form-hint">💡 Soyez précis sur le contexte. Vous pouvez mentionner des noms - ils seront automatiquement supprimés avant transmission.</div>
       </div>
 
       <div>
-        <label class="form-label">Documents joints <span style="font-weight:400;text-transform:none;letter-spacing:0">(facultatif — max 3 fichiers, 10 Mo chacun)</span></label>
+        <label class="form-label">Documents joints <span style="font-weight:400;text-transform:none;letter-spacing:0">(facultatif - max 3 fichiers, 10 Mo chacun)</span></label>
         <div class="upload-zone" id="upload-zone">
           <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleFiles(this.files)">
           <div class="ps-icon">📎</div>
@@ -334,7 +334,7 @@
       btn.disabled = true; btn.textContent = '⏳ Envoi en cours…';
 
       try {
-        // Upload des fichiers éventuels (bucket privé — on stocke le PATH, pas une URL publique)
+        // Upload des fichiers éventuels (bucket privé - on stocke le PATH, pas une URL publique)
         const docsJson = [];
         for (const file of pendingFiles) {
           const safeName = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '')

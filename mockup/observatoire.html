@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Observatoire — Générations Médecins</title>
+  <title>Observatoire - Générations Médecins</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
@@ -262,7 +262,7 @@
           <div class="chart-card">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px">
               <div>
-                <div class="chart-title" style="margin-bottom:0">Démographie par spécialité — <span id="chart-region-name">Île-de-France</span></div>
+                <div class="chart-title" style="margin-bottom:0">Démographie par spécialité - <span id="chart-region-name">Île-de-France</span></div>
                 <div class="chart-sub" id="chart-sub-demographie" style="margin-bottom:0">Nombre de médecins actifs · Δ% et sparkline = évolution sur la période sélectionnée</div>
               </div>
               <div class="time-tabs" role="tablist" aria-label="Fenêtre temporelle">
@@ -282,7 +282,7 @@
       <!-- Honoraires (full-width, indépendant de la région) -->
       <div class="chart-card" style="margin-top:24px">
         <div class="chart-title">Honoraires moyens par mode d'exercice</div>
-        <div class="chart-sub">Revenus nets annuels estimés — données nationales</div>
+        <div class="chart-sub">Revenus nets annuels estimés - données nationales</div>
         <div class="bar-chart" id="chart-honoraires">
           <div style="color:var(--muted);font-size:.85rem;padding:8px">Données en cours d'intégration.</div>
         </div>
@@ -293,22 +293,22 @@
         <div class="section-label" style="margin-bottom:10px">Indicateurs clés</div>
         <div class="stats-row">
           <div class="stat-card">
-            <div class="value">—</div>
+            <div class="value">-</div>
             <div class="label">Médecins actifs</div>
             <div class="trend"></div>
           </div>
           <div class="stat-card">
-            <div class="value">—</div>
+            <div class="value">-</div>
             <div class="label">Zones sous-dotées</div>
             <div class="trend"></div>
           </div>
           <div class="stat-card">
-            <div class="value">—</div>
+            <div class="value">-</div>
             <div class="label">Délai moyen rdv généraliste</div>
             <div class="trend"></div>
           </div>
           <div class="stat-card">
-            <div class="value">—</div>
+            <div class="value">-</div>
             <div class="label">C moyen conventionnel</div>
             <div class="trend"></div>
           </div>
@@ -418,9 +418,9 @@
             deltaHtml = `<div class="bar-row-delta ${cls}">${arr} ${d >= 0 ? '+' : ''}${d.toFixed(1)}%</div>`;
           }
         }
-        if (!deltaHtml) deltaHtml = '<div class="bar-row-delta flat">—</div>';
+        if (!deltaHtml) deltaHtml = '<div class="bar-row-delta flat">-</div>';
         const cls = 'bar-row with-spark';
-        const sparkCell = spark || '<div style="width:60px;height:22px;color:var(--muted);font-size:.65rem;text-align:center">—</div>';
+        const sparkCell = spark || '<div style="width:60px;height:22px;color:var(--muted);font-size:.65rem;text-align:center">-</div>';
         return `<div class="${cls}">
           <div class="bar-row-label">${r.label}</div>
           <div class="bar-row-track"><div class="bar-row-fill" style="width:${pct}%"></div></div>
@@ -489,7 +489,7 @@
 
       // Met à jour les cartes KPI en matchant par label
       document.querySelectorAll('.stat-card .trend').forEach(t => t.textContent = '');
-      document.querySelectorAll('.stat-card .value').forEach(v => v.textContent = '—');
+      document.querySelectorAll('.stat-card .value').forEach(v => v.textContent = '-');
       document.querySelectorAll('.stat-card svg').forEach(s => s.remove());
 
       kpisForRegion.forEach(k => {
@@ -556,7 +556,7 @@
         b.classList.toggle('disabled', !enoughData && winMonths >= 12);
         b.title = enoughData
           ? `Évolution sur ${b.textContent}`
-          : `Pas encore assez d'historique (démarré ${oldestTs ? new Date(oldestTs).toLocaleDateString('fr-FR') : '—'})`;
+          : `Pas encore assez d'historique (démarré ${oldestTs ? new Date(oldestTs).toLocaleDateString('fr-FR') : '-'})`;
       });
 
       // Mise à jour du sous-titre démographie
@@ -572,7 +572,7 @@
       }
     }
 
-    // Par défaut : IDF ('11') — région principale du mouvement
+    // Par défaut : IDF ('11') - région principale du mouvement
     const defaultRegion = '11';
 
     // Initialise la carte interactive

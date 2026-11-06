@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Vérification d'une participation par référence
+ * Netlify Function - Vérification d'une participation par référence
  *
  * Vérifie si une référence de déclaration existe dans greve_declarations
  * pour une organisation donnée (identifiée par slug).

@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Envoi communiqué de presse via Brevo Campaign API
+ * Netlify Function - Envoi communiqué de presse via Brevo Campaign API
  * Même logique que send-newsletter.js mais avec sender cdp@...
  *
  * Env vars requis :
@@ -54,7 +54,7 @@ exports.handler = async (event) => {
     method: 'POST',
     headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: `CDP ${new Date().toISOString().slice(0, 10)} — ${subject.slice(0, 40)}`,
+      name: `CDP ${new Date().toISOString().slice(0, 10)} - ${subject.slice(0, 40)}`,
       subject,
       sender: { name: senderName, email: senderEmail },
       htmlContent,

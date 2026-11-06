@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Invitation d'un admin délégué pour une organisation
+ * Netlify Function - Invitation d'un admin délégué pour une organisation
  *
  * Envoie un email d'invitation avec un lien d'onboarding contenant le token.
  * Le token a déjà été créé dans org_membres par le front-end avant l'appel.
@@ -41,7 +41,7 @@ exports.handler = async (event) => {
   const html = `<!DOCTYPE html><html><body style="margin:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:28px 18px">
   <div style="background:#fff;border-radius:16px;padding:30px 28px;box-shadow:0 2px 12px rgba(20,32,51,.08)">
-    <h1 style="font-size:20px;color:#152033;margin:0 0 4px">Invitation — ${esc(orgNom)}</h1>
+    <h1 style="font-size:20px;color:#152033;margin:0 0 4px">Invitation - ${esc(orgNom)}</h1>
     <p style="font-size:13px;color:#64748b;margin:0 0 20px">Plateforme de mobilisation Générations Médecins</p>
     <p style="font-size:14px;color:#152033;line-height:1.6">
       Bonjour,<br><br>
@@ -75,7 +75,7 @@ exports.handler = async (event) => {
     body: JSON.stringify({
       sender:      { name: process.env.SENDER_NAME || 'Générations Médecins', email: process.env.SENDER_EMAIL },
       to:          [{ email }],
-      subject:     `Invitation — ${orgNom} (${roleLabel})`,
+      subject:     `Invitation - ${orgNom} (${roleLabel})`,
       htmlContent: html,
     }),
   });

@@ -28,7 +28,7 @@ body {
 
 img { max-width: 100%; height: auto; display: block; }
 
-/* ——— HEADER ——— */
+/* --- HEADER --- */
 header {
   position: sticky;
   top: 0;
@@ -101,7 +101,7 @@ nav a:hover, nav a.active {
   background: var(--surface);
 }
 
-/* ——— BUTTONS ——— */
+/* --- BUTTONS --- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -151,7 +151,7 @@ nav a:hover, nav a.active {
   font-size: 1rem;
 }
 
-/* ——— BADGES ——— */
+/* --- BADGES --- */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -171,7 +171,7 @@ nav a:hover, nav a.active {
 .dot-green::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3d8a1a; }
 .dot-blue::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
 
-/* ——— SECTIONS ——— */
+/* --- SECTIONS --- */
 .section {
   padding: 88px 24px;
 }
@@ -216,7 +216,7 @@ nav a:hover, nav a.active {
   margin: 0;
 }
 
-/* ——— CARDS ——— */
+/* --- CARDS --- */
 .card {
   background: white;
   border-radius: var(--r);
@@ -230,7 +230,7 @@ nav a:hover, nav a.active {
   transform: translateY(-2px);
 }
 
-/* ——— CTA SECTION ——— */
+/* --- CTA SECTION --- */
 .cta-section {
   background: linear-gradient(135deg, var(--blue-dark) 0%, #2558a0 60%, var(--blue) 100%);
   padding: 88px 24px;
@@ -254,7 +254,7 @@ nav a:hover, nav a.active {
   line-height: 1.65;
 }
 
-/* ——— FOOTER ——— */
+/* --- FOOTER --- */
 footer {
   padding: 44px 24px;
   border-top: 1px solid var(--line);
@@ -292,7 +292,7 @@ footer {
 
 .footer-links a:hover { color: var(--blue); }
 
-/* ——— PAGE HERO ——— */
+/* --- PAGE HERO --- */
 .page-hero {
   background: linear-gradient(160deg, var(--surface) 0%, white 100%);
   border-bottom: 1px solid var(--line);
@@ -320,7 +320,7 @@ footer {
   line-height: 1.65;
 }
 
-/* ——— COMING SOON ——— */
+/* --- COMING SOON --- */
 .coming-soon-block {
   text-align: center;
   padding: 72px 24px;
@@ -350,7 +350,7 @@ footer {
   line-height: 1.6;
 }
 
-/* ——— RESPONSIVE ——— */
+/* --- RESPONSIVE --- */
 @media (max-width: 900px) {
   nav { display: none; }
   .section { padding: 60px 20px; }
