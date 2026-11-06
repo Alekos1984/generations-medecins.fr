@@ -863,17 +863,17 @@
           <span>Les 3 groupes ci-dessous correspondent aux 3 blocs de la page publique. Les flèches ↑↓ changent l'ordre d'affichage. Un membre désactivé disparaît du site sans être supprimé.</span>
         </div>
 
-        <div class="section-title-sm" style="font-weight:700;color:var(--blue-dark);margin:0 0 10px">Président et vice-président·e·s</div>
+        <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px"><div class="section-title-sm" id="bureau-titre-presidence" style="font-weight:700;color:var(--blue-dark)">Président et vice-président·e·s</div><button class="btn-action" onclick="renameBureauGroupe('presidence')">✏️ Renommer</button></div>
         <div id="bureau-list-presidence" style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
           <div class="table-loading">Chargement…</div>
         </div>
 
-        <div class="section-title-sm" style="font-weight:700;color:var(--blue-dark);margin:0 0 10px">Secrétariat & Trésorerie</div>
+        <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px"><div class="section-title-sm" id="bureau-titre-secretariat" style="font-weight:700;color:var(--blue-dark)">Secrétariat & Trésorerie</div><button class="btn-action" onclick="renameBureauGroupe('secretariat')">✏️ Renommer</button></div>
         <div id="bureau-list-secretariat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
           <div class="table-loading">Chargement…</div>
         </div>
 
-        <div class="section-title-sm" style="font-weight:700;color:var(--blue-dark);margin:0 0 10px">Chargées de mission</div>
+        <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px"><div class="section-title-sm" id="bureau-titre-mission" style="font-weight:700;color:var(--blue-dark)">Chargées de mission</div><button class="btn-action" onclick="renameBureauGroupe('mission')">✏️ Renommer</button></div>
         <div id="bureau-list-mission" style="display:flex;flex-direction:column;gap:8px">
           <div class="table-loading">Chargement…</div>
         </div>
@@ -3269,6 +3269,26 @@
   const BUREAU_GROUPES = ['presidence', 'secretariat', 'mission'];
   const BUREAU_GROUPE_LABELS = { presidence: 'Président et vice-président·e·s', secretariat: 'Secrétariat & Trésorerie', mission: 'Chargées de mission' };
 
+  async function loadBureauTitres() {
+    const { data } = await sb.from('bureau_groupes').select('groupe, titre');
+    (data || []).forEach(r => { if (BUREAU_GROUPE_LABELS[r.groupe] !== undefined) BUREAU_GROUPE_LABELS[r.groupe] = r.titre; });
+    BUREAU_GROUPES.forEach(g => {
+      const el = document.getElementById('bureau-titre-' + g);
+      if (el) el.textContent = BUREAU_GROUPE_LABELS[g];
+    });
+    const sel = document.getElementById('b-groupe');
+    if (sel) [...sel.options].forEach(o => { o.textContent = BUREAU_GROUPE_LABELS[o.value] || o.textContent; });
+  }
+
+  window.renameBureauGroupe = async function(groupe) {
+    const titre = prompt('Nouvel intitulé du groupe :', BUREAU_GROUPE_LABELS[groupe]);
+    if (titre === null || !titre.trim()) return;
+    const { error } = await sb.from('bureau_groupes').upsert({ groupe, titre: titre.trim(), updated_at: new Date().toISOString() });
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    toast('Intitulé mis à jour ✓', 'success');
+    loadBureauAdmin();
+  };
+
   function bureauNextOrdre(groupe, excludeId) {
     const sib = bureauCache.filter(m => m.groupe === groupe && m.id !== excludeId);
     return sib.length ? Math.max(...sib.map(m => m.ordre)) + 1 : 1;
@@ -3289,6 +3309,7 @@
   }
 
   async function loadBureauAdmin() {
+    await loadBureauTitres();
     const { data, error } = await sb.from('bureau_membres')
       .select('*').order('groupe').order('ordre');
     if (error) {
