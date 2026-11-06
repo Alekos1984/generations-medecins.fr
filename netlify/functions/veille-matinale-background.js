@@ -1,5 +1,5 @@
 /**
- * Netlify Background Function — Veille automatisée (jusqu'à 15 min)
+ * Netlify Background Function - Veille automatisée (jusqu'à 15 min)
  *
  * Déclenchée :
  *   • automatiquement chaque matin par veille-cron.js (cron 7h Paris)
@@ -18,7 +18,7 @@
 
 const GOOGLE_NEWS_BASE = 'https://news.google.com/rss/search?q={q}&hl=fr&gl=FR&ceid=FR:fr';
 
-// Flux RSS directs (les plus fiables — on les tente en priorité)
+// Flux RSS directs (les plus fiables - on les tente en priorité)
 const DIRECT_FEEDS = [];
 
 // Sources via Google News site: (contournement anti-bot + flux directs périmés)
@@ -235,7 +235,7 @@ async function sendAdminDigest(imported, stats) {
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #e8edf2">
         <strong>${a.titre}</strong><br>
-        <span style="font-size:13px;color:#555">${a.source} — ${new Date(a.publie_le).toLocaleDateString('fr-FR')}</span><br>
+        <span style="font-size:13px;color:#555">${a.source} - ${new Date(a.publie_le).toLocaleDateString('fr-FR')}</span><br>
         <span style="font-size:13px">${a.resume || ''}</span><br>
         ${a.tags?.length ? `<span style="font-size:12px;color:#38a8b5">${a.tags.join(' · ')}</span>` : ''}
       </td>
@@ -258,7 +258,7 @@ async function sendAdminDigest(imported, stats) {
       · 🤖 ${stats.gpt_errors} erreurs GPT
       · 📡 ${stats.feed_stats.length} flux testés<br><br>
       <strong>Flux par flux :</strong><br>
-      ${stats.feed_stats.map(f => `• ${f.nom} : ${f.status} — ${f.items} articles récupérés${f.error ? ' — ⚠ ' + f.error : ''}`).join('<br>')}
+      ${stats.feed_stats.map(f => `• ${f.nom} : ${f.status} - ${f.items} articles récupérés${f.error ? ' - ⚠ ' + f.error : ''}`).join('<br>')}
     </div>`;
 
   const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;margin:0;padding:0">
@@ -280,8 +280,8 @@ async function sendAdminDigest(imported, stats) {
 </div></body></html>`;
 
   const subject = imported.length > 0
-    ? `[Veille] ${imported.length} article${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''} — ${new Date().toLocaleDateString('fr-FR')}`
-    : `[Veille] Aucun article importé — ${new Date().toLocaleDateString('fr-FR')}`;
+    ? `[Veille] ${imported.length} article${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''} - ${new Date().toLocaleDateString('fr-FR')}`
+    : `[Veille] Aucun article importé - ${new Date().toLocaleDateString('fr-FR')}`;
 
   await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -359,7 +359,7 @@ async function runVeille() {
 
       // Si OpenAI non configuré, on importe sans classification
       if (!process.env.OPENAI_API_KEY) {
-        console.warn('OPENAI_API_KEY non configuré — import sans classification GPT');
+        console.warn('OPENAI_API_KEY non configuré - import sans classification GPT');
         const rawTitle = item.title.replace(/<[^>]+>/g, '').trim();
         const dashIdx  = rawTitle.lastIndexOf(' - ');
         const titre    = (dashIdx > 30 ? rawTitle.slice(0, dashIdx) : rawTitle).slice(0, 250);

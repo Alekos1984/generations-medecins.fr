@@ -1,5 +1,5 @@
 /**
- * Netlify Background Function — Génération de la newsletter bimensuelle (≤ 15 min)
+ * Netlify Background Function - Génération de la newsletter bimensuelle (≤ 15 min)
  *
  * Déclenchée :
  *   • automatiquement le 1er et le 15 du mois par newsletter-cron.js
@@ -107,33 +107,35 @@ Exactement 5 éléments (ou moins s'il y a moins de 5 articles fournis). Les id 
 // ── Étape 2 : rédaction au vitriol ──────────────────────────────────────────
 
 async function redigerNewsletter(selection, periodeDebut, periodeFin) {
-  const dossier = selection.map((a, i) => `ARTICLE ${i + 1} — ${a.titre}
+  const dossier = selection.map((a, i) => `ARTICLE ${i + 1} - ${a.titre}
 Source : ${a.source || 'veille'} ${a.url ? `(${a.url})` : ''}
 Date : ${(a.created_at || '').slice(0, 10)}
 Pourquoi retenu : ${a.raison}
 Contenu :
-${(a.contenu || a.extrait || '').slice(0, 3500)}`).join('\n\n————————————————\n\n');
+${(a.contenu || a.extrait || '').slice(0, 3500)}`).join('\n\n----------------\n\n');
 
   const system = `Tu écris la newsletter bimensuelle du syndicat Générations Médecins Île-de-France, destinée à des médecins libéraux adhérents.
 
-LE TON — équilibre exigeant :
+LE TON - équilibre exigeant :
 - Engagé, lucide, mordant quand c'est justifié, jamais complaisant, mais fondamentalement CONSTRUCTIF. On ne vanne pas les tutelles par réflexe : on prend leurs annonces au sérieux, on montre précisément en quoi elles pèchent ou en quoi elles vont dans le bon sens, et on propose systématiquement une piste alternative, un amendement, une amélioration ou un chemin de co-construction. Le syndicat est une force de proposition avant d'être une force d'opposition.
 - L'ironie et le trait piquant restent bienvenus pour souligner l'absurde d'une situation, mais toujours au service de l'analyse, jamais gratuits. Le lecteur doit ressortir de la newsletter en comprenant mieux le dossier ET en sentant qu'une voie de sortie existe, qu'il y a matière à discuter avec les partenaires institutionnels.
 - Registre humain : on parle à des confrères qui exercent quotidiennement, pas à des militants professionnels. On respecte leur intelligence et leur temps.
 
-LA STRUCTURE — impérative pour CHAQUE article traité :
+LA STRUCTURE - impérative pour CHAQUE article traité :
 - Pars du principe que le lecteur N'A ABSOLUMENT PAS lu l'article. Il faut donc systématiquement commencer par un RAPPEL FACTUEL détaillé (au moins un paragraphe substantiel : qui a annoncé quoi, quand, à quel niveau institutionnel, avec les chiffres, dates, montants, dispositifs précis tirés du contenu de l'article). Ne suppose rien de connu.
 - Puis un paragraphe d'ANALYSE ET DE MISE EN PERSPECTIVE : que signifie concrètement cette information pour un médecin libéral qui installe son cabinet lundi matin, quelles sont les implications sur les revenus, l'organisation, la relation avec les patients, l'attractivité de l'exercice.
 - Puis un paragraphe de POSITION DU SYNDICAT ASSORTIE D'UNE PROPOSITION : ce qu'on soutient ou ce qu'on regrette, en précisant à chaque fois une alternative concrète, un amendement, une contre-proposition ou une piste de dialogue. Même si c'est modeste, il faut toujours qu'un lecteur reparte avec l'idée que le syndicat propose quelque chose et pas seulement qu'il proteste.
 
-LA FORME — règles strictes :
-- Des phrases longues, amples, articulées, qui déroulent l'argument, la nuance et la proposition dans le même mouvement rédactionnel. INTERDIT : les phrases courtes façon slogan qui claquent en trois mots. INTERDIT : les tirets typographiques (— ou –) qu'on trouve dans les articles de presse en ligne. INTERDIT : les listes à puces et les énumérations verticales. Tu écris de vrais paragraphes de billet rédigé en continu, comme un éditorial de fond.
+LA FORME - règles strictes :
+- Des phrases longues, amples, articulées, qui déroulent l'argument, la nuance et la proposition dans le même mouvement rédactionnel. INTERDIT : les phrases courtes façon slogan qui claquent en trois mots. INTERDIT : les tirets typographiques (- ou –) qu'on trouve dans les articles de presse en ligne. INTERDIT : les listes à puces et les énumérations verticales. Tu écris de vrais paragraphes de billet rédigé en continu, comme un éditorial de fond.
 - Longueur totale : entre 900 et 1400 mots. Prends le temps de développer chaque section, la substance prime sur la concision.
 - CHAQUE section commence par un intertitre percutant sur sa propre ligne, écrit en gras Markdown avec le format \`**Intertitre en une phrase intrigante**\`. L'intertitre pose la question ou l'enjeu, sans dévoiler la conclusion. Il n'est pas en majuscules.
 - À l'intérieur d'un bloc, tu peux mettre en gras Markdown (\`**mot ou expression**\`) les 2 ou 3 termes vraiment importants de la section (un chiffre-clé, une date-charnière, un dispositif nommé). Utilise cette emphase avec parcimonie pour qu'elle garde son poids.
 - Structure globale : une accroche d'ouverture (3-4 phrases) qui donne le ton constructif et engagé, puis exactement UN BLOC PAR ARTICLE RETENU (5 blocs, chacun avec sa triple structure rappel/analyse/proposition), puis un dernier BLOC DE CONCLUSION mobilisatrice qui rappelle les combats en cours, les rendez-vous à venir et invite à rejoindre ou soutenir le mouvement.
 
-SORTIE — JSON strict :
+RÈGLE ABSOLUE : n'utilise jamais de tiret cadratin (—), ni dans le texte ni dans les titres ; préfère virgules, points ou deux-points.
+
+SORTIE - JSON strict :
 {
   "objet": "objet de l'email, accrocheur mais pas racoleur, max 80 caractères",
   "accroche": "3-4 phrases d'ouverture qui donnent le ton constructif et engagé de toute la newsletter, sans être un simple résumé sec",
@@ -170,7 +172,7 @@ async function genererNewsletter() {
   const periodeDebut = debut.toISOString().slice(0, 10);
   const periodeFin = fin.toISOString().slice(0, 10);
 
-  log(`Newsletter auto — période ${periodeDebut} → ${periodeFin}`);
+  log(`Newsletter auto - période ${periodeDebut} → ${periodeFin}`);
 
   // 1. Articles des 15 derniers jours (publiés, veille non rejetée)
   const q = `${SB()}/rest/v1/decrypteurs` +
@@ -184,7 +186,7 @@ async function genererNewsletter() {
   log(`${articles.length} article(s) publiés sur la période`);
 
   if (articles.length < 2) {
-    throw new Error(`Seulement ${articles.length} article(s) sur 15 jours — pas assez de matière pour une newsletter.`);
+    throw new Error(`Seulement ${articles.length} article(s) sur 15 jours - pas assez de matière pour une newsletter.`);
   }
 
   // 2. Sélection des 5 plus importants
@@ -197,7 +199,7 @@ async function genererNewsletter() {
   if (!nl.objet || !Array.isArray(nl.blocs) || !nl.blocs.length) {
     throw new Error(`Rédaction gpt-4o incomplète : ${JSON.stringify(nl).slice(0, 300)}`);
   }
-  log(`Rédigé : "${nl.objet}" — ${nl.blocs.length} bloc(s)`);
+  log(`Rédigé : "${nl.objet}" - ${nl.blocs.length} bloc(s)`);
 
   // 4. Insertion en pending
   const insert = {
@@ -245,7 +247,7 @@ exports.handler = async (event) => {
     const result = await genererNewsletter();
     return { statusCode: 200, body: JSON.stringify(result) };
   } catch (e) {
-    console.error('Newsletter auto — échec :', e.message);
+    console.error('Newsletter auto - échec :', e.message);
     // Trace l'échec en base pour que l'admin le voie
     await fetch(`${SB()}/rest/v1/newsletters_auto`, {
       method: 'POST',

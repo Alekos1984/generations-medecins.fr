@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Décrypteur — Générations Médecins</title>
+  <title>Décrypteur - Générations Médecins</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
@@ -301,7 +301,7 @@
     const paragraphs = blocks.map(block => {
       block = block.trim();
       if (!block) return '';
-      // Already an HTML block tag — don't wrap
+      // Already an HTML block tag - don't wrap
       if (/^<h[2-6]>/.test(block)) return block;
       // Inline formatting
       block = block.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -350,7 +350,7 @@
     if (tagsRes.data) tagsRes.data.forEach(t => { tagsMap[t.slug] = t.label; });
 
     // Update page title
-    document.title = `${a.titre} — Générations Médecins`;
+    document.title = `${a.titre} - Générations Médecins`;
 
     const cat = CAT[a.categorie] || DEFAULT_CAT;
     const tags = a.tags || [];
@@ -381,7 +381,7 @@
         </div>
       </div>`;
 
-    // Check access — detect logged-in user via Supabase session
+    // Check access - detect logged-in user via Supabase session
     const { data: { session } } = await sb.auth.getSession();
     const isLoggedIn = !!session;
     const isMembers = a.acces === 'membres';

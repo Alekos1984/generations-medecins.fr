@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Génère une analyse en langage naturel des KPIs de l'observatoire.
+ * Netlify Function - Génère une analyse en langage naturel des KPIs de l'observatoire.
  *
  * Flux : admin clique "🤖 Générer l'analyse" dans l'admin observatoire →
  * lit les KPIs validés actuels + l'historique 12 mois → demande à OpenAI
@@ -46,7 +46,7 @@ Une phrase chiffrée par indicateur avec l'évolution (en %, en hausse/baisse).
 Ne mentionne que les indicateurs réellement présents et avec une source crédible.
 
 ## Tendances clés
-3 à 5 phrases qui dégagent les évolutions les plus marquantes — qu'est-ce qui
+3 à 5 phrases qui dégagent les évolutions les plus marquantes - qu'est-ce qui
 monte/baisse vraiment ? Y a-t-il des inquiétudes ?
 
 ## Points d'attention pour les médecins

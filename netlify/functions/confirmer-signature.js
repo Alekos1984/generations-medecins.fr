@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Confirme la signature électronique (lien cliqué dans l'email).
+ * Netlify Function - Confirme la signature électronique (lien cliqué dans l'email).
  *
  * GET ?token=XXX → vérifie le jeton, appose signe_le / signe_par, passe statut='signe'
  * et renvoie une page HTML de confirmation.

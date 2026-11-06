@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Vérifie qu'un adhérent (ou tous les adhérents) correspond
+ * Netlify Function - Vérifie qu'un adhérent (ou tous les adhérents) correspond
  * bien à une entrée du RPPS.
  *
  * Stratégie de match (par ordre de priorité) :
@@ -127,7 +127,7 @@ exports.handler = async (event) => {
   if (!total) {
     return { statusCode: 400, headers, body: JSON.stringify({
       error: 'Index RPPS vide',
-      detail: 'La table rpps_medecins ne contient aucune ligne. Lance un import depuis l\'admin observatoire (🚀 Lancer un import) — ça indexe les ~545 000 médecins en fin de run.',
+      detail: 'La table rpps_medecins ne contient aucune ligne. Lance un import depuis l\'admin observatoire (🚀 Lancer un import) - ça indexe les ~545 000 médecins en fin de run.',
     })};
   }
 

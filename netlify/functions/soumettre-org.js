@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Soumission d'une déclaration pour les organisations non-médecins
+ * Netlify Function - Soumission d'une déclaration pour les organisations non-médecins
  *
  * Privacy-by-design :
  *   - Reçoit un idHash (SHA-256 calculé côté client sur l'identifiant pro)
@@ -100,7 +100,7 @@ exports.handler = async (event) => {
 <div style="max-width:560px;margin:0 auto;padding:28px 18px">
   <div style="background:#fff;border-radius:16px;padding:30px 28px;box-shadow:0 2px 12px rgba(20,32,51,.08)">
     <div style="font-size:2.5rem;margin-bottom:12px">${esc(org.emoji || '✊')}</div>
-    <h1 style="font-size:20px;color:#152033;margin:0 0 4px">${esc(org.nom)} — Confirmation de participation</h1>
+    <h1 style="font-size:20px;color:#152033;margin:0 0 4px">${esc(org.nom)} - Confirmation de participation</h1>
     <p style="font-size:13px;color:#64748b;margin:0 0 20px">Mouvement : ${esc(camp.titre)}</p>
     <p style="font-size:14px;color:#152033;line-height:1.6">
       Bonjour,<br><br>
@@ -108,7 +108,7 @@ exports.handler = async (event) => {
       <strong>Référence :</strong> ${esc(ref)}
     </p>
     <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;margin:20px 0;font-size:13px;color:#166534;line-height:1.6">
-      🔒 Votre identifiant professionnel n'a jamais quitté votre appareil —
+      🔒 Votre identifiant professionnel n'a jamais quitté votre appareil -
       seule son empreinte numérique a été transmise.
     </div>
     <p style="margin:18px 0 0;font-size:12px;color:#94a3b8;line-height:1.5">
@@ -126,7 +126,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         sender:      { name: process.env.SENDER_NAME || 'Générations Médecins', email: process.env.SENDER_EMAIL },
         to:          [{ email }],
-        subject:     `${org.emoji || '✊'} Votre participation est confirmée — ${ref}`,
+        subject:     `${org.emoji || '✊'} Votre participation est confirmée - ${ref}`,
         htmlContent: html,
       }),
     }).catch(() => ({ ok: false }));

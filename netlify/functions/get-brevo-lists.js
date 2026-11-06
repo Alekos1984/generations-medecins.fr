@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Retourne les listes de contacts Brevo
+ * Netlify Function - Retourne les listes de contacts Brevo
  * Utilisé par l'admin pour peupler les dropdowns liste newsletter / presse.
  *
  * Env vars requis : BREVO_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY

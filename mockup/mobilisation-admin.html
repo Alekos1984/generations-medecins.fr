@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Mobilisation</title>
+  <title>Admin - Mobilisation</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
@@ -229,7 +229,7 @@
         <p style="font-size:.88rem;color:var(--muted);line-height:1.65">
           Un lien de connexion a été envoyé à<br>
           <strong id="invite-sent-email" style="color:var(--ink)"></strong><br><br>
-          Cliquez sur ce lien — vous reviendrez ici automatiquement avec votre accès activé.
+          Cliquez sur ce lien - vous reviendrez ici automatiquement avec votre accès activé.
         </p>
       </div>
     </div>
@@ -296,7 +296,7 @@
         <div class="stat-grid">
           <div class="stat-box"><div class="stat-val" id="gs-total">0</div><div class="stat-lbl">Déclarations</div></div>
           <div class="stat-box"><div class="stat-val" id="gs-objectif">0</div><div class="stat-lbl">Objectif</div></div>
-          <div class="stat-box"><div class="stat-val" id="gs-pct">—</div><div class="stat-lbl">Progression</div></div>
+          <div class="stat-box"><div class="stat-val" id="gs-pct">-</div><div class="stat-lbl">Progression</div></div>
           <div class="stat-box"><div class="stat-val" id="gs-optin">0</div><div class="stat-lbl">Emails opt-in</div></div>
         </div>
 
@@ -317,7 +317,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
             <div style="display:flex;align-items:center;gap:10px">
               <div style="font-weight:800;font-size:1.05rem;color:var(--ink)" id="camp-heading">Campagne en cours</div>
-              <div class="readonly-badge" id="camp-readonly-badge">📁 Archivée — lecture seule</div>
+              <div class="readonly-badge" id="camp-readonly-badge">📁 Archivée - lecture seule</div>
             </div>
             <div class="ios-toggle-wrap">
               <span class="ios-toggle-label off" id="lbl-closed">Fermé</span>
@@ -381,7 +381,7 @@
       <div class="admin-header">
         <div>
           <div class="admin-title">Déclarations</div>
-          <div class="admin-sub" id="decl-meta">—</div>
+          <div class="admin-sub" id="decl-meta">-</div>
         </div>
         <button class="g-btn g-btn-outline" onclick="campExportCsv()">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -428,7 +428,7 @@
 
       <!-- Note délégation totale -->
       <div style="background:#f8fafc;border:1.5px solid var(--line);border-radius:14px;padding:20px 22px;font-size:.84rem;color:var(--muted);line-height:1.6">
-        <strong style="color:var(--ink)">À propos de la délégation :</strong> Un administrateur délégué a exactement les mêmes droits que vous — il peut créer des campagnes, archiver, exporter, et inviter d'autres membres. Seul le super-admin Générations Médecins peut révoquer tous les accès. Si vous quittez l'organisation, désignez un successeur avant de supprimer votre accès.
+        <strong style="color:var(--ink)">À propos de la délégation :</strong> Un administrateur délégué a exactement les mêmes droits que vous - il peut créer des campagnes, archiver, exporter, et inviter d'autres membres. Seul le super-admin Générations Médecins peut révoquer tous les accès. Si vous quittez l'organisation, désignez un successeur avant de supprimer votre accès.
       </div>
     </div>
 
@@ -489,7 +489,7 @@
 
       const { data: { session } } = await sb.auth.getSession();
 
-      // Pas de session — invite token présent → écran onboarding, sinon accès refusé
+      // Pas de session - invite token présent → écran onboarding, sinon accès refusé
       if (!session) {
         if (INVITE_TOKEN) {
           await showInviteScreen();
@@ -558,7 +558,7 @@
           document.documentElement.style.setProperty('--org-c2', o.couleur2);
           document.documentElement.style.setProperty('--org-grad',
             'linear-gradient(135deg,' + o.couleur + ',' + o.couleur2 + ')');
-          document.title = 'Invitation — ' + o.nom;
+          document.title = 'Invitation - ' + o.nom;
         }
       } catch (_) { /* org inactive ou introuvable : on affiche le générique */ }
     }
@@ -603,7 +603,7 @@
       params.delete('invite');
       history.replaceState({}, '', location.pathname + '?' + params.toString());
 
-      if (!error) toast('✓ Invitation acceptée — bienvenue !');
+      if (!error) toast('✓ Invitation acceptée - bienvenue !');
     }
 
     function applyBranding(o) {
@@ -612,7 +612,7 @@
       document.documentElement.style.setProperty('--org-grad', `linear-gradient(135deg,${o.couleur},${o.couleur2})`);
       document.documentElement.style.setProperty('--org-bg',   o.couleur + '18');
       document.documentElement.style.setProperty('--org-line', o.couleur + '55');
-      document.title = 'Admin — ' + o.nom;
+      document.title = 'Admin - ' + o.nom;
       $('org-topbar-name').textContent = o.nom;
       $('header-org-name').textContent = o.nom;
       $('camp-section-title').textContent = o.emoji + ' ' + o.nom;
@@ -780,7 +780,7 @@
       const obj   = campagne.objectif || 0;
       $('gs-total').textContent   = total.toLocaleString('fr-FR');
       $('gs-objectif').textContent = obj.toLocaleString('fr-FR');
-      $('gs-pct').textContent     = obj ? Math.round(total/obj*100)+'%' : '—';
+      $('gs-pct').textContent     = obj ? Math.round(total/obj*100)+'%' : '-';
       $('gs-optin').textContent   = (campagne.optin_count || 0).toLocaleString('fr-FR');
 
       const modes = {};
@@ -802,7 +802,7 @@
     function renderDeclarations() {
       const total = decls.length;
       $('decl-meta').textContent = total > 30
-        ? `30 premières sur ${total.toLocaleString('fr-FR')} — exportez pour tout voir`
+        ? `30 premières sur ${total.toLocaleString('fr-FR')} - exportez pour tout voir`
         : `${total} déclaration${total > 1 ? 's' : ''}`;
       const recent = decls.slice(0, 30);
       if (!recent.length) {
@@ -820,8 +820,8 @@
           ${recent.map(d => `<tr style="border-top:1px solid var(--line)">
             <td style="padding:7px 8px">${new Date(d.created_at).toLocaleDateString('fr-FR')}</td>
             <td style="padding:7px 8px;font-family:monospace;font-size:.78rem">${esc(d.ref)}</td>
-            <td style="padding:7px 8px">${esc(d.cp)||'—'}</td>
-            <td style="padding:7px 8px">${esc(d.mode_exercice)||'—'}</td>
+            <td style="padding:7px 8px">${esc(d.cp)||'-'}</td>
+            <td style="padding:7px 8px">${esc(d.mode_exercice)||'-'}</td>
           </tr>`).join('')}
         </table>`;
     }
@@ -941,7 +941,7 @@
         org_id:   org.id,
       }).select().single();
       if (error) { toast('Erreur : ' + error.message, 'error'); return; }
-      toast(firstOne ? '✓ Campagne créée — configurez-la puis activez-la !' : '✓ Nouvelle campagne créée (fermée)');
+      toast(firstOne ? '✓ Campagne créée - configurez-la puis activez-la !' : '✓ Nouvelle campagne créée (fermée)');
       await loadCampagne();
       if (data?.id) await switchCampagne(data.id, true);
     };
@@ -994,7 +994,7 @@
         return;
       }
       $('equipe-list').innerHTML = equipe.map(m => {
-        const email = m.user?.email || m.email || '—';
+        const email = m.user?.email || m.email || '-';
         const initials = email.slice(0,2).toUpperCase();
         const isSelf = m.user_id === currentUser?.id;
         return `<div class="deleg-row">

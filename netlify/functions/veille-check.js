@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Diagnostic veille (sync, < 10s)
+ * Netlify Function - Diagnostic veille (sync, < 10s)
  *
  * Teste les flux RSS un par un et renvoie immédiatement les résultats bruts.
  * Utile pour diagnostiquer les blocages réseau depuis les IPs Netlify.

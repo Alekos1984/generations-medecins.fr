@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mon espace — Générations Médecins</title>
+  <title>Mon espace - Générations Médecins</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
@@ -222,7 +222,7 @@
         <div class="member-sidebar">
           <div class="member-avatar" id="avatar-initiales">?</div>
           <div class="member-name" id="sidebar-name">…</div>
-          <div class="member-numero" id="sidebar-numero" style="display:none">N° —</div>
+          <div class="member-numero" id="sidebar-numero" style="display:none">N° -</div>
           <div class="member-spec" id="sidebar-spec">…</div>
           <div class="member-status status-attente" id="sidebar-status">⏳ En attente de validation</div>
 
@@ -289,7 +289,7 @@
             <a href="types-exercice.html" class="tool-tile">
               <div class="tile-icon">⚖️</div>
               <div class="tile-name">Types d'exercice</div>
-              <div class="tile-desc">S1, S2, OPTAM, MSP, salarié — comparer</div>
+              <div class="tile-desc">S1, S2, OPTAM, MSP, salarié - comparer</div>
               <span class="tile-badge badge-free">Gratuit</span>
             </a>
             <a href="sos-juridique.html" class="tool-tile locked" id="tile-sos">
@@ -457,17 +457,17 @@
       salarie:'Salarié', mixte:'Mixte', remplacant:'Remplaçant', interne:'Interne',
     }[v] || v)).join(', ');
     const fields = [
-      { label:'N° adhérent', val: membre.numero_adherent || '—' },
+      { label:'N° adhérent', val: membre.numero_adherent || '-' },
       { label:'Prénom', val: membre.prenom },
       { label:'Nom', val: membre.nom },
       { label:'Email', val: membre.email },
-      { label:'Téléphone', val: membre.telephone || '—' },
-      { label:'Code postal', val: membre.code_postal || '—' },
-      { label:'RPPS', val: membre.est_interne ? 'Interne (RPPS non requis)' : (membre.rpps || '—') },
+      { label:'Téléphone', val: membre.telephone || '-' },
+      { label:'Code postal', val: membre.code_postal || '-' },
+      { label:'RPPS', val: membre.est_interne ? 'Interne (RPPS non requis)' : (membre.rpps || '-') },
       { label:'RPPS vérifié', val: membre.rpps_verifie ? '✓ Oui' : 'En attente' },
-      { label:'Spécialité', val: membre.specialite || '—' },
-      { label:"Mode d'exercice", val: modeLabel || '—' },
-      { label:'Secteur', val: membre.secteur || '—' },
+      { label:'Spécialité', val: membre.specialite || '-' },
+      { label:"Mode d'exercice", val: modeLabel || '-' },
+      { label:'Secteur', val: membre.secteur || '-' },
       { label:'Statut', val: membre.statut },
     ];
     document.getElementById('profile-grid').innerHTML = fields.map(f =>

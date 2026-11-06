@@ -1,8 +1,8 @@
 /**
- * Netlify Function — Soumission d'une déclaration de grève
+ * Netlify Function - Soumission d'une déclaration de grève
  *
  * Architecture privacy-by-design :
- *   - Reçoit un rppsHash (SHA-256 calculé côté client) — jamais le RPPS brut
+ *   - Reçoit un rppsHash (SHA-256 calculé côté client) - jamais le RPPS brut
  *   - Email/tel utilisés uniquement pour envoyer l'attestation, JAMAIS stockés en base
  *   - UPSERT : une nouvelle déclaration avec le même hash remplace la précédente
  *
@@ -75,7 +75,7 @@ exports.handler = async (event) => {
   if (camp.date_fin && today > camp.date_fin)
     return { statusCode: 403, headers, body: JSON.stringify({ error: `Les déclarations sont closes depuis le ${camp.date_fin}.` }) };
 
-  // 2. UPSERT — une re-déclaration avec le même hash met à jour les données
+  // 2. UPSERT - une re-déclaration avec le même hash met à jour les données
   const ref = (typeof clientRef === 'string' && /^GM-GREVE-\d{4}-[A-Z0-9]{5}$/.test(clientRef))
     ? clientRef : genRef();
 
@@ -102,7 +102,7 @@ exports.handler = async (event) => {
     return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement', detail: errText.slice(0, 200) }) };
   }
 
-  // 3. Envoi de l'attestation (éphémère — email jamais persisté)
+  // 3. Envoi de l'attestation (éphémère - email jamais persisté)
   let emailEnvoye = false;
   if (wantsAttestation && email && pdfBase64 && process.env.BREVO_API_KEY && process.env.SENDER_EMAIL) {
     const html = `<!DOCTYPE html><html><body style="margin:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif">
@@ -134,7 +134,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         sender:      { name: process.env.SENDER_NAME || 'Générations Médecins', email: process.env.SENDER_EMAIL },
         to:          [{ email }],
-        subject:     `Votre attestation de grève — ${ref}`,
+        subject:     `Votre attestation de grève - ${ref}`,
         htmlContent: html,
         attachment:  [{ content: pdfBase64.replace(/^data:application\/pdf;base64,/, ''), name: `attestation-greve-${ref}.pdf` }],
       }),
@@ -142,7 +142,7 @@ exports.handler = async (event) => {
     emailEnvoye = brevoRes.ok;
   }
 
-  // 4. Inscription liste Brevo (best effort — opt-in implicite si email fourni)
+  // 4. Inscription liste Brevo (best effort - opt-in implicite si email fourni)
   if (email && process.env.BREVO_API_KEY && process.env.GREVE_LIST_ID) {
     await fetch('https://api.brevo.com/v3/contacts', {
       method: 'POST',

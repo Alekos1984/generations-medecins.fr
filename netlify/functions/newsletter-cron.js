@@ -1,5 +1,5 @@
 /**
- * Netlify Scheduled Function — déclencheur bimensuel de la newsletter auto
+ * Netlify Scheduled Function - déclencheur bimensuel de la newsletter auto
  * Cron : 6h UTC le 1er et le 15 du mois (configuré dans netlify.toml)
  *
  * Même pattern que veille-cron : fonction légère (limite 30 s) qui invoque

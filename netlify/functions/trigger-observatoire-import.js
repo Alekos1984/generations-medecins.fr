@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Déclenche le workflow GitHub Actions "Import Observatoire".
+ * Netlify Function - Déclenche le workflow GitHub Actions "Import Observatoire".
  *
  * Le bouton "🚀 Lancer un import" de l'admin appelle cette fonction. Elle :
  *   1. vérifie que l'appelant est un admin (JWT Supabase)

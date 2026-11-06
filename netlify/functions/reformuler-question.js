@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Anonymise et reformule une question juridique pour Doctrine.fr
+ * Netlify Function - Anonymise et reformule une question juridique pour Doctrine.fr
  *
  * Flux : le membre soumet sa question → anonymisation des données personnelles →
  * reformulation en requête juridique structurée → mise à jour de la ligne
@@ -81,7 +81,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'consultationId requis' }) };
   }
 
-  // Appel OpenAI — on ne logue jamais le contenu de la question originale
+  // Appel OpenAI - on ne logue jamais le contenu de la question originale
   let question_reformulee;
   try {
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {

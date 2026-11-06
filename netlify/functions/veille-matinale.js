@@ -1,5 +1,5 @@
 /**
- * Netlify Scheduled Function — Veille automatisée
+ * Netlify Scheduled Function - Veille automatisée
  * Exécution : tous les matins à 7h00 heure de Paris (5h UTC)
  * schedule = "0 5 * * *"  (dans netlify.toml)
  *
@@ -170,7 +170,7 @@ async function sendAdminDigest(articles) {
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #e8edf2">
         <strong>${a.titre}</strong><br>
-        <span style="font-size:13px;color:#555">${a.source_nom} — ${new Date(a.publie_le).toLocaleDateString('fr-FR')}</span><br>
+        <span style="font-size:13px;color:#555">${a.source_nom} - ${new Date(a.publie_le).toLocaleDateString('fr-FR')}</span><br>
         <span style="font-size:13px">${a.resume || ''}</span><br>
         ${a.tags?.length ? `<span style="font-size:12px;color:#38a8b5">${a.tags.join(' · ')}</span>` : ''}
       </td>
@@ -201,7 +201,7 @@ async function sendAdminDigest(articles) {
     body: JSON.stringify({
       sender:  { name: process.env.SENDER_NAME || 'Générations Médecins', email: process.env.SENDER_EMAIL },
       to:      [{ email: process.env.ADMIN_EMAIL }],
-      subject: `[Veille] ${articles.length} article${articles.length > 1 ? 's' : ''} importé${articles.length > 1 ? 's' : ''} — ${new Date().toLocaleDateString('fr-FR')}`,
+      subject: `[Veille] ${articles.length} article${articles.length > 1 ? 's' : ''} importé${articles.length > 1 ? 's' : ''} - ${new Date().toLocaleDateString('fr-FR')}`,
       htmlContent: html,
     }),
   });
@@ -310,7 +310,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
 
   if (event.httpMethod === 'POST') {
-    // Manual trigger from admin — requires super-admin auth
+    // Manual trigger from admin - requires super-admin auth
     const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
     const user  = await verifySuperAdmin(token);
     if (!user) return { statusCode: 403, headers, body: '{"error":"Accès réservé aux super-admins"}' };

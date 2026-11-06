@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Déclenche la signature électronique d'un courrier.
+ * Netlify Function - Déclenche la signature électronique d'un courrier.
  *
  * Flux : le membre tape son nom → cette fonction génère un jeton, l'enregistre
  * et envoie un email contenant un lien de confirmation. Cliquer le lien appelle
@@ -105,7 +105,7 @@ exports.handler = async (event) => {
         </a>
       </div>
       <p style="margin:18px 0 0;font-size:12px;color:#94a3b8;line-height:1.5">
-        Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — aucune signature ne sera apposée.
+        Si vous n'êtes pas à l'origine de cette demande, ignorez cet email - aucune signature ne sera apposée.
       </p>
     </div>
   </div>

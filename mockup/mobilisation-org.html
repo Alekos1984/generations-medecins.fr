@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mobilisation Santé</title>
   <meta name="description" id="page-desc" content="Déclarez votre participation au mouvement de mobilisation des professionnels de santé.">
-  <meta property="og:title" id="og-title" content="Mobilisation Santé — Générations Médecins">
+  <meta property="og:title" id="og-title" content="Mobilisation Santé - Générations Médecins">
   <meta property="og:description" id="og-desc" content="Rejoignez le mouvement et déclarez votre participation.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="logoGM.jpeg">
@@ -203,7 +203,7 @@
     <!-- FORMULAIRE -->
     <div id="form-section">
       <h2 class="section-title">Déclarer ma participation</h2>
-      <p class="section-sub">Votre déclaration est anonymisée — seule une empreinte numérique de votre identifiant est conservée.</p>
+      <p class="section-sub">Votre déclaration est anonymisée - seule une empreinte numérique de votre identifiant est conservée.</p>
 
       <div class="form-card">
         <!-- Identifiant professionnel -->
@@ -226,7 +226,7 @@
 
         <!-- RGPD -->
         <div class="rgpd-box">
-          <strong>Vie privée :</strong> Votre identifiant est transformé en empreinte numérique irréversible (SHA-256) directement dans votre navigateur — il ne quitte jamais votre appareil. Seule cette empreinte est transmise. Votre email, s'il est fourni, est utilisé uniquement pour l'envoi de votre attestation et n'est pas conservé dans notre base de données.
+          <strong>Vie privée :</strong> Votre identifiant est transformé en empreinte numérique irréversible (SHA-256) directement dans votre navigateur - il ne quitte jamais votre appareil. Seule cette empreinte est transmise. Votre email, s'il est fourni, est utilisé uniquement pour l'envoi de votre attestation et n'est pas conservé dans notre base de données.
         </div>
 
         <button class="btn-submit-org" id="btn-submit" onclick="submitDeclaration()">
@@ -285,7 +285,7 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
     const $ = id => document.getElementById(id);
 
-    // Slug de l'organisation — en prod: lu depuis l'URL (?org=pharmaciens)
+    // Slug de l'organisation - en prod: lu depuis l'URL (?org=pharmaciens)
     const ORG_SLUG = new URLSearchParams(location.search).get('org') || 'pharmaciens';
 
     let org = null;
@@ -345,9 +345,9 @@
       if ($('btn-submit'))       $('btn-submit').textContent     = (o.emoji || '✊') + ' Je déclare ma participation';
       // Meta SEO + Open Graph
       const desc = o.description || ('Déclarez votre participation au mouvement ' + o.nom + '.');
-      document.title = o.nom + ' — Mobilisation Santé';
+      document.title = o.nom + ' - Mobilisation Santé';
       const metaDesc = document.getElementById('page-desc'); if (metaDesc) metaDesc.content = desc;
-      const ogTitle  = document.getElementById('og-title');  if (ogTitle) ogTitle.content  = o.nom + ' — Mobilisation Santé';
+      const ogTitle  = document.getElementById('og-title');  if (ogTitle) ogTitle.content  = o.nom + ' - Mobilisation Santé';
       const ogDesc   = document.getElementById('og-desc');   if (ogDesc)  ogDesc.content   = desc;
       // Lien "Mon espace" → espace-org.html pour les professions non-médecins
       const espaceLink = document.querySelector('nav a[href="espace-membre.html"]');
@@ -417,7 +417,7 @@
           st.className = 'id-status ' + (idVerified ? 'ok' : 'err');
         } catch {
           idVerified = true;
-          st.textContent = 'ℹ️ Annuaire indisponible — déclaration possible';
+          st.textContent = 'ℹ️ Annuaire indisponible - déclaration possible';
           st.className = 'id-status';
         }
       } else {

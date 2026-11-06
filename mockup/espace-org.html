@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mon espace participation — Mobilisation Santé</title>
+  <title>Mon espace participation - Mobilisation Santé</title>
   <meta name="description" content="Vérifiez votre participation et suivez la campagne de mobilisation de votre profession.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
@@ -184,7 +184,7 @@
       <h1 id="org-titre">Chargement…</h1>
       <p class="accroche" id="org-desc"></p>
       <div class="counter-box">
-        <div class="counter-num" id="counter-num">—</div>
+        <div class="counter-num" id="counter-num">-</div>
         <div class="counter-label" id="counter-label">professionnels mobilisés</div>
       </div>
       <div class="progress-wrap">
@@ -229,7 +229,7 @@
     <div class="redeclare-card" id="redeclare-card" style="display:none">
       <div class="rd-text">
         <h3 id="redeclare-emoji-title">Vous souhaitez (re-)déclarer votre participation ?</h3>
-        <p>La campagne est ouverte — accédez au formulaire de déclaration en un clic.</p>
+        <p>La campagne est ouverte - accédez au formulaire de déclaration en un clic.</p>
       </div>
       <a href="#" class="btn-redeclare" id="btn-redeclare">✊ Re-déclarer ma participation</a>
     </div>
@@ -282,7 +282,7 @@
     }
 
     function fmtDate(iso) {
-      if (!iso) return '—';
+      if (!iso) return '-';
       return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     }
 
@@ -298,7 +298,7 @@
       if ($('org-desc'))       $('org-desc').textContent       = o.description || '';
       if ($('org-nom-header')) $('org-nom-header').textContent = o.nom || '';
       if ($('counter-label'))  $('counter-label').textContent  = (o.profession || 'professionnels') + ' mobilisés';
-      document.title = (o.nom || '') + ' — Mon espace participation';
+      document.title = (o.nom || '') + ' - Mon espace participation';
     }
 
     // ── Compteur ─────────────────────────────────────────────────────────────

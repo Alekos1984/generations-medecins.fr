@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Génère une synthèse structurée d'une réponse Doctrine.
+ * Netlify Function - Génère une synthèse structurée d'une réponse Doctrine.
  *
  * Flux : l'opérateur colle la réponse brute obtenue depuis Doctrine.fr →
  * OpenAI génère une synthèse Markdown structurée → mise à jour de la ligne

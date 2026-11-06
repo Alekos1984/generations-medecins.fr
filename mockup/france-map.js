@@ -1,5 +1,5 @@
 /**
- * Carte de France interactive — composant réutilisable.
+ * Carte de France interactive - composant réutilisable.
  *
  * Charge le GeoJSON des régions métropolitaines (simplifié, ~50 Ko) depuis
  * jsDelivr (repo public gregoiredavid/france-geojson), construit le SVG,
@@ -69,7 +69,7 @@
   }
 
   function polygonsToPath(geom, bb, w, h) {
-    // MultiPolygon ou Polygon — on construit un d="M...L...Z M..."
+    // MultiPolygon ou Polygon - on construit un d="M...L...Z M..."
     const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
     let d = '';
     polys.forEach(rings => {

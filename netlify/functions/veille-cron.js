@@ -1,5 +1,5 @@
 /**
- * Netlify Scheduled Function — déclencheur quotidien de la veille
+ * Netlify Scheduled Function - déclencheur quotidien de la veille
  * Cron : 5h UTC = 7h Paris (configuré dans netlify.toml)
  *
  * Cette fonction est volontairement légère (limite 30 s pour les scheduled

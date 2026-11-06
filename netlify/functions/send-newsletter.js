@@ -1,5 +1,5 @@
 /**
- * Netlify Function — Envoi newsletter via Brevo Campaign API
+ * Netlify Function - Envoi newsletter via Brevo Campaign API
  *
  * Env vars requis dans Netlify :
  *   BREVO_API_KEY          clé API Brevo
@@ -71,7 +71,7 @@ exports.handler = async (event) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      name: `Newsletter ${new Date().toISOString().slice(0, 10)} — ${subject.slice(0, 40)}`,
+      name: `Newsletter ${new Date().toISOString().slice(0, 10)} - ${subject.slice(0, 40)}`,
       subject,
       sender: {
         name: process.env.SENDER_NAME || 'Générations Médecins',
