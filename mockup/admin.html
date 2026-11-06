@@ -422,6 +422,9 @@
       <button class="sidebar-link" onclick="showSection('plaidoyer-admin')" id="nav-plaidoyer-admin">
         <span class="icon">⚖️</span><span>Plaidoyer</span>
       </button>
+      <button class="sidebar-link" onclick="showSection('bureau-admin')" id="nav-bureau-admin">
+        <span class="icon">🏛️</span><span>Bureau</span>
+      </button>
 
       <div class="sidebar-section-label">Communication</div>
       <button class="sidebar-link" onclick="showSection('articles')" id="nav-articles">
@@ -842,6 +845,37 @@
               <tr><td colspan="5" class="table-loading">Chargement…</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Section: Bureau admin -->
+      <div id="section-bureau-admin" class="section-panel">
+        <div class="main-header" style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="main-title">Bureau</div>
+            <div class="main-sub">Gère les membres affichés sur la page publique bureau.html</div>
+          </div>
+          <button class="btn-primary-sm" onclick="openBureauModal()">+ Nouveau membre</button>
+        </div>
+
+        <div class="banner-info" style="background:rgba(42,109,184,0.07);border:1.5px solid rgba(42,109,184,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.83rem;color:var(--blue-dark);display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">ℹ️</span>
+          <span>Les 3 groupes ci-dessous correspondent aux 3 blocs de la page publique. Les flèches ↑↓ changent l'ordre d'affichage. Un membre désactivé disparaît du site sans être supprimé.</span>
+        </div>
+
+        <div class="section-title-sm" style="font-weight:700;color:var(--blue-dark);margin:0 0 10px">Président et vice-président·e·s</div>
+        <div id="bureau-list-presidence" style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
+          <div class="table-loading">Chargement…</div>
+        </div>
+
+        <div class="section-title-sm" style="font-weight:700;color:var(--blue-dark);margin:0 0 10px">Secrétariat & Trésorerie</div>
+        <div id="bureau-list-secretariat" style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
+          <div class="table-loading">Chargement…</div>
+        </div>
+
+        <div class="section-title-sm" style="font-weight:700;color:var(--blue-dark);margin:0 0 10px">Chargées de mission</div>
+        <div id="bureau-list-mission" style="display:flex;flex-direction:column;gap:8px">
+          <div class="table-loading">Chargement…</div>
         </div>
       </div>
 
@@ -1572,6 +1606,44 @@
     </div>
   </div>
 
+  <!-- Bureau member edit modal -->
+  <div class="modal-overlay" id="bureau-modal-overlay" onclick="closeBureauModal(event)">
+    <div class="modal" style="min-width:420px;max-width:480px" onclick="event.stopPropagation()">
+      <h3 id="bureau-modal-title" style="margin-bottom:16px">Nouveau membre du bureau</h3>
+      <input type="hidden" id="b-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Nom complet</label><input id="b-nom" type="text" placeholder="Prénom Nom"></div>
+        <div class="form-group full"><label>Rôle affiché</label><input id="b-role" type="text" placeholder="Ex : Trésorier, Chargée de mission…"></div>
+        <div class="form-group full">
+          <label>Groupe</label>
+          <select id="b-groupe">
+            <option value="presidence">Président et vice-président·e·s</option>
+            <option value="secretariat">Secrétariat & Trésorerie</option>
+            <option value="mission">Chargées de mission</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Photo <span style="font-weight:400;color:var(--muted)">(optionnel — sinon initiales affichées)</span></label>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div id="b-photo-preview" style="width:48px;height:48px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:.85rem;overflow:hidden;flex-shrink:0">—</div>
+            <input type="file" id="b-photo-file" accept="image/*" onchange="uploadBureauPhoto(this)" style="font-size:.82rem">
+          </div>
+          <input type="hidden" id="b-photo-url">
+          <span id="b-photo-status" style="font-size:.78rem;color:var(--muted)"></span>
+        </div>
+        <div class="form-group full">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer">
+            <input type="checkbox" id="b-actif" checked style="width:auto"> Visible sur le site public
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn-cancel" onclick="closeBureauModal()">Annuler</button>
+        <button class="btn-primary-sm" onclick="saveBureauMembre()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Membre edit modal -->
   <div id="membre-edit-overlay" onclick="if(event.target===this)closeMemberModal()">
     <div id="membre-edit-modal">
@@ -1767,6 +1839,7 @@
     loadPlaidoyer();
     loadArticlesAValider();
     loadRpps();
+    loadBureauAdmin();
   }
 
   // ── Toast ───────────────────────────────────────────────────
@@ -3190,6 +3263,150 @@
     if (error) { toast('Erreur : ' + error.message, 'error'); return; }
     toast('Dossier supprimé', 'success');
     loadPlaidoyer();
+  };
+
+  // ── Bureau (membres affichés sur bureau.html) ───────────────
+  const BUREAU_GROUPES = ['presidence', 'secretariat', 'mission'];
+  let bureauCache = [];
+
+  function bureauInitiales(nom) {
+    return (nom || '').split(/\s+/).filter(Boolean).map(p => p[0]).join('').slice(0, 3).toUpperCase();
+  }
+
+  async function loadBureauAdmin() {
+    const { data, error } = await sb.from('bureau_membres')
+      .select('*').order('groupe').order('ordre');
+    if (error) {
+      BUREAU_GROUPES.forEach(g => {
+        const el = document.getElementById('bureau-list-' + g);
+        if (el) el.innerHTML = `<div style="color:#b91c1c;font-size:.85rem">Erreur : ${esc(error.message)}</div>`;
+      });
+      return;
+    }
+    bureauCache = data || [];
+    BUREAU_GROUPES.forEach(renderBureauGroupe);
+  }
+
+  function renderBureauGroupe(groupe) {
+    const el = document.getElementById('bureau-list-' + groupe);
+    const membres = bureauCache.filter(m => m.groupe === groupe);
+    if (!membres.length) {
+      el.innerHTML = '<div style="font-size:.83rem;color:var(--muted);font-style:italic">Aucun membre dans ce groupe.</div>';
+      return;
+    }
+    el.innerHTML = membres.map((m, i) => {
+      const avatar = m.photo_url
+        ? `<img src="${esc(m.photo_url)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:40px;height:40px;border-radius:50%;background:var(--grad);color:#fff;font-weight:800;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc(bureauInitiales(m.nom))}</div>`;
+      return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface);border-radius:10px;${m.actif ? '' : 'opacity:.5'}">
+        ${avatar}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.88rem">${esc(m.nom)}${m.actif ? '' : ' <span style="font-weight:400;color:var(--muted);font-size:.75rem">(masqué)</span>'}</div>
+          <div style="font-size:.78rem;color:var(--muted)">${esc(m.role)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <button onclick="moveBureauMembre('${m.id}',-1)" ${i === 0 ? 'disabled' : ''} title="Monter" style="border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;${i === 0 ? 'opacity:.3;cursor:default' : ''}">↑</button>
+          <button onclick="moveBureauMembre('${m.id}',1)" ${i === membres.length - 1 ? 'disabled' : ''} title="Descendre" style="border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;${i === membres.length - 1 ? 'opacity:.3;cursor:default' : ''}">↓</button>
+          <button class="btn-action" onclick="openBureauModal('${m.id}')">Modifier</button>
+          <button class="btn-action" onclick="toggleBureauActif('${m.id}', ${m.actif})">${m.actif ? 'Masquer' : 'Afficher'}</button>
+          <button class="btn-action btn-supprimer" onclick="deleteBureauMembre('${m.id}')">Supprimer</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  window.moveBureauMembre = async function(id, direction) {
+    const m = bureauCache.find(x => x.id === id);
+    if (!m) return;
+    const siblings = bureauCache.filter(x => x.groupe === m.groupe).sort((a, b) => a.ordre - b.ordre);
+    const i = siblings.findIndex(x => x.id === id);
+    const j = i + direction;
+    if (j < 0 || j >= siblings.length) return;
+    const other = siblings[j];
+    const { error: e1 } = await sb.from('bureau_membres').update({ ordre: other.ordre }).eq('id', m.id);
+    const { error: e2 } = await sb.from('bureau_membres').update({ ordre: m.ordre }).eq('id', other.id);
+    if (e1 || e2) { toast('Erreur : ' + ((e1 || e2).message), 'error'); return; }
+    loadBureauAdmin();
+  };
+
+  window.toggleBureauActif = async function(id, current) {
+    const { error } = await sb.from('bureau_membres').update({ actif: !current }).eq('id', id);
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    toast(!current ? 'Membre affiché sur le site ✓' : 'Membre masqué du site', 'success');
+    loadBureauAdmin();
+  };
+
+  window.deleteBureauMembre = async function(id) {
+    if (!confirm('Supprimer définitivement ce membre du bureau ?')) return;
+    const { error } = await sb.from('bureau_membres').delete().eq('id', id);
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    toast('Membre supprimé', 'success');
+    loadBureauAdmin();
+  };
+
+  window.openBureauModal = function(id) {
+    const m = id ? bureauCache.find(x => x.id === id) : null;
+    document.getElementById('b-id').value = m ? m.id : '';
+    document.getElementById('b-nom').value = m ? m.nom : '';
+    document.getElementById('b-role').value = m ? m.role : '';
+    document.getElementById('b-groupe').value = m ? m.groupe : 'presidence';
+    document.getElementById('b-photo-url').value = m && m.photo_url ? m.photo_url : '';
+    document.getElementById('b-actif').checked = m ? !!m.actif : true;
+    document.getElementById('b-photo-status').textContent = '';
+    document.getElementById('b-photo-file').value = '';
+    const preview = document.getElementById('b-photo-preview');
+    if (m && m.photo_url) { preview.innerHTML = `<img src="${esc(m.photo_url)}" style="width:100%;height:100%;object-fit:cover">`; }
+    else { preview.textContent = m ? bureauInitiales(m.nom) : '—'; }
+    document.getElementById('bureau-modal-title').textContent = m ? 'Modifier le membre' : 'Nouveau membre du bureau';
+    document.getElementById('bureau-modal-overlay').classList.add('open');
+  };
+
+  window.closeBureauModal = function(e) {
+    if (e && e.target !== document.getElementById('bureau-modal-overlay')) return;
+    document.getElementById('bureau-modal-overlay').classList.remove('open');
+  };
+
+  window.uploadBureauPhoto = async function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('b-photo-status');
+    status.textContent = '⏳ Envoi…';
+    const ext = (file.name.split('.').pop() || 'jpg');
+    const path = `bureau/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    if (error) { status.textContent = '✗ ' + error.message; return; }
+    const url = sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    document.getElementById('b-photo-url').value = url;
+    document.getElementById('b-photo-preview').innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+    status.textContent = '✓ Photo ajoutée';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+  };
+
+  window.saveBureauMembre = async function() {
+    const id = document.getElementById('b-id').value;
+    const payload = {
+      nom:       document.getElementById('b-nom').value.trim(),
+      role:      document.getElementById('b-role').value.trim(),
+      groupe:    document.getElementById('b-groupe').value,
+      photo_url: document.getElementById('b-photo-url').value.trim() || null,
+      actif:     document.getElementById('b-actif').checked,
+    };
+    if (!payload.nom || !payload.role) { toast('Nom et rôle requis', 'error'); return; }
+
+    let error;
+    if (id) {
+      ({ error } = await sb.from('bureau_membres').update(payload).eq('id', id));
+    } else {
+      // Nouveau membre : placé en dernière position de son groupe
+      const siblings = bureauCache.filter(m => m.groupe === payload.groupe);
+      const maxOrdre = siblings.length ? Math.max(...siblings.map(m => m.ordre)) : 0;
+      ({ error } = await sb.from('bureau_membres').insert({ ...payload, ordre: maxOrdre + 1 }));
+    }
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    toast(id ? 'Membre mis à jour ✓' : 'Membre ajouté ✓', 'success');
+    closeBureauModal();
+    loadBureauAdmin();
   };
 
   // ── Articles à valider ──────────────────────────────────────

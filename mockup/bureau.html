@@ -161,60 +161,20 @@
 
       <!-- Président et vice-présidents -->
       <div class="section-title-sm">Président et vice-président·e·s</div>
-      <div class="members-grid" style="grid-template-columns:repeat(4,1fr)">
-        <div class="member-card">
-          <div class="member-avatar">
-            <img src="../static/bourla.png" alt="Alexis BOURLA"
-                 onerror="this.parentElement.innerHTML='AB'">
-          </div>
-          <div class="member-role">Président</div>
-          <div class="member-name">Alexis BOURLA</div>
-        </div>
-        <div class="member-card">
-          <div class="member-avatar">PH</div>
-          <div class="member-role">Vice-président</div>
-          <div class="member-name">Pierre Hamann</div>
-        </div>
-        <div class="member-card">
-          <div class="member-avatar">LAK</div>
-          <div class="member-role">Vice-présidente</div>
-          <div class="member-name">Louise Anne Klein</div>
-        </div>
-        <div class="member-card">
-          <div class="member-avatar">CC</div>
-          <div class="member-role">Vice-présidente</div>
-          <div class="member-name">Cherifa Cheurfa</div>
-        </div>
+      <div class="members-grid" id="grid-presidence" style="grid-template-columns:repeat(4,1fr)">
+        <div class="member-card"><div class="member-role">Chargement…</div></div>
       </div>
 
       <!-- Autres membres -->
       <div class="section-title-sm">Secrétariat & Trésorerie</div>
-      <div class="members-grid" style="grid-template-columns:repeat(2,1fr);max-width:640px">
-        <div class="member-card">
-          <div class="member-avatar">MHT</div>
-          <div class="member-role">Secrétaire générale</div>
-          <div class="member-name">Minh-Hanh Ta</div>
-        </div>
-        <div class="member-card">
-          <div class="member-avatar">FV</div>
-          <div class="member-role">Trésorier</div>
-          <div class="member-name">Franck Verdonk</div>
-        </div>
+      <div class="members-grid" id="grid-secretariat" style="grid-template-columns:repeat(2,1fr);max-width:640px">
+        <div class="member-card"><div class="member-role">Chargement…</div></div>
       </div>
 
       <!-- Chargées de mission -->
       <div class="section-title-sm">Chargées de mission</div>
-      <div class="members-grid" style="grid-template-columns:repeat(2,1fr);max-width:640px">
-        <div class="member-card">
-          <div class="member-avatar">RB</div>
-          <div class="member-role">Chargée de mission</div>
-          <div class="member-name">Rivka Bendrihem</div>
-        </div>
-        <div class="member-card">
-          <div class="member-avatar">SH</div>
-          <div class="member-role">Chargée de mission</div>
-          <div class="member-name">Soraya Hugain</div>
-        </div>
+      <div class="members-grid" id="grid-mission" style="grid-template-columns:repeat(2,1fr);max-width:640px">
+        <div class="member-card"><div class="member-role">Chargement…</div></div>
       </div>
 
       <!-- Gouvernance -->
@@ -249,5 +209,61 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="auth-header.js"></script>
+  <script>
+  (function () {
+    const SUPABASE_URL  = 'https://faegpfkhlkkwmtaichin.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function initiales(nom) {
+      return nom.split(/\s+/).filter(Boolean).map(p => p[0]).join('').slice(0, 3).toUpperCase();
+    }
+
+    function memberCard(m) {
+      const avatar = m.photo_url
+        ? `<div class="member-avatar"><img src="${esc(m.photo_url)}" alt="${esc(m.nom)}" onerror="this.parentElement.textContent='${esc(initiales(m.nom))}'"></div>`
+        : `<div class="member-avatar">${esc(initiales(m.nom))}</div>`;
+      return `<div class="member-card">
+        ${avatar}
+        <div class="member-role">${esc(m.role)}</div>
+        <div class="member-name">${esc(m.nom)}</div>
+      </div>`;
+    }
+
+    async function loadBureau() {
+      const { data, error } = await sb
+        .from('bureau_membres')
+        .select('nom, role, groupe, photo_url')
+        .order('ordre', { ascending: true });
+
+      if (error || !data) {
+        console.error('Erreur chargement bureau :', error);
+        return;
+      }
+
+      const parGroupe = { presidence: [], secretariat: [], mission: [] };
+      data.forEach(m => { if (parGroupe[m.groupe]) parGroupe[m.groupe].push(m); });
+
+      const grids = {
+        presidence:  document.getElementById('grid-presidence'),
+        secretariat: document.getElementById('grid-secretariat'),
+        mission:     document.getElementById('grid-mission'),
+      };
+
+      Object.entries(grids).forEach(([groupe, el]) => {
+        const membres = parGroupe[groupe];
+        el.innerHTML = membres.length
+          ? membres.map(memberCard).join('')
+          : '<div class="member-card"><div class="member-role" style="color:var(--muted)">Aucun membre pour le moment</div></div>';
+      });
+    }
+
+    loadBureau();
+  })();
+  </script>
 </body>
 </html>
