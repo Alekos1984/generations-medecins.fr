@@ -245,6 +245,13 @@
         return;
       }
 
+      sb.from('bureau_groupes').select('groupe, titre').then(({ data: titres }) => {
+        (titres || []).forEach(t => {
+          const h = document.querySelector('#grid-' + t.groupe)?.previousElementSibling;
+          if (h && h.classList.contains('section-title-sm')) h.textContent = t.titre;
+        });
+      });
+
       const parGroupe = { presidence: [], secretariat: [], mission: [] };
       data.forEach(m => { if (parGroupe[m.groupe]) parGroupe[m.groupe].push(m); });
 
