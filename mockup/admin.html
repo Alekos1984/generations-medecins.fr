@@ -3294,6 +3294,16 @@
     return sib.length ? Math.max(...sib.map(m => m.ordre)) + 1 : 1;
   }
 
+  window.updateBureauRole = async function(id, input) {
+    const role = input.value.trim();
+    const m = bureauCache.find(x => x.id === id);
+    if (!role) { input.value = m ? m.role : ''; toast('Le poste ne peut pas être vide', 'error'); return; }
+    const { error } = await sb.from('bureau_membres').update({ role }).eq('id', id);
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    if (m) m.role = role;
+    toast('Poste mis à jour ✓', 'success');
+  };
+
   window.changeBureauGroupe = async function(id, groupe) {
     const m = bureauCache.find(x => x.id === id);
     if (!m || !groupe || m.groupe === groupe) return;
@@ -3339,7 +3349,7 @@
         ${avatar}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.88rem">${esc(m.nom)}${m.actif ? '' : ' <span style="font-weight:400;color:var(--muted);font-size:.75rem">(masqué)</span>'}</div>
-          <div style="font-size:.78rem;color:var(--muted)">${esc(m.role)}</div>
+          <input type="text" value="${esc(m.role)}" title="Cliquer pour modifier l'intitulé du poste" onchange="updateBureauRole('${m.id}', this)" onkeydown="if(event.key==='Enter'){this.blur()}" style="font-size:.8rem;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:3px 8px;background:#fff;width:100%;max-width:260px;margin-top:2px">
         </div>
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           <button onclick="moveBureauMembre('${m.id}',-1)" ${i === 0 ? 'disabled' : ''} title="Monter" style="border:1px solid var(--line);background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;${i === 0 ? 'opacity:.3;cursor:default' : ''}">↑</button>
