@@ -57,6 +57,7 @@
     </div>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
   (function () {
@@ -69,9 +70,8 @@
 
     async function load() {
       if (!t) { zone.innerHTML = '<div class="notfound">Lien invalide.</div>'; return; }
-      const { data, error } = await sb.from('courriers_generes')
-        .select('titre,expediteur,destinataire,objet,contenu,signataire_nom,signe_le,signe_par')
-        .eq('partage_token', t).eq('partage_public', true).single();
+      const { data: rows, error } = await sb.rpc('get_courrier_partage', { p_token: t });
+      const data = Array.isArray(rows) ? rows[0] : rows;
       if (error || !data) { zone.innerHTML = '<div class="notfound">Ce courrier n\'est pas disponible ou le partage a été désactivé.</div>'; return; }
 
       const sigElec = data.signe_le
@@ -81,15 +81,16 @@
       zone.innerHTML = `
         <div class="document">
           <div class="doc-head">
-            <div class="doc-block">${data.expediteur?.html || ''}</div>
-            <div class="doc-block doc-dest">${data.destinataire?.html || ''}</div>
+            <div class="doc-block">${clean(data.expediteur?.html)}</div>
+            <div class="doc-block doc-dest">${clean(data.destinataire?.html)}</div>
           </div>
           ${data.objet ? `<div class="doc-objet">Objet : ${escapeHtml(data.objet)}</div>` : ''}
-          <div class="doc-body">${data.contenu || ''}</div>
+          <div class="doc-body">${clean(data.contenu)}</div>
           <div class="doc-signature">${escapeHtml(data.signataire_nom || '')}${sigElec}</div>
         </div>`;
       document.title = (data.titre || 'Courrier') + ' - Générations Médecins';
     }
+    const clean = h => window.DOMPurify ? DOMPurify.sanitize(h || '', { USE_PROFILES: { html: true } }) : escapeHtml(h || '');
     function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     load();
   })();
