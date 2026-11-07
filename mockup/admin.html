@@ -1509,13 +1509,17 @@
         <h3 style="margin:0">✨ Générer un article automatiquement</h3>
         <button onclick="closeGenerateArticleModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
       </div>
-      <p style="font-size:.82rem;color:var(--muted);margin:0 0 16px">Colle des liens, des notes ou du texte brut. Un LLM rédige un article complet (350-600 mots) + une image de header, et dépose le tout en brouillon dans la liste ci-dessous - à relire avant publication.</p>
+      <p style="font-size:.82rem;color:var(--muted);margin:0 0 16px">Colle un lien (lu automatiquement), des notes ou du texte brut. Un LLM rédige un article complet (350-600 mots, ou ton texte mis en forme si tu coches « mon propre texte ») + une image de header, et dépose le tout en brouillon dans la liste ci-dessous - à relire avant publication.</p>
 
       <div id="gen-article-form" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
         <div class="form-group" style="margin:0">
-          <label>Matière (liens, notes, texte brut…)</label>
+          <label>Matière (lien, notes, texte brut…) <span style="font-weight:400;color:var(--muted)">LinkedIn bloque parfois la lecture : en cas d'échec, colle le texte</span></label>
           <textarea id="gen-article-input" rows="8" placeholder="Ex : https://exemple.fr/article-avenant-9 - l'avenant prévoit une revalorisation du tarif de consultation à 30€ à partir de décembre 2024, en contrepartie d'un engagement sur les actes complexes…" style="resize:vertical"></textarea>
         </div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:.84rem;cursor:pointer">
+          <input type="checkbox" id="gen-article-own" style="width:auto;margin-top:3px">
+          <span><b>C'est mon propre texte</b> (ex. mon article LinkedIn) : garder mes mots et ma longueur, mettre en forme seulement.</span>
+        </label>
         <div class="form-group" style="margin:0">
           <label>Indication pour l'image <span style="font-weight:400;color:var(--muted)">(optionnel)</span></label>
           <input type="text" id="gen-article-hero-hint" placeholder="Ex : cabinet médical moderne, ambiance sobre et institutionnelle">
@@ -3029,6 +3033,7 @@
   window.openGenerateArticleModal = function() {
     document.getElementById('gen-article-input').value = '';
     document.getElementById('gen-article-hero-hint').value = '';
+    document.getElementById('gen-article-own').checked = false;
     document.getElementById('gen-article-status').textContent = '';
     document.getElementById('gen-article-submit-btn').disabled = false;
     document.getElementById('gen-article-submit-btn').textContent = '✨ Générer l\'article';
@@ -3057,7 +3062,7 @@
       const resPromise = fetch('/.netlify/functions/generer-article-background', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawInput, heroHint }),
+        body: JSON.stringify({ rawInput, heroHint, ownText: document.getElementById('gen-article-own').checked }),
       });
 
       // Poll news_auto_briefs pendant que la background function tourne
