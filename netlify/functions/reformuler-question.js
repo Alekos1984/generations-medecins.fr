@@ -25,7 +25,7 @@ async function getMembre(token) {
   const user = await userRes.json();
   if (!user?.id) return null;
   const mRes = await fetch(
-    `${SB}/rest/v1/membres?user_id=eq.${user.id}&select=id`,
+    `${SB}/rest/v1/membres?user_id=eq.${user.id}&statut=eq.actif&select=id`,
     { headers: srvHeaders() },
   );
   if (!mRes.ok) return null;

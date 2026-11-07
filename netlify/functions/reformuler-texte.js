@@ -12,7 +12,14 @@ async function isAuthenticated(token) {
   });
   if (!res.ok) return false;
   const user = await res.json();
-  return !!user?.id;
+  if (!user?.id) return false;
+  // Réservé aux adhérents actifs et aux admins (vérifié avec le jeton de l'utilisateur, sous RLS)
+  const h = { Authorization: `Bearer ${token}`, apikey: ANON, 'Content-Type': 'application/json' };
+  for (const fn of ['is_membre_actif', 'is_admin']) {
+    const r = await fetch(`${SB}/rest/v1/rpc/${fn}`, { method: 'POST', headers: h, body: '{}' });
+    if (r.ok && (await r.json()) === true) return true;
+  }
+  return false;
 }
 
 const PROMPTS = {
