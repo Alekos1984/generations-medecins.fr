@@ -2,7 +2,7 @@
  * Netlify Background Function - Génération d'un article (News) par LLM (≤ 15 min)
  *
  * Déclenchée depuis l'admin (section Articles > "✨ Générer automatiquement") :
- * l'admin colle de la matière (liens, notes, texte brut) + une indication
+ * l'admin colle de la matière (liens lus automatiquement, notes, texte brut) + une indication
  * d'image facultative, cette fonction :
  *   1. Appelle gpt-4o pour rédiger un article complet (titre, chapô, corps
  *      HTML, catégorie, tags, slug)
@@ -64,6 +64,95 @@ async function uniqueSlug(base) {
   }
 }
 
+
+// ── Récupération de liens (LinkedIn, blogs, presse...) ───────────────────────
+
+const dns = require('dns').promises;
+const net = require('net');
+
+function isPrivateIp(ip) {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  const v = ip.toLowerCase();
+  return v === '::1' || v === '::' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80') || v.startsWith('::ffff:');
+}
+
+async function assertPublicUrl(u) {
+  if (u.protocol !== 'https:') throw new Error('seuls les liens https sont acceptés');
+  if (u.port && u.port !== '443') throw new Error('port non autorisé');
+  const addrs = await dns.lookup(u.hostname, { all: true });
+  if (!addrs.length || addrs.some(a => isPrivateIp(a.address))) throw new Error('adresse non autorisée');
+}
+
+function htmlToText(html) {
+  const meta = (name) => {
+    const m = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${name}["'][^>]*content=["']([^"']*)["']`, 'i'))
+      || html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${name}["']`, 'i'));
+    return m ? m[1] : '';
+  };
+  const decode = (t) => t.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+  const title = decode(meta('og:title') || (html.match(/<title[^>]*>([^<]*)/i) || [])[1] || '');
+  const art = html.match(/<article[\s\S]*?<\/article>/i);
+  let body = (art ? art[0] : (html.match(/<body[\s\S]*<\/body>/i) || [html])[0])
+    .replace(/<(script|style|noscript|svg|nav|header|footer|form|iframe)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<\/(p|div|h[1-6]|li|br|tr)>|<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  body = decode(body).replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n\n').trim();
+  const desc = decode(meta('og:description') || meta('description'));
+  if (body.length < 400 && desc.length > body.length) body = desc;
+  return { title: title.trim(), text: body };
+}
+
+async function fetchLinkText(rawUrl) {
+  let u;
+  try { u = new URL(rawUrl); } catch { throw new Error('lien invalide'); }
+  let current = u;
+  for (let hop = 0; hop < 4; hop++) {
+    await assertPublicUrl(current);
+    const res = await fetch(current, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(12000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GM-ArticleBot/1.0)', Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'fr,en;q=0.8' },
+    });
+    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
+      current = new URL(res.headers.get('location'), current);
+      continue;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const type = res.headers.get('content-type') || '';
+    if (!/text\/html|text\/plain|xml/.test(type)) throw new Error('contenu non textuel');
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 3 * 1024 * 1024) throw new Error('page trop volumineuse');
+    const { title, text } = htmlToText(buf.toString('utf-8'));
+    if (/authwall|sign in|join linkedin|se connecter/i.test(text.slice(0, 600)) && text.length < 800) throw new Error('page protégée par une connexion');
+    if (text.length < 200) throw new Error('texte introuvable sur la page');
+    return { url: u.href, title, text };
+  }
+  throw new Error('trop de redirections');
+}
+
+// Remplace chaque lien de la matière par le texte de la page ; renvoie aussi les alertes
+async function enrichWithLinks(rawInput, log) {
+  const urls = [...new Set(rawInput.match(/https?:\/\/[^\s<>"')]+/g) || [])].slice(0, 3);
+  let enriched = rawInput;
+  const failed = [];
+  for (const url of urls) {
+    try {
+      const page = await fetchLinkText(url);
+      log(`Lien lu : ${url} (${page.text.length} caractères)`);
+      enriched += `\n\n--- CONTENU DU LIEN ${url}${page.title ? ' : ' + page.title : ''} ---\n${page.text.slice(0, 15000)}`;
+    } catch (e) {
+      log(`⚠ Lien non lu : ${url} (${e.message})`);
+      failed.push(`${url} (${e.message})`);
+    }
+  }
+  return { enriched, urls, failed };
+}
+
 // ── OpenAI ───────────────────────────────────────────────────────────────────
 
 async function chatJson(model, messages, { temperature = 0.7, maxTokens = 3000 } = {}) {
@@ -79,7 +168,9 @@ async function chatJson(model, messages, { temperature = 0.7, maxTokens = 3000 }
   return JSON.parse(content);
 }
 
-async function writeArticle(rawInput) {
+async function writeArticle(rawInput, ownText) {
+  const ownRules = `
+MODE TEXTE DE L'AUTEUR : la matière est un texte écrit par l'admin lui-même (ex. article LinkedIn). CONSERVE sa voix, ses idées, ses formulations et sa longueur ; ne ré-écris pas, ne raccourcis pas, n'ajoute aucune information. Tu mets seulement en forme pour le site (paragraphes, intertitres <h2>, emphases, listes), tu corriges les coquilles évidentes et tu produis titre, chapô, catégorie et tags. Les règles 2, 3, 4 et 7 ci-dessus ne s'appliquent pas, la règle 5 reste absolue.\n`;
   const system = `Tu rédiges un article pour la page "News" du site du syndicat Générations Médecins Île-de-France (médecins libéraux).
 
 RÈGLES IMPÉRATIVES :
@@ -93,7 +184,7 @@ RÈGLES IMPÉRATIVES :
 8. Format du corps : HTML simple avec des balises <p>, <h2> pour les intertitres, <strong> pour l'emphase, <ul><li> si une liste est pertinente. Pas de <html>/<body>, juste le corps.
 
 RÈGLE ABSOLUE : n'utilise jamais de tiret cadratin (—), ni dans le texte ni dans les titres ; préfère virgules, points ou deux-points.
-
+${ownText ? ownRules : ''}
 SORTIE - JSON strict :
 {
   "titre": "titre de l'article, informatif, pas racoleur",
@@ -104,12 +195,12 @@ SORTIE - JSON strict :
   "image_prompt": "description en anglais, factuelle et sobre, pour générer une image d'illustration éditoriale (pas de texte dans l'image, pas de visage identifiable)"
 }`;
 
-  const user = `Matière fournie par l'admin :\n\n${rawInput.slice(0, 12000)}\n\nRédige l'article maintenant. JSON strict uniquement.`;
+  const user = `Matière fournie par l'admin :\n\n${rawInput.slice(0, 30000)}\n\nRédige l'article maintenant. JSON strict uniquement.`;
 
   return chatJson('gpt-4o', [
     { role: 'system', content: system },
     { role: 'user', content: user },
-  ], { temperature: 0.7, maxTokens: 3000 });
+  ], { temperature: ownText ? 0.3 : 0.7, maxTokens: ownText ? 6000 : 3000 });
 }
 
 async function generateHeroImage(imagePrompt, heroHint) {
@@ -144,12 +235,18 @@ async function uploadHeroImage(buffer, slug) {
 
 // ── Pipeline ─────────────────────────────────────────────────────────────────
 
-async function genererArticle(briefId, rawInput, heroHint) {
+async function genererArticle(briefId, rawInput, heroHint, ownText) {
   const logLines = [];
   const log = (m) => { console.log(m); logLines.push(m); };
 
   log(`Génération article - brief ${briefId}`);
-  const article = await writeArticle(rawInput);
+  const { enriched, urls, failed } = await enrichWithLinks(rawInput, log);
+  // Matière = uniquement des liens, tous illisibles : inutile d'inventer un article
+  const sansLiens = rawInput.replace(/https?:\/\/[^\s<>"')]+/g, '').trim();
+  if (failed.length && failed.length === urls.length && sansLiens.length < 200) {
+    throw new Error(`Impossible de lire le lien (${failed.join(' ; ')}). LinkedIn bloque souvent la lecture automatique : colle directement le texte de ton article dans la zone.`);
+  }
+  const article = await writeArticle(enriched, ownText);
   if (!article.titre || !article.contenu_html) {
     throw new Error(`Rédaction gpt-4o incomplète : ${JSON.stringify(article).slice(0, 300)}`);
   }
@@ -211,6 +308,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch { return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalide' }) }; }
   const rawInput = (body.rawInput || '').trim();
   const heroHint = (body.heroHint || '').trim();
+  const ownText = !!body.ownText;
   if (rawInput.length < 20) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Matière trop courte (min. 20 caractères)' }) };
   }
@@ -226,7 +324,7 @@ exports.handler = async (event) => {
   const brief = (await briefRes.json())[0];
 
   try {
-    const result = await genererArticle(brief.id, rawInput, heroHint);
+    const result = await genererArticle(brief.id, rawInput, heroHint, ownText);
     return { statusCode: 200, body: JSON.stringify(result) };
   } catch (e) {
     console.error('Génération article - échec :', e.message);
