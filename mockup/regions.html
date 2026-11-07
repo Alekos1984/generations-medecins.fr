@@ -243,20 +243,9 @@
             </div>
           </div>
 
-          <div class="idf-bureau">
+          <div class="idf-bureau" id="idf-bureau">
             <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:4px">Bureau IDF</div>
-            <div class="bureau-mini">
-              <div class="bureau-avatar">AB</div>
-              <div><div class="bureau-name">Alexis BOURLA</div><div class="bureau-role">Président</div></div>
-            </div>
-            <div class="bureau-mini">
-              <div class="bureau-avatar">PH</div>
-              <div><div class="bureau-name">Pierre Hamann</div><div class="bureau-role">Vice-président</div></div>
-            </div>
-            <div class="bureau-mini">
-              <div class="bureau-avatar">MHT</div>
-              <div><div class="bureau-name">Minh-Hanh Ta</div><div class="bureau-role">Secrétaire générale</div></div>
-            </div>
+            <div id="idf-bureau-list"><div class="bureau-role">Chargement…</div></div>
             <a href="bureau.html" style="font-size:0.8rem;font-weight:700;color:var(--blue);text-decoration:none;padding:8px 12px">Voir le bureau complet →</a>
           </div>
         </div>
@@ -365,5 +354,24 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="auth-header.js"></script>
+  <script>
+  (function () {
+    // Les 3 premiers membres actifs du bureau, dans l'ordre paramétré dans l'admin
+    const sb = supabase.createClient('https://faegpfkhlkkwmtaichin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo');
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const ini = n => n.split(/\s+/).filter(Boolean).map(p => p[0]).join('').slice(0, 3).toUpperCase();
+    const ORDRE = { presidence: 0, secretariat: 1, mission: 2 };
+    sb.from('bureau_membres').select('nom, role, groupe, ordre, photo_url').then(({ data, error }) => {
+      const el = document.getElementById('idf-bureau-list');
+      if (error || !data) { el.innerHTML = ''; return; }
+      const top = data.sort((a, b) => (ORDRE[a.groupe] - ORDRE[b.groupe]) || (a.ordre - b.ordre)).slice(0, 3);
+      el.innerHTML = top.map(m => `<div class="bureau-mini" style="margin-bottom:8px">
+        <div class="bureau-avatar" style="overflow:hidden">${m.photo_url ? `<img src="${esc(m.photo_url)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.remove()">` : esc(ini(m.nom))}</div>
+        <div><div class="bureau-name">${esc(m.nom)}</div><div class="bureau-role">${esc(m.role)}</div></div>
+      </div>`).join('');
+    });
+  })();
+  </script>
+
 </body>
 </html>
