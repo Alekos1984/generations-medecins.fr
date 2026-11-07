@@ -1310,6 +1310,9 @@
 
         <!-- Historique panel -->
         <div id="cpanel-historique" style="display:none">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+            <button class="btn-primary-sm" onclick="openNlExport()">📄 Exporter les newsletters en PDF</button>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -1552,6 +1555,23 @@
   </div>
 
   <!-- Modale aperçu historique -->
+  <!-- Export PDF des newsletters -->
+  <div class="modal-overlay" id="nl-export-overlay" onclick="closeNlExport(event)">
+    <div class="modal" style="min-width:520px;max-width:640px;width:92vw;max-height:85vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+      <h3 style="margin-bottom:6px">Exporter les newsletters en PDF</h3>
+      <div style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Décoche celles à exclure. Chaque newsletter occupe une page, telle que reçue par les abonnés.</div>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:.85rem;margin-bottom:8px;cursor:pointer">
+        <input type="checkbox" id="nl-export-all" checked style="width:auto" onchange="toggleNlExportAll(this.checked)"> Tout sélectionner
+      </label>
+      <div id="nl-export-list" style="overflow-y:auto;border:1px solid var(--line);border-radius:10px;flex:1;min-height:80px"></div>
+      <div id="nl-export-status" style="font-size:.8rem;color:var(--muted);margin-top:10px;min-height:1em"></div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button class="btn-cancel" onclick="closeNlExport()">Annuler</button>
+        <button class="btn-primary-sm" id="nl-export-btn" onclick="exportNlPdf()">Exporter</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="hist-preview-overlay" onclick="closeHistPreview(event)">
     <div class="modal" style="min-width:680px;max-width:780px;max-height:85vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0">
@@ -4249,6 +4269,113 @@
     document.getElementById('hist-preview-title').textContent = subject;
     document.getElementById('hist-preview-iframe').srcdoc = data.html_content;
     document.getElementById('hist-preview-overlay').style.display = 'flex';
+  };
+
+  // ── Export PDF des newsletters envoyées ─────────────────────
+  let nlExportData = [];
+
+  function loadScriptOnce(src, test) {
+    if (test()) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const el = document.createElement('script');
+      el.src = src; el.onload = res; el.onerror = () => rej(new Error('Chargement impossible : ' + src));
+      document.head.appendChild(el);
+    });
+  }
+
+  window.openNlExport = async function() {
+    const list = document.getElementById('nl-export-list');
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Chargement…</div>';
+    document.getElementById('nl-export-status').textContent = '';
+    document.getElementById('nl-export-all').checked = true;
+    document.getElementById('nl-export-overlay').classList.add('open');
+    const { data, error } = await sb.from('communications')
+      .select('id, subject, created_at, html_content')
+      .eq('type', 'newsletter')
+      .order('created_at', { ascending: false });
+    if (error) { list.innerHTML = `<div style="padding:16px;color:#c0392b">Erreur : ${esc(error.message)}</div>`; return; }
+    nlExportData = data || [];
+    if (!nlExportData.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Aucune newsletter envoyée.</div>'; return; }
+    list.innerHTML = nlExportData.map(c => {
+      const date = new Date(c.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+      const dispo = !!c.html_content;
+      return `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);cursor:${dispo ? 'pointer' : 'default'};${dispo ? '' : 'opacity:.5'}">
+        <input type="checkbox" class="nl-export-cb" value="${c.id}" ${dispo ? 'checked' : 'disabled'} style="width:auto" onchange="syncNlExportAll()">
+        <span style="flex:1;font-weight:600;font-size:.88rem">${esc(c.subject)}${dispo ? '' : ' <span style="font-weight:400;color:var(--muted)">(contenu indisponible)</span>'}</span>
+        <span style="color:var(--muted);font-size:.8rem;white-space:nowrap">${date}</span>
+      </label>`;
+    }).join('');
+  };
+
+  window.closeNlExport = function(e) {
+    if (e && e.target !== document.getElementById('nl-export-overlay')) return;
+    document.getElementById('nl-export-overlay').classList.remove('open');
+  };
+
+  window.toggleNlExportAll = function(on) {
+    document.querySelectorAll('.nl-export-cb:not(:disabled)').forEach(cb => { cb.checked = on; });
+  };
+
+  window.syncNlExportAll = function() {
+    const cbs = [...document.querySelectorAll('.nl-export-cb:not(:disabled)')];
+    document.getElementById('nl-export-all').checked = cbs.length > 0 && cbs.every(cb => cb.checked);
+  };
+
+  // Rend le HTML exactement comme reçu (iframe 600 px de large) et renvoie un canvas
+  async function renderNlToCanvas(html) {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:700px;height:800px;border:0;visibility:hidden';
+    document.body.appendChild(iframe);
+    try {
+      await new Promise(res => { iframe.onload = res; iframe.srcdoc = html; });
+      const doc = iframe.contentDocument;
+      await Promise.all([...doc.images].map(img => img.complete ? null : new Promise(r => { img.onload = img.onerror = r; })));
+      const h = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight);
+      iframe.style.height = h + 'px';
+      const scale = Math.min(2, 15000 / h);
+      return await html2canvas(doc.documentElement, {
+        scale, useCORS: true, backgroundColor: '#ffffff', logging: false,
+        width: 700, height: h, windowWidth: 700, windowHeight: h,
+      });
+    } finally {
+      iframe.remove();
+    }
+  }
+
+  window.exportNlPdf = async function() {
+    const ids = [...document.querySelectorAll('.nl-export-cb:checked')].map(cb => cb.value);
+    if (!ids.length) { toast('Sélectionne au moins une newsletter', 'error'); return; }
+    const btn = document.getElementById('nl-export-btn');
+    const status = document.getElementById('nl-export-status');
+    btn.disabled = true;
+    try {
+      status.textContent = '⏳ Préparation…';
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', () => !!window.html2canvas);
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => !!window.jspdf);
+      const { jsPDF } = window.jspdf;
+      // Ordre chronologique dans le PDF (plus ancienne en premier)
+      const items = nlExportData.filter(c => ids.includes(c.id)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      let pdf = null;
+      for (let i = 0; i < items.length; i++) {
+        status.textContent = `⏳ Génération ${i + 1} / ${items.length}…`;
+        const canvas = await renderNlToCanvas(items[i].html_content);
+        const w = 700, h = canvas.height / (canvas.width / 700);
+        const orientation = w > h ? 'l' : 'p';
+        if (!pdf) pdf = new jsPDF({ unit: 'px', format: [w, h], orientation, hotfixes: ['px_scaling'] });
+        else pdf.addPage([w, h], orientation);
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, h);
+      }
+      pdf.save(`newsletters-generations-medecins-${new Date().toISOString().slice(0, 10)}.pdf`);
+      status.textContent = '✓ PDF généré';
+      toast('PDF exporté ✓', 'success');
+      setTimeout(() => closeNlExport(), 800);
+    } catch (e) {
+      console.error(e);
+      status.textContent = '';
+      toast('Erreur export : ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
   };
 
   window.closeHistPreview = function(e) {
