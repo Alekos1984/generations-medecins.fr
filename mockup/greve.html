@@ -364,6 +364,7 @@
         </div>
 
         <!-- RGPD -->
+        <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Ne pas remplir <input type="text" id="f-website" tabindex="-1" autocomplete="off"></label></div>
         <div class="rgpd-box">
           <span class="rgpd-title">🔒 Protection de vos données</span>
           Le responsable de traitement est <strong>Générations Médecins</strong>. Nous n'utilisons ni cookies de traçage ni scripts tiers.<br>
@@ -707,6 +708,7 @@
         const res = await fetch('/.netlify/functions/soumettre-greve', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
+            website: ($('f-website')||{}).value || '',
             campagneId: campagne.id,
             ref,
             rppsHash,

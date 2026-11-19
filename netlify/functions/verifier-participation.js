@@ -1,3 +1,4 @@
+const { rateLimit, TOO_MANY } = require('./_security');
 /**
  * Netlify Function - Vérification d'une participation par référence
  *
@@ -35,6 +36,7 @@ exports.handler = async (event) => {
   // Pre-flight CORS
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Méthode non autorisée' }) };
+  if (!(await rateLimit(event, 'verif', 40, 3600))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
 
   if (!SB || !SSK) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Configuration Supabase manquante' }) };

@@ -1,3 +1,4 @@
+const { rateLimit, TOO_MANY } = require('./_security');
 // Reformulation de texte via OpenAI GPT-4o-mini
 // POST { text: string, fieldKey: string }  - requires valid Supabase JWT
 // Returns { reformule: string }
@@ -59,6 +60,7 @@ exports.handler = async (event) => {
   if (!(await isAuthenticated(token))) {
     return { statusCode: 403, body: JSON.stringify({ error: 'Authentification requise' }) };
   }
+  if (!(await rateLimit(event, 'rt', 60, 3600, token.slice(-16)))) return TOO_MANY;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
