@@ -1,3 +1,5 @@
+const { cronSecret } = require('./_security');
+
 /**
  * Netlify Scheduled Function - déclencheur quotidien de la veille
  * Cron : 5h UTC = 7h Paris (configuré dans netlify.toml)
@@ -18,7 +20,7 @@ exports.handler = async () => {
   await fetch(`${base}/.netlify/functions/veille-matinale-background`, {
     method: 'POST',
     headers: {
-      'x-cron-key':   process.env.SUPABASE_SERVICE_ROLE_KEY,
+      'x-cron-key':   cronSecret(),
       'Content-Type': 'application/json',
     },
     body: '{}',

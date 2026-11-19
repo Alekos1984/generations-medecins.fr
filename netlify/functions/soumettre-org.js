@@ -27,7 +27,7 @@ function esc(s) {
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': process.env.URL || 'https://generations-medecins.fr',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
@@ -90,7 +90,7 @@ exports.handler = async (event) => {
 
   if (!insRes.ok) {
     const errText = await insRes.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement', detail: errText.slice(0, 200) }) };
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement' }) };
   }
 
   // 4. Email d'attestation (optionnel, best effort)

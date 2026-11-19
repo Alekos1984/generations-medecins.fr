@@ -12,6 +12,10 @@
 const SB = process.env.SUPABASE_URL;
 const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function srvHeaders(extra = {}) {
   return { apikey: SRK, Authorization: `Bearer ${SRK}`, 'Content-Type': 'application/json', ...extra };
 }
@@ -25,7 +29,7 @@ async function getMembre(token) {
   if (!userRes.ok) return null;
   const user = await userRes.json();
   if (!user?.id) return null;
-  const mRes = await fetch(`${SB}/rest/v1/membres?select=id,email,prenom,nom&user_id=eq.${user.id}`, { headers: srvHeaders() });
+  const mRes = await fetch(`${SB}/rest/v1/membres?select=id,email,prenom,nom&statut=eq.actif&user_id=eq.${user.id}`, { headers: srvHeaders() });
   const rows = await mRes.json();
   return rows?.[0] || null;
 }
@@ -50,9 +54,10 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: '{"error":"courrierId et signataireNom requis"}' };
   }
 
+  if (!/^[0-9a-f-]{36}$/i.test(String(courrierId))) return { statusCode: 400, headers, body: '{"error":"courrierId invalide"}' };
   // Vérifie que le courrier appartient bien au membre
   const cRes = await fetch(
-    `${SB}/rest/v1/courriers_generes?select=id,titre,membre_id,statut&id=eq.${courrierId}`,
+    `${SB}/rest/v1/courriers_generes?select=id,titre,membre_id,statut&id=eq.${encodeURIComponent(courrierId)}`,
     { headers: srvHeaders() }
   );
   const courriers = await cRes.json();
@@ -65,13 +70,12 @@ exports.handler = async (event) => {
   }
 
   // Génère un jeton de signature
-  const sigToken = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
-    .replace(/-/g, '') + Math.random().toString(36).slice(2, 8);
+  const sigToken = require('crypto').randomBytes(32).toString('hex');
 
   const upd = await fetch(`${SB}/rest/v1/courriers_generes?id=eq.${courrierId}`, {
     method: 'PATCH',
     headers: srvHeaders({ Prefer: 'return=minimal' }),
-    body: JSON.stringify({ signataire_nom: signataireNom.trim(), signature_token: sigToken }),
+    body: JSON.stringify({ signataire_nom: signataireNom.trim().slice(0, 120), signature_token: sigToken }),
   });
   if (!upd.ok) {
     const t = await upd.text();
@@ -93,7 +97,7 @@ exports.handler = async (event) => {
       <p style="margin:0 0 14px;font-size:15px">Bonjour ${membre.prenom || ''},</p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#475569">
         Vous avez demandé à signer électroniquement le courrier
-        « <strong>${courrier.titre}</strong> » sous le nom <strong>${signataireNom.trim()}</strong>.
+        « <strong>${esc(courrier.titre)}</strong> » sous le nom <strong>${esc(signataireNom.trim().slice(0, 120))}</strong>.
       </p>
       <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475569">
         Pour confirmer votre signature, cliquez sur le bouton ci-dessous.

@@ -1046,10 +1046,11 @@
       if (error?.code === '23505') { toast('Cette personne est déjà dans l\'équipe', 'error'); return; }
 
       // Envoi de l'invitation via Netlify function
+      const { data: { session: invSession } } = await sb.auth.getSession();
       await fetch('/.netlify/functions/inviter-org-admin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, orgNom: org.nom, role, token, orgSlug: ORG_SLUG }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (invSession?.access_token || '') },
+        body: JSON.stringify({ token }),
       }).catch(() => {});
 
       toast(`✓ Invitation envoyée à ${email}`);

@@ -7,6 +7,11 @@
  * Env vars : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, URL
  */
 
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+
 const SB  = process.env.SUPABASE_URL;
 const SRK = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -43,7 +48,7 @@ function page(title, message, ok) {
 }
 
 exports.handler = async (event) => {
-  const htmlHeaders = { 'Content-Type': 'text/html; charset=utf-8' };
+  const htmlHeaders = { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:" };
   const token = event.queryStringParameters?.token;
 
   if (!token) {
@@ -68,8 +73,8 @@ exports.handler = async (event) => {
     return {
       statusCode: 200, headers: htmlHeaders,
       body: page('Courrier déjà signé',
-        `<p>Le courrier « <strong>${courrier.titre}</strong> » a déjà été signé.</p>
-         <div class="sig">Signé électroniquement le ${d}<br>par ${courrier.signe_par}</div>`, true),
+        `<p>Le courrier « <strong>${esc(courrier.titre)}</strong> » a déjà été signé.</p>
+         <div class="sig">Signé électroniquement le ${d}<br>par ${esc(courrier.signe_par)}</div>`, true),
     };
   }
 
@@ -93,7 +98,7 @@ exports.handler = async (event) => {
   return {
     statusCode: 200, headers: htmlHeaders,
     body: page('Signature confirmée ✍️',
-      `<p>Le courrier « <strong>${courrier.titre}</strong> » est maintenant signé électroniquement.</p>
-       <div class="sig"><strong>Signé électroniquement</strong><br>le ${d}<br>par ${email}<br>(${courrier.signataire_nom})</div>`, true),
+      `<p>Le courrier « <strong>${esc(courrier.titre)}</strong> » est maintenant signé électroniquement.</p>
+       <div class="sig"><strong>Signé électroniquement</strong><br>le ${d}<br>par ${esc(email)}<br>(${esc(courrier.signataire_nom)})</div>`, true),
   };
 };
