@@ -1,0 +1,23 @@
+name: Purge des données (durées de conservation)
+
+on:
+  schedule:
+    - cron: "30 3 * * 1"   # chaque lundi
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appliquer les durées de conservation
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          curl -sS --fail-with-body -X POST "$SUPABASE_URL/rest/v1/rpc/purge_retention" \
+            -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" -d '{}'
