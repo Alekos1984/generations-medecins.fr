@@ -1,0 +1,10 @@
+title = "Générations Médecins"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Clé publique anon Supabase (rôle anon, projet faegpfkhlkkwmtaichin) : publique par conception, protégée par la RLS"
+regexes = [
+  '''eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24i[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+''',
+]

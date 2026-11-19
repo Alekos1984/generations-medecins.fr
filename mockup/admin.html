@@ -970,6 +970,9 @@
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export CSV
             </button>
+            <button class="g-btn g-btn-outline" onclick="greveExportContacts()" title="Emails des personnes ayant consenti à être informées">
+              📧 Export contacts
+            </button>
             <button class="g-btn g-btn-outline" onclick="greveOpenHistory()">
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
               Historique <span id="g-history-count" style="opacity:.7"></span>
@@ -5438,6 +5441,22 @@
     a.download = `greve-${campTitle}-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     toast(`✓ ${greveDecls.length} déclarations exportées`);
+  };
+
+  window.greveExportContacts = async function() {
+    const { data, error } = await sb.from('greve_contacts').select('email, consent_at, consent_version')
+      .eq('campagne_id', greveCampagne.id).order('consent_at', { ascending: true });
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    if (!data || !data.length) { toast('Aucun contact ayant consenti pour cette campagne', 'error'); return; }
+    const campTitle = (greveCampagne.titre || 'campagne').replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 30);
+    const rows = ['email,date_consentement,version_texte'].concat(data.map(c =>
+      [c.email, c.consent_at.slice(0, 10), c.consent_version].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')));
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `contacts-${campTitle}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    toast(`✓ ${data.length} contact(s) exporté(s)`);
   };
 
   // - Nouvelle campagne : archive la courante, en crée une nouvelle -

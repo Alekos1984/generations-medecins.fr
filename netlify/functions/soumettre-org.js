@@ -39,7 +39,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: '{"error":"JSON invalide"}' };
   }
 
-  const { orgSlug, campaignId, idHash, cp, email, ref: clientRef, source = 'web' } = body;
+  const { orgSlug, campaignId, idHash, cp, email, ref: clientRef, source = 'web', contactOptIn = false } = body;
 
   if (!orgSlug)    return { statusCode: 400, headers, body: JSON.stringify({ error: 'orgSlug requis' }) };
   if (!campaignId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'campaignId requis' }) };
@@ -91,6 +91,15 @@ exports.handler = async (event) => {
   if (!insRes.ok) {
     const errText = await insRes.text();
     return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement' }) };
+  }
+
+  // Contact conservé UNIQUEMENT avec consentement explicite (case dédiée)
+  if (contactOptIn === true && email) {
+    await fetch(`${SB}/rest/v1/greve_contacts?on_conflict=campagne_id,email`, {
+      method: 'POST',
+      headers: srvHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify({ campagne_id: campaignId, org_id: org.id, email: String(email).trim().toLowerCase() }),
+    }).catch(() => {});
   }
 
   // 4. Email d'attestation (optionnel, best effort)

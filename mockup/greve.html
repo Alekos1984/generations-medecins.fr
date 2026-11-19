@@ -355,7 +355,11 @@
           </div>
           <label class="check-inline">
             <input type="checkbox" id="f-wants-attestation">
-            <span>Envoyer mon attestation de grève par email <span style="color:var(--muted);font-weight:400">(votre email ne sera pas conservé après envoi)</span></span>
+            <span>Envoyer mon attestation de grève par email <span style="color:var(--muted);font-weight:400">(cet usage seul ne conserve pas votre email)</span></span>
+          </label>
+          <label class="check-inline" style="margin-top:8px">
+            <input type="checkbox" id="f-contact-optin">
+            <span>(Facultatif) J'accepte que Générations Médecins conserve mon email pour me tenir informé(e) des suites de cette mobilisation. Je peux me désinscrire à tout moment.</span>
           </label>
         </div>
 
@@ -365,7 +369,7 @@
           Le responsable de traitement est <strong>Générations Médecins</strong>. Nous n'utilisons ni cookies de traçage ni scripts tiers.<br>
           Nous collectons uniquement ce qui est nécessaire pour comptabiliser les déclarations et, si vous le choisissez, pour vous recontacter.<br><br>
           <strong>Le compteur est basé sur une empreinte anonyme</strong> (<span class="rgpd-hash">SHA-256</span>) calculée <em>localement dans votre navigateur</em> à partir de votre numéro RPPS - impossible à inverser. Votre identité ne quitte pas votre appareil.<br><br>
-          Vos coordonnées (email/téléphone) sont <strong>optionnelles et stockées séparément du compteur</strong>. Votre email est supprimé de notre base dès l'envoi de l'attestation.<br>
+          Vos coordonnées (email/téléphone) sont <strong>optionnelles et stockées séparément du compteur</strong>. Votre email n'est conservé que si vous cochez la case dédiée (information sur les suites de la mobilisation) ; sinon il sert uniquement à l'envoi de l'attestation.<br>
           Vous pouvez corriger ou supprimer vos données en refaisant une déclaration : les nouvelles informations remplacent les précédentes. Contact RGPD : <a href="mailto:contact@generations-medecins.fr" style="color:#1a3a8a">contact@generations-medecins.fr</a>
         </div>
 
@@ -676,9 +680,11 @@
       const rpps = $('f-rpps').value.replace(/\D/g,'');
       const email = $('f-email').value.trim();
       const wantsAttestation = $('f-wants-attestation').checked;
+      const contactOptIn = $('f-contact-optin').checked;
 
       if (!interne && rpps.length < 8) { toast('Renseignez un numéro RPPS valide (ou cochez interne/externe)', true); return; }
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Adresse email invalide', true); return; }
+      if (contactOptIn && !email) { toast('Indiquez votre email pour être tenu informé', true); return; }
 
       const motifs = Array.from(document.querySelectorAll('#motif-grid input:checked')).map(c => c.value);
       const cp = $('f-cp').value.replace(/\D/g,'').slice(0,5);
@@ -709,7 +715,8 @@
             cp: cp || null,
             modeExercice: selectedMode,
             motifs,
-            email: (email && wantsAttestation) ? email : null,
+            email: (email && (wantsAttestation || contactOptIn)) ? email : null,
+            contactOptIn: !!(email && contactOptIn),
             tel: $('f-tel').value.trim() || null,
             wantsAttestation: !!(email && wantsAttestation),
             pdfBase64,

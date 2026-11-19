@@ -221,11 +221,17 @@
             <label for="f-email">Email <span style="font-weight:400;color:var(--muted)">(optionnel)</span></label>
             <input type="email" id="f-email" placeholder="pour recevoir votre attestation">
           </div>
+          <div class="field">
+            <label style="display:flex;gap:8px;align-items:flex-start;font-weight:500;cursor:pointer">
+              <input type="checkbox" id="f-contact-optin" style="width:auto;margin-top:3px">
+              <span>(Facultatif) J'accepte que l'organisation conserve mon email pour me tenir informé(e) des suites. Je peux me désinscrire à tout moment.</span>
+            </label>
+          </div>
         </div>
 
         <!-- RGPD -->
         <div class="rgpd-box">
-          <strong>Vie privée :</strong> Votre identifiant est transformé en empreinte numérique irréversible (SHA-256) directement dans votre navigateur - il ne quitte jamais votre appareil. Seule cette empreinte est transmise. Votre email, s'il est fourni, est utilisé uniquement pour l'envoi de votre attestation et n'est pas conservé dans notre base de données.
+          <strong>Vie privée :</strong> Votre identifiant est transformé en empreinte numérique irréversible (SHA-256) directement dans votre navigateur - il ne quitte jamais votre appareil. Seule cette empreinte est transmise. Votre email, s'il est fourni, sert à l'envoi de votre attestation ; il n'est conservé que si vous cochez la case de consentement dédiée.
         </div>
 
         <button class="btn-submit-org" id="btn-submit" onclick="submitDeclaration()">
@@ -451,6 +457,7 @@
         idHash,
         cp,
         email:     email || null,
+        contactOptIn: !!(email && $('f-contact-optin').checked),
         ref,
         source:    'web'
       };
