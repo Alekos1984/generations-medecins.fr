@@ -230,6 +230,7 @@
             <button class="sidebar-link" onclick="showSection('decrypteurs')" id="nav-decrypteurs"><span class="ico">📰</span> Mes Décrypteurs</button>
             <button class="sidebar-link" onclick="showSection('preferences')" id="nav-preferences"><span class="ico">🏷️</span> Mes préférences</button>
             <button class="sidebar-link" onclick="showSection('profil')" id="nav-profil"><span class="ico">👤</span> Mon profil</button>
+            <button class="sidebar-link" onclick="showSection('donnees')" id="nav-donnees"><span class="ico">🔒</span> Mes données</button>
             <div class="sidebar-sep"></div>
             <a href="courriers.html" class="sidebar-link"><span class="ico">📋</span> Courriers</a>
             <a href="outils.html" class="sidebar-link"><span class="ico">🛠️</span> Outils</a>
@@ -357,6 +358,26 @@
             <div class="dashboard-header"><h1>Mon profil</h1></div>
             <div class="profile-card">
               <div class="profile-grid" id="profile-grid"></div>
+            </div>
+          </div>
+
+          <!-- ══ SECTION : MES DONNÉES (RGPD) ══ -->
+          <div class="member-section" id="section-donnees">
+            <div class="dashboard-header">
+              <h1>Mes données</h1>
+              <p>Exercez vos droits d'accès, de portabilité et d'effacement. Plus d'informations dans la <a href="politique-confidentialite.html" style="color:var(--blue);font-weight:700">politique de confidentialité</a>.</p>
+            </div>
+            <div class="profile-card" style="margin-bottom:16px">
+              <h3 style="margin-bottom:6px">Télécharger mes données</h3>
+              <p style="font-size:.9rem;color:var(--muted);margin-bottom:14px">Un fichier JSON contenant votre profil, vos adhésions, vos courriers, vos demandes SOS Juridique et vos signatures.</p>
+              <button class="btn btn-primary" id="btn-export-data" type="button">⬇ Exporter mes données</button>
+            </div>
+            <div class="profile-card" style="border:1.5px solid #f3c4c4">
+              <h3 style="margin-bottom:6px;color:#b91c1c">Supprimer mon compte</h3>
+              <p style="font-size:.9rem;color:var(--muted);margin-bottom:14px">Cette action est définitive : votre profil, vos courriers, vos dossiers SOS Juridique et vos fichiers sont effacés. Pensez à exporter vos données avant.</p>
+              <input id="delete-confirm" type="text" placeholder="Tapez SUPPRIMER pour confirmer" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:inherit;margin-right:8px;min-width:240px">
+              <button class="btn" id="btn-delete-account" type="button" style="background:#b91c1c;color:#fff">Supprimer définitivement</button>
+              <div id="donnees-status" style="margin-top:12px;font-size:.88rem;color:var(--muted)"></div>
             </div>
           </div>
 
@@ -567,6 +588,43 @@
 
   document.getElementById('logout-btn').addEventListener('click', async () => {
     await sb.auth.signOut(); window.location.href = 'index.html';
+  });
+
+  // ── Mes données (RGPD) ───────────────────────────────────────
+  async function donneesCall(payload) {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch('/.netlify/functions/mes-donnees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (session?.access_token || '') },
+      body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || 'Erreur');
+    return out;
+  }
+  document.getElementById('btn-export-data').addEventListener('click', async () => {
+    const st = document.getElementById('donnees-status');
+    st.textContent = '⏳ Préparation de l\'export…';
+    try {
+      const out = await donneesCall({ action: 'export' });
+      const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mes-donnees-generations-medecins-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      st.textContent = '✓ Export téléchargé.';
+    } catch (e) { st.textContent = '✕ ' + e.message; }
+  });
+  document.getElementById('btn-delete-account').addEventListener('click', async () => {
+    const st = document.getElementById('donnees-status');
+    if (document.getElementById('delete-confirm').value.trim() !== 'SUPPRIMER') { st.textContent = 'Tapez SUPPRIMER pour confirmer.'; return; }
+    if (!confirm('Supprimer définitivement votre compte et toutes vos données ?')) return;
+    st.textContent = '⏳ Suppression…';
+    try {
+      await donneesCall({ action: 'delete', confirm: 'SUPPRIMER' });
+      await sb.auth.signOut();
+      window.location.href = 'index.html';
+    } catch (e) { st.textContent = '✕ ' + e.message; }
   });
 
   init();
