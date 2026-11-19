@@ -1,3 +1,5 @@
+const { cronSecret } = require('./_security');
+
 /**
  * Netlify Scheduled Function - déclencheur bimensuel de la newsletter auto
  * Cron : 6h UTC le 1er et le 15 du mois (configuré dans netlify.toml)
@@ -16,7 +18,7 @@ exports.handler = async () => {
   await fetch(`${base}/.netlify/functions/generer-newsletter-background`, {
     method: 'POST',
     headers: {
-      'x-cron-key':   process.env.SUPABASE_SERVICE_ROLE_KEY,
+      'x-cron-key':   cronSecret(),
       'Content-Type': 'application/json',
     },
     body: '{}',

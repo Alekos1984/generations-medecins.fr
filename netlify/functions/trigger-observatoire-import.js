@@ -49,7 +49,7 @@ exports.handler = async (event) => {
   if (!user) return { statusCode: 403, headers, body: '{"error":"Accès réservé aux admins"}' };
 
   const PAT      = process.env.GH_DISPATCH_TOKEN;
-  const owner    = process.env.GH_DISPATCH_OWNER    || 'edouardklein';
+  const owner    = process.env.GH_DISPATCH_OWNER    || 'Alekos1984';
   const repo     = process.env.GH_DISPATCH_REPO     || 'generations-medecins.fr';
   const workflow = process.env.GH_DISPATCH_WORKFLOW || 'observatoire-import.yml';
   const ref      = process.env.GH_DISPATCH_REF      || 'claude/mockup-vitrine';

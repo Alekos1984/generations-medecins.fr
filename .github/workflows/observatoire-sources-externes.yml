@@ -7,6 +7,9 @@ name: Import Observatoire — sources externes uniquement
 on:
   workflow_dispatch:        # Lancement manuel uniquement
 
+permissions:
+  contents: read
+
 jobs:
   externes:
     runs-on: ubuntu-latest

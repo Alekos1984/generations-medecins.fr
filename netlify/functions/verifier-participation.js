@@ -27,7 +27,7 @@ function srvHeaders(extra = {}) {
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': process.env.URL || 'https://generations-medecins.fr',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
@@ -74,7 +74,7 @@ exports.handler = async (event) => {
 
   if (!orgRes.ok) {
     const errText = await orgRes.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur Supabase', detail: errText.slice(0, 200) }) };
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur Supabase' }) };
   }
 
   const orgs = await orgRes.json();
@@ -92,7 +92,7 @@ exports.handler = async (event) => {
 
   if (!declRes.ok) {
     const errText = await declRes.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lors de la vérification', detail: errText.slice(0, 200) }) };
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lors de la vérification' }) };
   }
 
   const declarations = await declRes.json();

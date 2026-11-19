@@ -1,3 +1,4 @@
+const { isCron: isCronCall, bearer: bearerToken } = require('./_security');
 /**
  * Netlify Background Function - Génération de la newsletter bimensuelle (≤ 15 min)
  *
@@ -231,11 +232,8 @@ async function genererNewsletter() {
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-  const cronKey = event.headers['x-cron-key'] || event.headers['X-Cron-Key'];
-  const isCron = cronKey && cronKey === SRK();
-
-  if (!isCron) {
-    const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
+  if (!isCronCall(event.headers)) {
+    const token = bearerToken(event.headers);
     const user = await verifySuperAdmin(token);
     if (!user) {
       console.warn('Newsletter auto : invocation non autorisée refusée');

@@ -1,3 +1,4 @@
+const { isCron: isCronCall, bearer: bearerToken } = require('./_security');
 /**
  * Netlify Background Function - Veille automatisée (jusqu'à 15 min)
  *
@@ -354,7 +355,7 @@ async function runVeille() {
     console.log(`Feed ${feed.nom}: ${items.length} items récents`);
 
     for (const item of items.slice(0, 8)) {
-      if (!item.link || !item.title) { results.skipped++; continue; }
+      if (!item.link || !item.title || !/^https?:\/\//i.test(item.link)) { results.skipped++; continue; }
       if (await urlAlreadyExists(item.link)) { results.skipped++; continue; }
 
       // Si OpenAI non configuré, on importe sans classification
@@ -439,11 +440,8 @@ async function runVeille() {
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-  const cronKey = event.headers['x-cron-key'] || event.headers['X-Cron-Key'];
-  const isCron  = cronKey && cronKey === process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!isCron) {
-    const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
+  if (!isCronCall(event.headers)) {
+    const token = bearerToken(event.headers);
     const user  = await verifySuperAdmin(token);
     if (!user) {
       console.warn('Veille : invocation non autorisée refusée');

@@ -27,14 +27,14 @@ function genRef() {
   const year = new Date().getFullYear();
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let code = '';
-  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 5; i++) code += chars[require('crypto').randomInt(chars.length)];
   return `GM-GREVE-${year}-${code}`;
 }
 
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': process.env.URL || 'https://generations-medecins.fr',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
@@ -61,12 +61,22 @@ exports.handler = async (event) => {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Adresse email invalide' }) };
   }
+  // Bornes de taille / type : évite la pollution de la base et les pièces jointes arbitraires
+  const tooLong = (v, n) => v != null && (typeof v !== 'string' || v.length > n);
+  if (tooLong(specialite, 120) || tooLong(modeExercice, 120) || (cp != null && !/^\d{2,5}$/.test(String(cp)))
+      || !Array.isArray(motifs) || motifs.length > 20 || motifs.some(m => typeof m !== 'string' || m.length > 300)) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Données invalides' }) };
+  }
+  if (pdfBase64 != null && (typeof pdfBase64 !== 'string' || pdfBase64.length > 900000 || !pdfBase64.startsWith('JVBERi'))) {
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Pièce jointe invalide' }) };
+  }
 
   // 1. Vérifie la campagne
   const campRes = await fetch(`${SB}/rest/v1/greve_campagnes?id=eq.${encodeURIComponent(campagneId)}&select=*`, { headers: srvHeaders() });
   const camps = await campRes.json();
   const camp = Array.isArray(camps) ? camps[0] : null;
   if (!camp) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Campagne introuvable' }) };
+  if (camp.org_id) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Campagne introuvable' }) };
   if (!camp.actif) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Les déclarations sont actuellement fermées.' }) };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -99,7 +109,7 @@ exports.handler = async (event) => {
 
   if (!insRes.ok) {
     const errText = await insRes.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement', detail: errText.slice(0, 200) }) };
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement' }) };
   }
 
   // 3. Envoi de l'attestation (éphémère - email jamais persisté)

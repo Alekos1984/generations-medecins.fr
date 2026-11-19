@@ -5612,9 +5612,10 @@
     if (error?.code === '23505') { toast('Déjà affecté à cette plateforme', 'error'); return; }
     if (error) { toast('Erreur : ' + error.message, 'error'); return; }
 
+    const { data: { session: invSession } } = await sb.auth.getSession();
     fetch('/.netlify/functions/inviter-org-admin', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, orgNom: ecoCurrentOrg.nom, role, token, orgSlug: ecoCurrentOrg.slug }),
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (invSession?.access_token || '') },
+      body: JSON.stringify({ token }),
     }).catch(() => {});
 
     toast(`✓ ${email} affecté à ${ecoCurrentOrg.nom}`);
