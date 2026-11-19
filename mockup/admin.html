@@ -424,6 +424,9 @@
       <button class="sidebar-link" onclick="showSection('bureau-admin')" id="nav-bureau-admin">
         <span class="icon">🏛️</span><span>Bureau</span>
       </button>
+      <button class="sidebar-link" onclick="showSection('consultations-admin')" id="nav-consultations-admin">
+        <span class="icon">🗳️</span><span>Consultations</span>
+      </button>
 
       <div class="sidebar-section-label">Communication</div>
       <button class="sidebar-link" onclick="showSection('articles')" id="nav-articles">
@@ -875,6 +878,23 @@
         <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px"><div class="section-title-sm" id="bureau-titre-mission" style="font-weight:700;color:var(--blue-dark)">Chargées de mission</div><button class="btn-action" onclick="renameBureauGroupe('mission')">✏️ Renommer</button></div>
         <div id="bureau-list-mission" style="display:flex;flex-direction:column;gap:8px">
           <div class="table-loading">Chargement…</div>
+        </div>
+      </div>
+
+      <!-- Section: Consultations des adhérents -->
+      <div id="section-consultations-admin" class="section-panel">
+        <div class="main-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div class="main-title">Consultations des adhérents</div>
+            <div class="main-sub">Votes, sondages et classements. Aucun résultat n'est visible avant la clôture, y compris pour les admins.</div>
+          </div>
+          <button class="btn-primary-sm" id="cs-new-btn">+ Nouvelle consultation</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Consultation</th><th>Scrutin</th><th>Statut</th><th>Clôture</th><th>Participation</th><th></th></tr></thead>
+            <tbody id="cs-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Chargement…</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -1574,6 +1594,44 @@
       <div class="modal-actions" style="margin-top:12px">
         <button class="btn-cancel" onclick="closeNlExport()">Annuler</button>
         <button class="btn-primary-sm" id="nl-export-btn" onclick="exportNlPdf()">Exporter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Consultation : édition -->
+  <div class="modal-overlay" id="cs-modal-overlay">
+    <div class="modal" style="min-width:560px;max-width:680px;width:92vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <h3 id="cs-modal-title" style="margin-bottom:14px">Nouvelle consultation</h3>
+      <input type="hidden" id="cs-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Question / titre</label><input id="cs-titre" type="text" maxlength="200" placeholder="Ex : Position sur le projet de loi…"></div>
+        <div class="form-group full"><label>Description (contexte, enjeux)</label><textarea id="cs-description" rows="4" maxlength="4000"></textarea></div>
+        <div class="form-group"><label>Type de scrutin</label>
+          <select id="cs-type"><option value="choix_unique">Choix unique</option><option value="choix_multiple">Choix multiple</option><option value="classement">Classement des options</option></select></div>
+        <div class="form-group"><label>Modalité</label>
+          <select id="cs-mode"><option value="secret">Vote secret</option><option value="nominatif">Vote nominatif</option></select></div>
+        <div class="form-group" id="cs-max-wrap"><label>Nombre maximal de choix</label><input id="cs-max" type="number" min="1" placeholder="Illimité"></div>
+        <div class="form-group"><label>Quorum (% de participation, optionnel)</label><input id="cs-quorum" type="number" min="1" max="100" placeholder="Aucun"></div>
+        <div class="form-group full"><label>Options (une par ligne, au moins deux)</label><textarea id="cs-options" rows="5" placeholder="Pour&#10;Contre&#10;Pour, avec réserves"></textarea></div>
+        <div class="form-group"><label>Date et heure de clôture</label><input id="cs-cloture" type="datetime-local"></div>
+        <div class="form-group"><label>Résultats visibles par</label>
+          <select id="cs-visibilite"><option value="public">Tout le monde (après clôture)</option><option value="adherents">Adhérents actifs seulement</option></select></div>
+      </div>
+      <div id="cs-note" style="font-size:.8rem;color:var(--muted);margin-top:10px"></div>
+      <div class="modal-actions" style="margin-top:18px">
+        <button class="btn-cancel" id="cs-cancel">Annuler</button>
+        <button class="btn-primary-sm" id="cs-save">Enregistrer le brouillon</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Consultation : résultats -->
+  <div class="modal-overlay" id="cs-res-overlay">
+    <div class="modal" style="min-width:560px;max-width:720px;width:92vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <h3 id="cs-res-title" style="margin-bottom:12px">Résultats</h3>
+      <div id="cs-res-body"></div>
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn-cancel" id="cs-res-close">Fermer</button>
       </div>
     </div>
   </div>
@@ -2510,6 +2568,7 @@
     if (id === 'greve') { loadGreve(); }
     if (id === 'ecosysteme') { loadEcosysteme(); }
     if (id === 'observatoire') { loadObservatoire(); }
+    if (id === 'consultations-admin') { loadConsultationsAdmin(); }
   };
 
   // ── Logout ──────────────────────────────────────────────────
@@ -3487,6 +3546,182 @@
     closeBureauModal();
     loadBureauAdmin();
   };
+
+
+  // ── Consultations des adhérents ──────────────────────────────
+  const CS_TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement' };
+  let csCache = [];
+  const csOpen = id => document.getElementById(id).classList.add('open');
+  const csClose = id => document.getElementById(id).classList.remove('open');
+  const csFmt = d => d ? new Date(d).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+  const csClosed = c => c.statut === 'cloturee' || (c.statut === 'ouverte' && c.date_cloture && new Date(c.date_cloture) < new Date());
+  const csToLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+
+  async function loadConsultationsAdmin() {
+    const tbody = document.getElementById('cs-tbody');
+    const { data, error } = await sb.from('consultations').select('*').order('created_at', { ascending: false });
+    if (error) { tbody.innerHTML = `<tr><td colspan="6" style="color:#c0392b;padding:20px">Erreur : ${esc(error.message)}</td></tr>`; return; }
+    csCache = data || [];
+    if (!csCache.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Aucune consultation. Créez la première.</td></tr>'; return; }
+    tbody.innerHTML = csCache.map(c => {
+      const closed = csClosed(c);
+      const st = c.statut === 'brouillon' ? '<span style="color:#92400e;font-weight:700">Brouillon</span>' : closed ? '<span style="color:var(--muted);font-weight:700">Close</span>' : '<span style="color:#2d7a1a;font-weight:700">● Ouverte</span>';
+      const btns = [];
+      if (c.statut === 'brouillon') btns.push(`<button class="btn-action" data-cs="edit" data-id="${esc(c.id)}">Modifier</button><button class="btn-action" data-cs="open" data-id="${esc(c.id)}">Ouvrir et annoncer</button><button class="btn-action btn-supprimer" data-cs="del" data-id="${esc(c.id)}">Supprimer</button>`);
+      else if (!closed) btns.push(`<button class="btn-action" data-cs="remind" data-id="${esc(c.id)}">Envoyer un rappel</button><button class="btn-action" data-cs="close" data-id="${esc(c.id)}">Clôturer</button>`);
+      else btns.push(`<button class="btn-action" data-cs="results" data-id="${esc(c.id)}">Résultats</button>`);
+      return `<tr><td style="font-weight:700;max-width:280px">${esc(c.titre)}</td>
+        <td style="font-size:.82rem">${esc(CS_TYPES[c.type_vote])}<br><span style="color:var(--muted)">${c.mode === 'secret' ? '🔒 secret' : '👤 nominatif'}</span></td>
+        <td>${st}</td><td style="font-size:.82rem">${esc(csFmt(c.date_cloture))}</td>
+        <td id="cs-part-${esc(c.id)}" style="font-size:.82rem;color:var(--muted)">${c.statut === 'brouillon' ? '-' : '…'}</td>
+        <td style="white-space:nowrap">${btns.join(' ')}</td></tr>`;
+    }).join('');
+    for (const c of csCache.filter(x => x.statut !== 'brouillon')) {
+      sb.rpc('consultation_participation', { p_id: c.id }).then(({ data: p }) => {
+        const el = document.getElementById('cs-part-' + c.id);
+        if (el && p) el.textContent = `${p.votants} / ${p.inscrits} (${p.taux} %)`;
+      });
+    }
+  }
+
+  function csSyncType() {
+    document.getElementById('cs-max-wrap').style.display = document.getElementById('cs-type').value === 'choix_multiple' ? '' : 'none';
+  }
+
+  async function csEdit(id) {
+    const c = id ? csCache.find(x => x.id === id) : null;
+    let opts = [];
+    if (c) { const { data } = await sb.from('consultation_options').select('libelle').eq('consultation_id', id).order('ordre'); opts = (data || []).map(o => o.libelle); }
+    document.getElementById('cs-id').value = c ? c.id : '';
+    document.getElementById('cs-titre').value = c ? c.titre : '';
+    document.getElementById('cs-description').value = c ? (c.description || '') : '';
+    document.getElementById('cs-type').value = c ? c.type_vote : 'choix_unique';
+    document.getElementById('cs-mode').value = c ? c.mode : 'secret';
+    document.getElementById('cs-max').value = c && c.max_choix ? c.max_choix : '';
+    document.getElementById('cs-quorum').value = c && c.quorum_pct ? c.quorum_pct : '';
+    document.getElementById('cs-options').value = opts.join('\n');
+    document.getElementById('cs-cloture').value = c ? csToLocalInput(c.date_cloture) : '';
+    document.getElementById('cs-visibilite').value = c ? c.resultats_visibilite : 'public';
+    document.getElementById('cs-modal-title').textContent = c ? 'Modifier la consultation' : 'Nouvelle consultation';
+    document.getElementById('cs-note').textContent = 'Une fois ouverte, la consultation ne peut plus être modifiée (règles, options, modalité).';
+    csSyncType();
+    csOpen('cs-modal-overlay');
+  }
+
+  async function csSave() {
+    const id = document.getElementById('cs-id').value;
+    const options = document.getElementById('cs-options').value.split('\n').map(x => x.trim()).filter(Boolean);
+    const titre = document.getElementById('cs-titre').value.trim();
+    const cloture = document.getElementById('cs-cloture').value;
+    if (titre.length < 3) { toast('Indiquez la question', 'error'); return; }
+    if (options.length < 2) { toast('Au moins deux options', 'error'); return; }
+    const type = document.getElementById('cs-type').value;
+    const payload = {
+      titre, description: document.getElementById('cs-description').value.trim() || null,
+      type_vote: type, mode: document.getElementById('cs-mode').value,
+      max_choix: type === 'choix_multiple' ? (parseInt(document.getElementById('cs-max').value, 10) || null) : null,
+      quorum_pct: parseInt(document.getElementById('cs-quorum').value, 10) || null,
+      resultats_visibilite: document.getElementById('cs-visibilite').value,
+      date_cloture: cloture ? new Date(cloture).toISOString() : null,
+    };
+    let cid = id, error;
+    if (id) ({ error } = await sb.from('consultations').update(payload).eq('id', id));
+    else {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await sb.from('consultations').insert({ ...payload, created_by: session.user.id }).select('id').single();
+      error = r.error; cid = r.data && r.data.id;
+    }
+    if (!error) {
+      const del = await sb.from('consultation_options').delete().eq('consultation_id', cid);
+      error = del.error;
+      if (!error) ({ error } = await sb.from('consultation_options').insert(options.map((libelle, i) => ({ consultation_id: cid, libelle, ordre: i }))));
+    }
+    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+    toast('Brouillon enregistré ✓', 'success');
+    csClose('cs-modal-overlay');
+    loadConsultationsAdmin();
+  }
+
+  async function csNotify(id, action) {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch('/.netlify/functions/consultation-notifier', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ consultationId: id, action }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || 'Envoi impossible');
+    return out;
+  }
+
+  async function csResults(id) {
+    const c = csCache.find(x => x.id === id);
+    const body = document.getElementById('cs-res-body');
+    document.getElementById('cs-res-title').textContent = c ? c.titre : 'Résultats';
+    body.innerHTML = 'Chargement…';
+    csOpen('cs-res-overlay');
+    const { data: r, error } = await sb.rpc('consultation_resultats', { p_id: id });
+    if (error) { body.innerHTML = `<div style="color:#c0392b">${esc(error.message)}</div>`; return; }
+    const classement = r.type_vote === 'classement';
+    const rows = r.options.map(o => `<tr><td>${esc(o.libelle)}</td><td style="text-align:right;font-weight:700">${classement ? o.points + ' pts (1er : ' + o.premier_choix + ')' : o.voix + ' voix'}</td></tr>`).join('');
+    const { data: audit } = await sb.from('consultation_audit').select('action,created_at').eq('consultation_id', id).order('created_at');
+    body.innerHTML = `<p style="font-size:.9rem;margin-bottom:10px"><b>${r.votants}</b> votant(s) sur <b>${r.inscrits}</b> (${r.taux} %) · ${r.blancs} blanc(s)${r.quorum_pct ? ' · quorum ' + r.quorum_pct + ' % : ' + (r.quorum_atteint ? 'atteint' : 'non atteint') : ''}</p>
+      <table style="width:100%"><tbody>${rows}</tbody></table>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-action" id="cs-exp-res">⬇ Export CSV des résultats</button>
+        ${r.mode === 'nominatif' ? '<button class="btn-action" id="cs-exp-nom">⬇ Export CSV nominatif</button>' : ''}
+      </div>
+      <div style="margin-top:14px;font-size:.78rem;color:var(--muted)"><b>Journal :</b> ${(audit || []).map(a => esc(a.action) + ' (' + esc(csFmt(a.created_at)) + ')').join(' → ') || '-'}</div>`;
+    const dl = (name, lines) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click(); };
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    document.getElementById('cs-exp-res').onclick = () => dl('consultation-resultats.csv',
+      ['option,' + (classement ? 'points,premier_choix' : 'voix')].concat(r.options.map(o => [q(o.libelle), classement ? o.points : o.voix, classement ? o.premier_choix : ''].filter(v => v !== '' || classement).join(','))));
+    const nom = document.getElementById('cs-exp-nom');
+    if (nom) nom.onclick = async () => {
+      const { data: v, error: e } = await sb.rpc('consultation_votes_nominatifs', { p_id: id });
+      if (e) { toast('Erreur : ' + e.message, 'error'); return; }
+      const lib = Object.fromEntries(r.options.map(o => [o.id, o.libelle]));
+      dl('consultation-votes-nominatifs.csv', ['numero,prenom,nom,bulletin'].concat((v || []).map(x => [q(x.numero), q(x.prenom), q(x.nom),
+        q(x.ballot.blanc ? 'blanc' : (x.ballot.ordre || x.ballot.options || []).map(i => lib[i] || i).join(' > '))].join(','))));
+    };
+  }
+
+  document.getElementById('cs-new-btn').addEventListener('click', () => csEdit(null));
+  document.getElementById('cs-cancel').addEventListener('click', () => csClose('cs-modal-overlay'));
+  document.getElementById('cs-save').addEventListener('click', csSave);
+  document.getElementById('cs-type').addEventListener('change', csSyncType);
+  document.getElementById('cs-res-close').addEventListener('click', () => csClose('cs-res-overlay'));
+  document.getElementById('cs-tbody').addEventListener('click', async ev => {
+    const b = ev.target.closest('button[data-cs]'); if (!b) return;
+    const id = b.dataset.id, a = b.dataset.cs;
+    try {
+      if (a === 'edit') return csEdit(id);
+      if (a === 'results') return csResults(id);
+      if (a === 'del') {
+        if (!confirm('Supprimer ce brouillon ?')) return;
+        const { error } = await sb.from('consultations').delete().eq('id', id);
+        if (error) throw error; toast('Brouillon supprimé'); return loadConsultationsAdmin();
+      }
+      if (a === 'open') {
+        if (!confirm('Ouvrir la consultation et envoyer l\'annonce par e-mail à tous les adhérents actifs ?\n\nAprès ouverture, les règles et les options ne pourront plus être modifiées.')) return;
+        const { error } = await sb.rpc('ouvrir_consultation', { p_id: id });
+        if (error) throw error;
+        try { const out = await csNotify(id, 'annonce'); toast(`Consultation ouverte, annonce envoyée à ${out.envoyes} adhérent(s) ✓`, 'success'); }
+        catch (e) { toast('Consultation ouverte, mais l\'annonce n\'a pas pu être envoyée : ' + e.message, 'error'); }
+        return loadConsultationsAdmin();
+      }
+      if (a === 'remind') {
+        if (!confirm('Envoyer un rappel aux adhérents actifs qui n\'ont pas encore voté ?')) return;
+        const out = await csNotify(id, 'rappel'); toast(`Rappel envoyé à ${out.envoyes} adhérent(s) ✓`, 'success'); return;
+      }
+      if (a === 'close') {
+        if (!confirm('Clôturer maintenant ? Les résultats deviendront visibles et le vote sera terminé.')) return;
+        const { error } = await sb.rpc('cloturer_consultation', { p_id: id });
+        if (error) throw error; toast('Consultation clôturée ✓', 'success'); return loadConsultationsAdmin();
+      }
+    } catch (e) { toast('Erreur : ' + (e.message || e), 'error'); }
+  });
+  window.loadConsultationsAdmin = loadConsultationsAdmin;
 
   // ── Articles à valider ──────────────────────────────────────
   async function loadArticlesAValider() {

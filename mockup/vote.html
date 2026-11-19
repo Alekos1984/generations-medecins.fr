@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultation - Générations Médecins</title>
+  <link rel="stylesheet" href="fonts/inter.css">
+  <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .wrap{max-width:900px;margin:0 auto}
+    .notice{background:rgba(42,109,184,.07);border:1.5px solid rgba(42,109,184,.2);border-radius:14px;padding:16px 20px;color:var(--blue-dark);font-size:.93rem;line-height:1.65;margin-bottom:28px}
+    .h2{font-size:1.15rem;font-weight:800;color:var(--blue-dark);margin:34px 0 14px}
+    .cards{display:grid;gap:14px}
+    .card{display:block;text-decoration:none;color:inherit;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:18px 20px;transition:box-shadow .2s,border-color .2s}
+    .card:hover{border-color:var(--blue);box-shadow:0 6px 24px rgba(26,74,128,.1)}
+    .card h3{font-size:1.05rem;font-weight:800;color:var(--ink);margin:6px 0}
+    .card p{font-size:.88rem;color:var(--muted);line-height:1.55;margin:0 0 10px}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.78rem;color:var(--muted)}
+    .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:800}
+    .pill-open{background:rgba(98,192,64,.15);color:#2d7a1a}
+    .pill-closed{background:rgba(100,116,139,.15);color:#475569}
+    .pill-secret{background:rgba(42,109,184,.1);color:var(--blue-dark)}
+    .pill-nom{background:rgba(245,158,11,.12);color:#92400e}
+    .empty{color:var(--muted);font-style:italic;font-size:.9rem}
+    .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:8px}
+    .how div{background:var(--surface);border-radius:14px;padding:16px 18px;font-size:.88rem;line-height:1.6}
+    .how strong{display:block;color:var(--blue-dark);margin-bottom:4px}
+    .box{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:26px 28px;margin-bottom:22px}
+    .box h2{font-size:1.3rem;font-weight:900;color:var(--ink);margin:0 0 10px}
+    .desc{white-space:pre-wrap;font-size:.95rem;line-height:1.7;color:var(--ink);margin:12px 0 18px}
+    .opt{display:flex;align-items:flex-start;gap:12px;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;background:#fff}
+    .opt:hover{border-color:var(--blue)}
+    .opt input{margin-top:4px;width:17px;height:17px;flex-shrink:0}
+    .opt b{display:block;font-size:.95rem}
+    .opt small{display:block;color:var(--muted);font-size:.82rem;margin-top:2px}
+    .rank{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px;background:#fff}
+    .rank .n{width:26px;height:26px;border-radius:50%;background:var(--grad);color:#fff;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .rank .l{flex:1;font-size:.95rem;font-weight:600}
+    .rank button{border:1px solid var(--line);background:#fff;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:.95rem}
+    .rank button:disabled{opacity:.3;cursor:default}
+    .btn-vote{background:var(--blue-dark);color:#fff;border:none;border-radius:999px;padding:13px 30px;font-weight:800;font-size:.98rem;cursor:pointer;font-family:inherit}
+    .btn-vote:disabled{opacity:.5;cursor:default}
+    .msg{border-radius:12px;padding:13px 16px;font-size:.92rem;line-height:1.55;margin-bottom:16px}
+    .msg-info{background:rgba(42,109,184,.08);color:var(--blue-dark)}
+    .msg-ok{background:rgba(98,192,64,.14);color:#2d7a1a}
+    .msg-err{background:#fee2e2;color:#b91c1c}
+    .bar{margin:12px 0}
+    .bar .t{display:flex;justify-content:space-between;font-size:.92rem;font-weight:600;margin-bottom:5px;gap:12px}
+    .bar .tr{background:var(--surface);border-radius:99px;height:12px;overflow:hidden}
+    .bar .fl{height:100%;background:var(--grad);border-radius:99px}
+    .stats{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0 4px}
+    .stats div{background:var(--surface);border-radius:12px;padding:10px 16px;font-size:.82rem;color:var(--muted)}
+    .stats b{display:block;font-size:1.25rem;color:var(--blue-dark)}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <div class="logo-badge"><img src="logoGM.jpeg" alt="GM"></div>
+        <span>Générations<br>Médecins</span>
+      </a>
+      <nav>
+        <a href="decrypteurs.html">Les Décrypteurs</a>
+        <a href="news.html">News</a>
+        <a href="observatoire.html">Observatoire</a>
+        <a href="plaidoyer.html">Plaidoyer</a>
+        <a href="outils.html">Outils</a>
+        <a href="communaute.html">Communauté</a>
+        <a href="regions.html">Régions</a>
+        <a href="bureau.html">Bureau</a>
+      </nav>
+      <a href="connexion.html" id="header-login-link" style="font-size:.85rem;font-weight:700;color:var(--blue-dark);text-decoration:none;white-space:nowrap;">Se connecter</a>
+      <a href="adherer.html" class="btn btn-primary">Adhérer →</a>
+    </div>
+  </header>
+
+  <div class="page-hero">
+    <div class="page-hero-inner">
+      <span class="badge badge-blue">🗳️ Consultation</span>
+      <h1 id="hero-title">Consultation</h1>
+      <p>Votre voix compte.</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section-inner">
+      <div class="wrap">
+        <div id="state"><div class="empty">Chargement…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <a href="index.html" class="logo" style="margin-bottom:6px">
+          <div class="logo-badge"><img src="logoGM.jpeg" alt="GM"></div>
+          <span>Générations Médecins Île-de-France</span>
+        </a>
+        <p class="footer-copy">Mouvement médical indépendant · Île-de-France</p>
+      </div>
+      <div class="footer-links">
+        <a href="decrypteurs.html">Décrypteurs</a>
+        <a href="plaidoyer.html">Plaidoyer</a>
+        <a href="outils.html">Outils</a>
+        <a href="regions.html">Régions</a>
+        <a href="bureau.html">Bureau</a>
+        <a href="#">Contact</a>
+              <a href="mentions-legales.html">Mentions légales</a>
+        <a href="cgu.html">CGU</a>
+        <a href="politique-confidentialite.html">Confidentialité</a>
+      </div>
+    </div>
+  </footer>
+  <script src="vendor/supabase-2.119.1.min.js"></script>
+  <script src="security.js"></script>
+  <script src="auth-header.js"></script>
+  <script>
+  (function () {
+    const sb = supabase.createClient('https://faegpfkhlkkwmtaichin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo');
+    const esc = escHtml;
+    const TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement' };
+    const fmt = d => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const root = document.getElementById('state');
+    let ordre = [];
+
+    function header(c, closed) {
+      return `<div class="meta" style="margin-bottom:6px"><span class="pill ${closed ? 'pill-closed' : 'pill-open'}">${closed ? 'Close' : '● Vote ouvert'}</span>
+        <span class="pill ${c.mode === 'secret' ? 'pill-secret' : 'pill-nom'}">${c.mode === 'secret' ? '🔒 Vote secret' : '👤 Vote nominatif'}</span>
+        <span>${esc(TYPES[c.type_vote] || '')}${c.type_vote === 'choix_multiple' && c.max_choix ? ' (' + c.max_choix + ' choix maximum)' : ''}</span></div>
+        <h2>${esc(c.titre)}</h2>
+        <div class="meta">${closed ? 'Clôturée le ' : 'Se termine le '}${esc(fmt(c.date_cloture))}</div>
+        ${c.description ? `<div class="desc">${esc(c.description)}</div>` : ''}`;
+    }
+    const modeNote = c => c.mode === 'secret'
+      ? '<div class="msg msg-info">🔒 <strong>Vote secret</strong> : le syndicat enregistre que vous avez voté, mais ne conserve aucun lien entre votre nom et votre choix.</div>'
+      : '<div class="msg msg-info">👤 <strong>Vote nominatif</strong> : votre choix sera associé à votre nom pour le bureau, après la clôture.</div>';
+
+    function renderRanking() {
+      document.getElementById('rank').innerHTML = ordre.map((o, i) => `<div class="rank"><span class="n">${i + 1}</span><span class="l">${esc(o.libelle)}</span>
+        <button type="button" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button>
+        <button type="button" data-i="${i}" data-d="1" ${i === ordre.length - 1 ? 'disabled' : ''} aria-label="Descendre">↓</button></div>`).join('');
+    }
+
+    async function showResults(c) {
+      const { data: r, error } = await sb.rpc('consultation_resultats', { p_id: c.id });
+      if (error) { root.innerHTML = `<div class="box">${header(c, true)}<div class="msg msg-err">${esc(error.message)}</div></div>`; return; }
+      const classement = r.type_vote === 'classement';
+      const total = classement ? r.options.reduce((s, o) => s + (o.points || 0), 0) : r.options.reduce((s, o) => s + (o.voix || 0), 0);
+      const exprimes = r.votants - r.blancs;
+      const bars = r.options.map(o => {
+        const val = classement ? o.points : o.voix;
+        const pct = classement ? (total ? Math.round(100 * val / total) : 0) : (exprimes > 0 ? Math.round(100 * val / exprimes) : 0);
+        return `<div class="bar"><div class="t"><span>${esc(o.libelle)}</span><span>${classement ? val + ' pts (' + o.premier_choix + ' fois 1er)' : val + ' voix · ' + pct + ' %'}</span></div><div class="tr"><div class="fl" style="width:${pct}%"></div></div></div>`;
+      }).join('');
+      root.innerHTML = `<div class="box">${header(c, true)}
+        <div class="stats"><div><b>${r.votants}</b>votants</div><div><b>${r.taux} %</b>de participation (${r.votants} / ${r.inscrits})</div><div><b>${r.blancs}</b>bulletins blancs</div>
+        ${r.quorum_pct ? `<div><b>${r.quorum_atteint ? 'Atteint' : 'Non atteint'}</b>quorum de ${r.quorum_pct} %</div>` : ''}</div>
+        ${bars}
+        ${classement ? '<p class="empty">Classement établi par points : le premier choix d\'un bulletin rapporte autant de points qu\'il y a d\'options.</p>' : ''}</div>`;
+    }
+
+    async function init() {
+      if (!id) { root.innerHTML = '<div class="msg msg-err">Consultation introuvable.</div>'; return; }
+      const { data: c } = await sb.from('consultations').select('*').eq('id', id).maybeSingle();
+      if (!c || c.statut === 'brouillon') { root.innerHTML = '<div class="msg msg-err">Cette consultation n\'existe pas ou n\'est pas encore ouverte.</div>'; return; }
+      document.title = c.titre + ' - Générations Médecins';
+      const closed = c.statut === 'cloturee' || new Date(c.date_cloture).getTime() < Date.now();
+      if (closed) return showResults(c);
+
+      const { data: opts } = await sb.from('consultation_options').select('id,libelle,description,ordre').eq('consultation_id', id).order('ordre');
+      const { data: { session } } = await sb.auth.getSession();
+      let actif = false, aVote = false;
+      if (session) {
+        const { data: m } = await sb.from('membres').select('statut').eq('user_id', session.user.id).maybeSingle();
+        actif = m && m.statut === 'actif';
+        if (actif) {
+          const { data: e } = await sb.from('consultation_emargements').select('vote_le').eq('consultation_id', id).maybeSingle();
+          aVote = !!e;
+        }
+      }
+      const head = `<div class="box">${header(c, false)}`;
+      if (!session) { root.innerHTML = head + '<div class="msg msg-info">Connectez-vous avec votre compte adhérent pour voter.</div><a class="btn btn-primary" href="connexion.html">Se connecter →</a></div>'; return; }
+      if (!actif) { root.innerHTML = head + '<div class="msg msg-info">Le vote est réservé aux adhérents dont le compte est actif. Votre compte est en attente de validation ou suspendu.</div></div>'; return; }
+      if (aVote) { root.innerHTML = head + '<div class="msg msg-ok">✓ Vous avez voté pour cette consultation. Les résultats seront publiés après la clôture.</div></div>'; return; }
+
+      const t = c.type_vote;
+      let inputs;
+      if (t === 'classement') { ordre = opts.slice(); inputs = '<p class="empty" style="margin-bottom:10px">Classez toutes les options, de la préférée (1) à la moins préférée, avec les flèches.</p><div id="rank"></div>'; }
+      else inputs = opts.map(o => `<label class="opt"><input type="${t === 'choix_multiple' ? 'checkbox' : 'radio'}" name="choix" value="${esc(o.id)}"><span><b>${esc(o.libelle)}</b>${o.description ? '<small>' + esc(o.description) + '</small>' : ''}</span></label>`).join('');
+      root.innerHTML = head + modeNote(c) + `<form id="f">${inputs}
+        <label class="opt" style="margin-top:14px"><input type="checkbox" id="blanc"><span><b>Voter blanc</b><small>Je participe sans exprimer de choix.</small></span></label>
+        <div id="err" class="msg msg-err" style="display:none"></div>
+        <p style="margin-top:18px"><button class="btn-vote" type="submit">Valider mon vote</button></p>
+        <p class="empty">Un vote validé ne peut plus être modifié.</p></form></div>`;
+      if (t === 'classement') {
+        renderRanking();
+        document.getElementById('rank').addEventListener('click', ev => {
+          const b = ev.target.closest('button'); if (!b) return;
+          const i = +b.dataset.i, j = i + +b.dataset.d;
+          [ordre[i], ordre[j]] = [ordre[j], ordre[i]]; renderRanking();
+        });
+      }
+      document.getElementById('f').addEventListener('submit', async ev => {
+        ev.preventDefault();
+        const err = document.getElementById('err'); err.style.display = 'none';
+        const blanc = document.getElementById('blanc').checked;
+        let ballot;
+        if (blanc) ballot = { blanc: true };
+        else if (t === 'classement') ballot = { ordre: ordre.map(o => o.id) };
+        else {
+          const ch = [...document.querySelectorAll('input[name=choix]:checked')].map(i => i.value);
+          if (!ch.length) { err.textContent = 'Sélectionnez une option ou cochez « Voter blanc ».'; err.style.display = 'block'; return; }
+          if (t === 'choix_multiple' && c.max_choix && ch.length > c.max_choix) { err.textContent = 'Vous pouvez choisir ' + c.max_choix + ' option(s) au maximum.'; err.style.display = 'block'; return; }
+          ballot = { options: ch };
+        }
+        if (!confirm('Confirmer votre vote ? Il ne pourra plus être modifié.')) return;
+        const btn = ev.target.querySelector('button[type=submit]'); btn.disabled = true;
+        const { error } = await sb.rpc('voter', { p_consultation: id, p_ballot: ballot });
+        if (error) { err.textContent = error.message; err.style.display = 'block'; btn.disabled = false; return; }
+        root.innerHTML = head + '<div class="msg msg-ok">✓ Votre vote est enregistré. Merci ! Les résultats seront publiés après la clôture.</div></div>';
+      });
+    }
+    init();
+  })();
+  </script>
+</body>
+</html>
