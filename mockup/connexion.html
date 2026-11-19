@@ -94,6 +94,19 @@
         </div>
         <button type="submit" class="btn-submit" id="submit-btn">Se connecter →</button>
       </form>
+      <div style="text-align:center;margin-top:14px"><a href="#" id="forgot-link" style="font-size:.85rem;color:var(--blue);font-weight:600">Mot de passe oublié ?</a></div>
+      <div id="forgot-box" style="display:none;margin-top:14px;font-size:.88rem">
+        <p style="color:var(--muted);line-height:1.5;margin:0 0 8px">Saisissez votre adresse e-mail : nous vous envoyons un lien pour choisir un nouveau mot de passe.</p>
+        <input id="forgot-email" type="email" placeholder="vous@exemple.fr" style="width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;margin-bottom:8px">
+        <button type="button" id="forgot-send" class="btn-submit">Recevoir le lien</button>
+        <div id="forgot-msg" style="margin-top:8px;color:#2d7a1a"></div>
+      </div>
+      <div id="reset-box" style="display:none;margin-top:14px;font-size:.88rem">
+        <p style="margin:0 0 8px;font-weight:700">Choisissez un nouveau mot de passe</p>
+        <input id="reset-pw" type="password" placeholder="8 caractères minimum" autocomplete="new-password" style="width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;margin-bottom:8px">
+        <button type="button" id="reset-send" class="btn-submit">Enregistrer</button>
+        <div id="reset-msg" style="margin-top:8px;color:#b91c1c"></div>
+      </div>
 
       <hr class="divider">
       <div class="form-footer">
@@ -108,9 +121,36 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  // Déjà connecté → rediriger
-  sb.auth.getSession().then(({ data: { session } }) => {
-    if (session) window.location.href = 'espace-membre.html';
+  // Lien de réinitialisation reçu par e-mail : on affiche le formulaire de nouveau mot de passe au lieu de rediriger
+  const isRecovery = /type=recovery/.test(location.hash);
+  if (isRecovery) {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('forgot-link').parentElement.style.display = 'none';
+    document.getElementById('reset-box').style.display = 'block';
+  } else {
+    // Déjà connecté → rediriger
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.href = 'espace-membre.html';
+    });
+  }
+  document.getElementById('forgot-link').addEventListener('click', e => {
+    e.preventDefault();
+    const b = document.getElementById('forgot-box'); b.style.display = b.style.display === 'none' ? 'block' : 'none';
+    document.getElementById('forgot-email').value = document.getElementById('email').value;
+  });
+  document.getElementById('forgot-send').addEventListener('click', async () => {
+    const email = document.getElementById('forgot-email').value.trim();
+    const msg = document.getElementById('forgot-msg');
+    if (!email) { msg.textContent = 'Indiquez votre adresse e-mail.'; return; }
+    await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/connexion.html' });
+    msg.textContent = 'Si un compte existe avec cette adresse, un e-mail vient de vous être envoyé.';
+  });
+  document.getElementById('reset-send').addEventListener('click', async () => {
+    const pw = document.getElementById('reset-pw').value, msg = document.getElementById('reset-msg');
+    if (pw.length < 8) { msg.textContent = 'Mot de passe : 8 caractères minimum.'; return; }
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) { msg.textContent = error.message; return; }
+    window.location.href = 'espace-membre.html';
   });
 
   const form   = document.getElementById('login-form');
