@@ -8,6 +8,14 @@
 [functions."veille-cron"]
   schedule = "0 5 * * *"
 
+# Rappel de conservation des données (RGPD, tous les 3 ans) : chaque lundi à 8h UTC
+[functions."conservation-cron"]
+  schedule = "0 8 * * 1"
+
+# Consultations : clôture automatique et rappel, chaque jour à 7h UTC
+[functions."consultation-cron"]
+  schedule = "0 7 * * *"
+
 # Newsletter auto au vitriol : le 1er et le 15 du mois à 6h UTC
 [functions."newsletter-cron"]
   schedule = "0 6 1,15 * *"

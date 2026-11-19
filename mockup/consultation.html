@@ -8,206 +8,53 @@
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
   <link rel="stylesheet" href="style.css">
   <style>
-    .gate {
-      max-width: 560px;
-      margin: 0 auto 56px;
-      text-align: center;
-    }
-    .gate-icon { font-size: 3rem; margin-bottom: 20px; display: block; }
-    .gate h2 {
-      font-size: 1.8rem;
-      font-weight: 900;
-      color: var(--blue-dark);
-      margin-bottom: 14px;
-      letter-spacing: -0.02em;
-    }
-    .gate p {
-      font-size: 1rem;
-      color: var(--muted);
-      line-height: 1.65;
-      margin-bottom: 32px;
-    }
-    .gate-actions { display: flex; gap: 12px; justify-content: center; }
-
-    .votes-preview {
-      display: grid;
-      gap: 16px;
-      margin-bottom: 48px;
-    }
-
-    .vote-card {
-      padding: 28px;
-      border-radius: var(--r);
-      background: white;
-      border: 1.5px solid var(--line);
-      position: relative;
-    }
-
-    .vote-status {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 0.72rem;
-      font-weight: 700;
-    }
-    .vote-open   { background: rgba(137,200,106,0.13); color: #3d8a1a; }
-    .vote-closed { background: rgba(88,170,179,0.12);  color: #2a7a83; }
-    .vote-coming { background: rgba(245,158,11,0.1);   color: #b06c00; }
-
-    .vote-type {
-      font-size: 0.72rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-
-    .vote-title {
-      font-size: 1rem;
-      font-weight: 800;
-      color: var(--blue-dark);
-      margin-bottom: 8px;
-      padding-right: 100px;
-    }
-
-    .vote-desc {
-      font-size: 0.85rem;
-      color: var(--muted);
-      line-height: 1.55;
-      margin-bottom: 20px;
-    }
-
-    .vote-options {
-      display: grid;
-      gap: 10px;
-    }
-
-    .vote-option {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 10px;
-      border: 1.5px solid var(--line);
-      background: var(--surface);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .vote-option-bar {
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      background: rgba(50,106,162,0.08);
-      border-radius: 10px;
-    }
-
-    .vote-option-label {
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--ink);
-      position: relative;
-      z-index: 1;
-      flex: 1;
-    }
-
-    .vote-option-pct {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: var(--blue);
-      position: relative;
-      z-index: 1;
-    }
-
-    .vote-meta {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      padding-top: 16px;
-      border-top: 1px solid var(--line);
-      margin-top: 20px;
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    .vote-meta strong { color: var(--ink); }
-
-    .vote-blur {
-      position: relative;
-    }
-    .vote-blur::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-      background: rgba(255,255,255,0.6);
-      border-radius: var(--r);
-    }
-
-    .how-works-list {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-bottom: 48px;
-    }
-
-    .how-item {
-      padding: 28px 24px;
-      border-radius: var(--r);
-      background: white;
-      border: 1.5px solid var(--line);
-    }
-    .how-icon { font-size: 1.8rem; margin-bottom: 14px; display: block; }
-    .how-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--blue-dark);
-      margin-bottom: 8px;
-    }
-    .how-desc {
-      font-size: 0.82rem;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .principle-block {
-      padding: 36px;
-      border-radius: 20px;
-      background: var(--surface);
-      border: 1.5px solid var(--line);
-      margin-bottom: 48px;
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 28px;
-      align-items: start;
-    }
-    .principle-icon { font-size: 2.5rem; }
-    .principle-text h3 {
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: var(--blue-dark);
-      margin-bottom: 10px;
-    }
-    .principle-text p {
-      font-size: 0.9rem;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    @media (max-width: 620px) {
-      .how-works-list { grid-template-columns: 1fr; }
-      .gate-actions { flex-direction: column; }
-      .principle-block { grid-template-columns: 1fr; }
-    }
+    .wrap{max-width:900px;margin:0 auto}
+    .notice{background:rgba(42,109,184,.07);border:1.5px solid rgba(42,109,184,.2);border-radius:14px;padding:16px 20px;color:var(--blue-dark);font-size:.93rem;line-height:1.65;margin-bottom:28px}
+    .h2{font-size:1.15rem;font-weight:800;color:var(--blue-dark);margin:34px 0 14px}
+    .cards{display:grid;gap:14px}
+    .card{display:block;text-decoration:none;color:inherit;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:18px 20px;transition:box-shadow .2s,border-color .2s}
+    .card:hover{border-color:var(--blue);box-shadow:0 6px 24px rgba(26,74,128,.1)}
+    .card h3{font-size:1.05rem;font-weight:800;color:var(--ink);margin:6px 0}
+    .card p{font-size:.88rem;color:var(--muted);line-height:1.55;margin:0 0 10px}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.78rem;color:var(--muted)}
+    .pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:800}
+    .pill-open{background:rgba(98,192,64,.15);color:#2d7a1a}
+    .pill-closed{background:rgba(100,116,139,.15);color:#475569}
+    .pill-secret{background:rgba(42,109,184,.1);color:var(--blue-dark)}
+    .pill-nom{background:rgba(245,158,11,.12);color:#92400e}
+    .empty{color:var(--muted);font-style:italic;font-size:.9rem}
+    .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:8px}
+    .how div{background:var(--surface);border-radius:14px;padding:16px 18px;font-size:.88rem;line-height:1.6}
+    .how strong{display:block;color:var(--blue-dark);margin-bottom:4px}
+    .box{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:26px 28px;margin-bottom:22px}
+    .box h2{font-size:1.3rem;font-weight:900;color:var(--ink);margin:0 0 10px}
+    .desc{white-space:pre-wrap;font-size:.95rem;line-height:1.7;color:var(--ink);margin:12px 0 18px}
+    .opt{display:flex;align-items:flex-start;gap:12px;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;background:#fff}
+    .opt:hover{border-color:var(--blue)}
+    .opt input{margin-top:4px;width:17px;height:17px;flex-shrink:0}
+    .opt b{display:block;font-size:.95rem}
+    .opt small{display:block;color:var(--muted);font-size:.82rem;margin-top:2px}
+    .rank{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:8px;background:#fff}
+    .rank .n{width:26px;height:26px;border-radius:50%;background:var(--grad);color:#fff;font-weight:800;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .rank .l{flex:1;font-size:.95rem;font-weight:600}
+    .rank button{border:1px solid var(--line);background:#fff;border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:.95rem}
+    .rank button:disabled{opacity:.3;cursor:default}
+    .btn-vote{background:var(--blue-dark);color:#fff;border:none;border-radius:999px;padding:13px 30px;font-weight:800;font-size:.98rem;cursor:pointer;font-family:inherit}
+    .btn-vote:disabled{opacity:.5;cursor:default}
+    .msg{border-radius:12px;padding:13px 16px;font-size:.92rem;line-height:1.55;margin-bottom:16px}
+    .msg-info{background:rgba(42,109,184,.08);color:var(--blue-dark)}
+    .msg-ok{background:rgba(98,192,64,.14);color:#2d7a1a}
+    .msg-err{background:#fee2e2;color:#b91c1c}
+    .bar{margin:12px 0}
+    .bar .t{display:flex;justify-content:space-between;font-size:.92rem;font-weight:600;margin-bottom:5px;gap:12px}
+    .bar .tr{background:var(--surface);border-radius:99px;height:12px;overflow:hidden}
+    .bar .fl{height:100%;background:var(--grad);border-radius:99px}
+    .stats{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0 4px}
+    .stats div{background:var(--surface);border-radius:12px;padding:10px 16px;font-size:.82rem;color:var(--muted)}
+    .stats b{display:block;font-size:1.25rem;color:var(--blue-dark)}
   </style>
 </head>
 <body>
-
   <header>
     <div class="header-inner">
       <a href="index.html" class="logo">
@@ -219,11 +66,10 @@
         <a href="news.html">News</a>
         <a href="observatoire.html">Observatoire</a>
         <a href="plaidoyer.html">Plaidoyer</a>
-        <a href="outils.html" class="active">Outils</a>
+        <a href="outils.html">Outils</a>
         <a href="communaute.html">Communauté</a>
         <a href="regions.html">Régions</a>
         <a href="bureau.html">Bureau</a>
-        <a href="greve.html" style="color:#dc2626;font-weight:800;">✊ Grève</a>
       </nav>
       <a href="connexion.html" id="header-login-link" style="font-size:.85rem;font-weight:700;color:var(--blue-dark);text-decoration:none;white-space:nowrap;">Se connecter</a>
       <a href="adherer.html" class="btn btn-primary">Adhérer →</a>
@@ -232,118 +78,33 @@
 
   <div class="page-hero">
     <div class="page-hero-inner">
-      <span class="badge badge-blue">🗳️ Adhérents · À venir</span>
-      <h1>Consultation des adhérents</h1>
-      <p>Chaque décision importante est prise avec vous, pas à votre place. Votes, sondages, consultations - votre voix dans chaque dossier que nous portons.</p>
+      <span class="badge badge-blue">🗳️ Adhérents</span>
+      <h1 id="hero-title">Consultation des adhérents</h1>
+      <p>Chaque décision importante est prise avec vous, pas à votre place.</p>
     </div>
   </div>
 
   <section class="section">
     <div class="section-inner">
+      <div class="wrap">
+        <div class="notice"><strong>Le mouvement ne parle pas en votre nom sans vous consulter.</strong> Avant chaque prise de position engageante, le bureau soumet une consultation aux adhérents. Les résultats ne sont <strong>jamais</strong> visibles avant la clôture ; ils sont ensuite publiés avec le taux de participation.</div>
 
-      <!-- Principe fort -->
-      <div class="principle-block">
-        <div class="principle-icon">🗳️</div>
-        <div class="principle-text">
-          <h3>Le mouvement ne parle pas en votre nom sans vous consulter.</h3>
-          <p>Avant chaque prise de position publique, avant chaque communiqué engageant l'ensemble des adhérents, le bureau soumet une consultation. Ce n'est pas un gadget - c'est notre fonctionnement. Les résultats sont publiés avec le taux de participation, pour que chacun puisse juger la représentativité de la décision prise.</p>
+        <div class="h2">Consultations en cours</div>
+        <div class="cards" id="list-open"><div class="empty">Chargement…</div></div>
+
+        <div class="h2">Consultations closes et résultats</div>
+        <div class="cards" id="list-closed"><div class="empty">Chargement…</div></div>
+
+        <div class="h2">Comment ça fonctionne</div>
+        <div class="how">
+          <div><strong>Une voix par adhérent</strong>Seuls les adhérents dont le compte est actif votent, une seule fois par consultation.</div>
+          <div><strong>Secret ou nominatif</strong>Chaque consultation précise son mode. En vote secret, personne ne peut relier un bulletin à un adhérent.</div>
+          <div><strong>Pas de résultats avant la fin</strong>Aucun résultat partiel n'est consultable, y compris par le bureau, avant la date de clôture.</div>
+          <div><strong>Transparence</strong>Le taux de participation et le quorum éventuel sont publiés avec les résultats.</div>
         </div>
+        <p style="margin-top:26px"><a href="adherer.html" class="btn btn-primary">Adhérer et voter →</a></p>
       </div>
-
-      <!-- Aperçu flouté -->
-      <div class="section-label" style="margin-bottom:16px">Consultations en cours - Aperçu</div>
-
-      <div class="votes-preview">
-
-        <!-- Vote 1 - visible mais flouté -->
-        <div class="vote-card vote-blur">
-          <div class="vote-status vote-open">● Vote ouvert</div>
-          <div class="vote-type">Prise de position</div>
-          <div class="vote-title">Position sur le projet de loi "Accès aux soins non programmés"</div>
-          <p class="vote-desc">Le bureau demande l'avis des adhérents avant de publier une position officielle sur le projet de loi débattu à l'Assemblée nationale le 12 juin.</p>
-          <div class="vote-options">
-            <div class="vote-option">
-              <div class="vote-option-bar" style="width:62%"></div>
-              <span class="vote-option-label">Soutien avec réserves sur l'article 4</span>
-              <span class="vote-option-pct">62%</span>
-            </div>
-            <div class="vote-option">
-              <div class="vote-option-bar" style="width:24%"></div>
-              <span class="vote-option-label">Opposition totale</span>
-              <span class="vote-option-pct">24%</span>
-            </div>
-            <div class="vote-option">
-              <div class="vote-option-bar" style="width:14%"></div>
-              <span class="vote-option-label">Soutien sans réserve</span>
-              <span class="vote-option-pct">14%</span>
-            </div>
-          </div>
-          <div class="vote-meta">
-            <span><strong>287</strong> votants</span>
-            <span>Ferme le <strong>8 juin 2025</strong></span>
-            <span>Résultats <strong>publics après clôture</strong></span>
-          </div>
-        </div>
-
-        <!-- Vote 2 - visible mais flouté -->
-        <div class="vote-card vote-blur">
-          <div class="vote-status vote-coming">⏳ À venir</div>
-          <div class="vote-type">Sondage interne</div>
-          <div class="vote-title">Priorités plaidoyer T3 2025 - Quels dossiers porter en priorité ?</div>
-          <p class="vote-desc">Classement de 6 sujets potentiels pour le trimestre suivant. Le résultat déterminera l'ordre de traitement du bureau.</p>
-          <div class="vote-meta">
-            <span>Ouverture le <strong>15 juin 2025</strong></span>
-            <span>Adhérents uniquement</span>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Gate -->
-      <div class="gate">
-        <span class="gate-icon">🔒</span>
-        <h2>Réservé aux adhérents</h2>
-        <p>Le module de consultation est en cours de déploiement. En adhérant maintenant, vous faites partie des premiers à voter lors des consultations du bureau.</p>
-        <div class="gate-actions">
-          <a href="adherer.html" class="btn btn-primary btn-lg">Adhérer et voter →</a>
-          <a href="plaidoyer.html" class="btn btn-outline btn-lg">Voir les dossiers en cours</a>
-        </div>
-      </div>
-
-      <!-- Comment ça fonctionne -->
-      <div class="section-label" style="margin-bottom:20px">Comment ça fonctionne</div>
-      <div class="how-works-list">
-        <div class="how-item">
-          <span class="how-icon">📣</span>
-          <div class="how-title">Le bureau soumet une question</div>
-          <p class="how-desc">Avant chaque prise de position ou décision importante, une consultation est ouverte pendant 5 à 10 jours. Tous les adhérents reçoivent une notification.</p>
-        </div>
-        <div class="how-item">
-          <span class="how-icon">🗳️</span>
-          <div class="how-title">Vous votez ou commentez</div>
-          <p class="how-desc">Vote anonyme sur les options proposées, plus un champ libre pour nuancer votre position. Une voix = un adhérent vérifié.</p>
-        </div>
-        <div class="how-item">
-          <span class="how-icon">📊</span>
-          <div class="how-title">Résultats publiés et suivis</div>
-          <p class="how-desc">Les résultats sont publiés après clôture, avec le taux de participation. La position prise par le bureau doit s'aligner ou expliquer l'écart.</p>
-        </div>
-      </div>
-
-      <div class="coming-soon-block">
-        <span class="icon">🗳️</span>
-        <h3>Module en cours de déploiement</h3>
-        <p>Le système de consultation sera actif dès le T3 2025. Les adhérents fondateurs seront les premiers à voter.</p>
-        <a href="adherer.html" class="btn btn-primary">Adhérer maintenant →</a>
-      </div>
-
     </div>
-  </section>
-
-  <section class="cta-section">
-    <h2>Votre voix dans chaque décision.</h2>
-    <p>Un syndicat légitime, c'est un syndicat qui consulte. Rejoignez les membres fondateurs et participez aux premières consultations dès leur ouverture.</p>
-    <a href="adherer.html" class="btn btn-white btn-lg">Adhérer maintenant →</a>
   </section>
 
   <footer>
@@ -359,6 +120,7 @@
         <a href="decrypteurs.html">Décrypteurs</a>
         <a href="plaidoyer.html">Plaidoyer</a>
         <a href="outils.html">Outils</a>
+        <a href="regions.html">Régions</a>
         <a href="bureau.html">Bureau</a>
         <a href="#">Contact</a>
               <a href="mentions-legales.html">Mentions légales</a>
@@ -367,8 +129,34 @@
       </div>
     </div>
   </footer>
-
   <script src="vendor/supabase-2.119.1.min.js"></script>
+  <script src="security.js"></script>
   <script src="auth-header.js"></script>
+  <script>
+  (function () {
+    const sb = supabase.createClient('https://faegpfkhlkkwmtaichin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo');
+    const esc = escHtml;
+    const TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement' };
+    const fmt = d => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+    const card = (c, closed) => `<a class="card" href="vote.html?id=${encodeURIComponent(c.id)}">
+        <div class="meta"><span class="pill ${closed ? 'pill-closed' : 'pill-open'}">${closed ? 'Close' : '● Vote ouvert'}</span>
+          <span class="pill ${c.mode === 'secret' ? 'pill-secret' : 'pill-nom'}">${c.mode === 'secret' ? '🔒 Vote secret' : '👤 Vote nominatif'}</span>
+          <span>${esc(TYPES[c.type_vote] || '')}</span></div>
+        <h3>${esc(c.titre)}</h3>
+        ${c.description ? `<p>${esc(c.description.length > 180 ? c.description.slice(0, 180) + '…' : c.description)}</p>` : ''}
+        <div class="meta">${closed ? 'Clôturée le ' : 'Se termine le '}${esc(fmt(c.date_cloture))} · ${closed ? 'Voir les résultats →' : 'Participer →'}</div></a>`;
+    (async () => {
+      const { data, error } = await sb.from('consultations').select('id,titre,description,type_vote,mode,statut,date_cloture')
+        .in('statut', ['ouverte', 'cloturee']).order('date_cloture', { ascending: false });
+      const open = document.getElementById('list-open'), closed = document.getElementById('list-closed');
+      if (error) { open.innerHTML = closed.innerHTML = '<div class="empty">Impossible de charger les consultations.</div>'; return; }
+      const now = Date.now();
+      const isClosed = c => c.statut === 'cloturee' || new Date(c.date_cloture).getTime() < now;
+      const o = (data || []).filter(c => !isClosed(c)), k = (data || []).filter(isClosed);
+      open.innerHTML = o.length ? o.map(c => card(c, false)).join('') : '<div class="empty">Aucune consultation en cours pour le moment.</div>';
+      closed.innerHTML = k.length ? k.map(c => card(c, true)).join('') : '<div class="empty">Aucune consultation close.</div>';
+    })();
+  })();
+  </script>
 </body>
 </html>
