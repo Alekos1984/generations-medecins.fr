@@ -245,7 +245,7 @@
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
   <script>
   (function () {
     const sb = supabase.createClient(
@@ -260,7 +260,7 @@
       signe:     '<span style="font-size:0.7rem;font-weight:700;color:#3d8a1a">✓ Signé</span>',
       envoye:    '<span style="font-size:0.7rem;font-weight:700;color:var(--blue)">✈ Envoyé</span>',
     };
-    const esc = (s) => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+    const esc = (s) => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     let allModeles = [];
 
     async function init() {

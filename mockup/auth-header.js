@@ -28,6 +28,7 @@
       .eq('user_id', session.user.id)
       .single();
 
+    const E = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const prenom    = membre?.prenom || session.user.email[0].toUpperCase();
     const nom       = membre?.nom    || '';
     const initiales = (prenom[0] + (nom[0] || '')).toUpperCase();
@@ -92,11 +93,11 @@
     widget.setAttribute('role', 'button');
     widget.setAttribute('tabindex', '0');
     widget.innerHTML = `
-      <div class="user-avatar-circle">${initiales}</div>
-      <span class="user-avatar-name">${prenom}</span>
+      <div class="user-avatar-circle">${E(initiales)}</div>
+      <span class="user-avatar-name">${E(prenom)}</span>
       <div class="ua-dropdown">
         <div class="ua-header">
-          <div class="ua-name">${nomComplet}</div>
+          <div class="ua-name">${E(nomComplet)}</div>
           <div class="ua-status ${statusCls[statut]||''}">${statusLabel[statut]||statut}</div>
         </div>
         <a href="espace-membre.html"><span class="ua-icon">👤</span> Mon espace</a>

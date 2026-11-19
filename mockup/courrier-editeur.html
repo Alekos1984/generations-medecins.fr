@@ -378,9 +378,11 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
+  <script src="security.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
   <script>
   (function () {
     const SUPABASE_URL  = 'https://faegpfkhlkkwmtaichin.supabase.co';
@@ -1166,10 +1168,10 @@
       statut = c.statut;
       partageToken = c.partage_token;
       $('titre').value = c.titre || 'Courrier';
-      if (c.expediteur?.html) $('doc-expediteur').innerHTML = c.expediteur.html;
-      if (c.destinataire?.html) $('doc-destinataire').innerHTML = c.destinataire.html;
+      if (c.expediteur?.html) $('doc-expediteur').innerHTML = safeHtml(c.expediteur.html);
+      if (c.destinataire?.html) $('doc-destinataire').innerHTML = safeHtml(c.destinataire.html);
       if (c.objet) $('doc-objet').innerHTML = escapeHtml(c.objet);
-      if (c.contenu) $('doc-body').innerHTML = c.contenu;
+      if (c.contenu) $('doc-body').innerHTML = safeHtml(c.contenu);
       if (c.signataire_nom) {
         $('sig-text').textContent = c.signataire_nom;
         $('sig-text').classList.remove('sig-placeholder');
