@@ -152,19 +152,7 @@ exports.handler = async (event) => {
     emailEnvoye = brevoRes.ok;
   }
 
-  // 4. Inscription liste Brevo (best effort - opt-in implicite si email fourni)
-  if (email && process.env.BREVO_API_KEY && process.env.GREVE_LIST_ID) {
-    await fetch('https://api.brevo.com/v3/contacts', {
-      method: 'POST',
-      headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        listIds: [parseInt(process.env.GREVE_LIST_ID, 10)],
-        updateEnabled: true,
-        attributes: { SPECIALITE: specialite || '', CP: cp || '' },
-      }),
-    }).catch(() => {});
-  }
+  // Aucune inscription à une liste de diffusion : l'e-mail ne sert qu'à envoyer l'attestation (consentement distinct requis pour toute autre utilisation).
 
   return {
     statusCode: 200,

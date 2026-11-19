@@ -27,7 +27,7 @@
  *   'FR' = France entière (cas spécial, pas affiché sur la carte)
  */
 (function() {
-  const GEOJSON_URL = 'https://cdn.jsdelivr.net/gh/gregoiredavid/france-geojson@master/regions-version-simplifiee.geojson';
+  const GEOJSON_URL = 'vendor/regions-france.geojson';
 
   const REGION_NAMES = {
     'FR': 'France entière',

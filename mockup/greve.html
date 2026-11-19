@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Médecins en Grève - Générations Médecins</title>
   <meta name="description" content="Déclarez votre intention de grève et recevez votre attestation. Mobilisation des médecins libéraux portée par Générations Médecins Île-de-France.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="fonts/inter.css">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
   <link rel="stylesheet" href="style.css">
   <style>
@@ -223,7 +222,7 @@
     <!-- FORMULAIRE -->
     <div id="form-section">
       <h2 class="section-title">Déclarer ma participation</h2>
-      <p class="section-sub">Votre numéro RPPS est vérifié localement puis <strong>converti en empreinte anonyme irréversible</strong> - votre identité n'est jamais transmise ni stockée.</p>
+      <p class="section-sub">Votre numéro RPPS est vérifié puis <strong>transformé en empreinte (SHA-256)</strong> dans votre navigateur : votre numéro lui-même n'est ni transmis ni stocké. Cette empreinte reste une donnée pseudonymisée, décrite dans notre <a href="politique-confidentialite.html">politique de confidentialité</a>.</p>
 
       <!-- Bannière pré-remplissage (non connecté) -->
       <div class="prefill-banner" id="prefill-banner">
@@ -252,7 +251,7 @@
           </div>
           <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end">
             <div class="field-hint" style="background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.6;color:var(--muted)">
-              🔐 Votre RPPS est vérifié contre l'Annuaire Santé puis converti localement en empreinte anonyme (SHA-256). Seule cette empreinte est transmise - votre identité reste sur votre appareil.
+              🔐 Votre RPPS est vérifié contre l'Annuaire Santé puis converti localement en empreinte anonyme (SHA-256). Seule cette empreinte est transmise (pseudonymisation) - votre numéro reste sur votre appareil.
             </div>
           </div>
         </div>
@@ -355,7 +354,7 @@
             </div>
           </div>
           <label class="check-inline">
-            <input type="checkbox" id="f-wants-attestation" checked>
+            <input type="checkbox" id="f-wants-attestation">
             <span>Envoyer mon attestation de grève par email <span style="color:var(--muted);font-weight:400">(votre email ne sera pas conservé après envoi)</span></span>
           </label>
         </div>
@@ -445,6 +444,9 @@
         <a href="decrypteurs.html">Décrypteurs</a>
         <a href="plaidoyer.html">Plaidoyer</a>
         <a href="politique-confidentialite.html">Confidentialité</a>
+              <a href="mentions-legales.html">Mentions légales</a>
+        <a href="cgu.html">CGU</a>
+        <a href="politique-confidentialite.html">Confidentialité</a>
       </div>
     </div>
   </footer>
@@ -452,9 +454,9 @@
   <div id="attestation-render"></div>
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+  <script src="vendor/supabase-2.119.1.min.js"></script>
+  <script src="vendor/html2canvas-1.4.1.min.js"></script>
+  <script src="vendor/jspdf-2.5.1.umd.min.js"></script>
   <script>
   (function () {
     const SUPABASE_URL  = 'https://faegpfkhlkkwmtaichin.supabase.co';
@@ -764,7 +766,7 @@
           </table>
           <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:16px 20px;border-radius:6px;font-size:13px;color:#1e3a8a;line-height:1.6;margin:30px 0">
             Cette attestation est un document militant délivré par Générations Médecins Île-de-France. Elle témoigne de l'engagement de son porteur dans le mouvement social des médecins libéraux.<br>
-            <em style="font-size:12px;color:#3b82f6">Déclaration anonymisée - aucune donnée d'identification stockée.</em>
+            <em style="font-size:12px;color:#3b82f6">Déclaration pseudonymisée - ni votre nom ni votre e-mail ne sont stockés avec elle.</em>
           </div>
           <div style="margin-top:50px;display:flex;justify-content:space-between;align-items:flex-end">
             <div style="font-size:12px;color:#94a3b8">Délivré le ${dateStr}<br>generations-medecins.fr</div>
