@@ -21,28 +21,6 @@
 
     if (!session) return; // lien "Se connecter" statique reste visible
 
-    /* Connecté = déjà adhérent : adapter les CTA « Adhérer » du corps de page.
-       - data-member-href / data-member-cta : CTA piloté par la page (ex. cartes Outils).
-         Sans data-member-href, le CTA devient non cliquable (fonctionnalité à venir).
-       - .cta-section : gros bouton marketing bas de page → renvoi vers l'espace membre. */
-    document.querySelectorAll('[data-member-cta], [data-member-href]').forEach(el => {
-      const cta  = el.getAttribute('data-member-cta');
-      const href = el.getAttribute('data-member-href');
-      if (href) {
-        if (cta) el.textContent = cta;
-        el.setAttribute('href', href);
-      } else {
-        const span = document.createElement('span');
-        span.className = el.className;
-        span.textContent = cta || el.textContent;
-        el.replaceWith(span);
-      }
-    });
-    document.querySelectorAll('.cta-section a[href="adherer.html"]').forEach(el => {
-      el.setAttribute('href', 'espace-membre.html');
-      el.textContent = 'Accéder à mon espace →';
-    });
-
     /* Étape 2 - utilisateur connecté : charger le profil */
     const { data: membre } = await sb
       .from('membres')
@@ -55,6 +33,31 @@
     const initiales = (prenom[0] + (nom[0] || '')).toUpperCase();
     const nomComplet = prenom + (nom ? ' ' + nom : '');
     const statut    = membre?.statut || 'en_attente';
+
+    if (statut === 'actif') {
+      /* Adhérent ACTIF uniquement : adapter les CTA « Adhérer » du corps de page.
+         - data-member-href / data-member-cta : CTA piloté par la page (ex. cartes Outils).
+           Sans data-member-href, le CTA devient non cliquable (fonctionnalité à venir).
+         - .cta-section : gros bouton marketing bas de page → renvoi vers l'espace membre. */
+      document.querySelectorAll('[data-member-cta], [data-member-href]').forEach(el => {
+        const cta  = el.getAttribute('data-member-cta');
+        const href = el.getAttribute('data-member-href');
+        if (href) {
+          if (cta) el.textContent = cta;
+          el.setAttribute('href', href);
+        } else {
+          const span = document.createElement('span');
+          span.className = el.className;
+          span.textContent = cta || el.textContent;
+          el.replaceWith(span);
+        }
+      });
+      document.querySelectorAll('.cta-section a[href="adherer.html"]').forEach(el => {
+        el.setAttribute('href', 'espace-membre.html');
+        el.textContent = 'Accéder à mon espace →';
+      });
+    }
+
 
     /* CSS avatar */
     if (!document.getElementById('auth-header-style')) {
