@@ -1,3 +1,4 @@
+const { rateLimit, TOO_MANY } = require('./_security');
 /**
  * Netlify Function - Soumission d'une déclaration pour les organisations non-médecins
  *
@@ -32,12 +33,15 @@ exports.handler = async (event) => {
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: '{"error":"Method not allowed"}' };
+  if (!(await rateLimit(event, 'org', 12, 3600))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
   if (!SB || !SSK) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Configuration Supabase manquante' }) };
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch {
     return { statusCode: 400, headers, body: '{"error":"JSON invalide"}' };
   }
+  // Pot de miel : champ invisible rempli = robot, réponse OK sans rien enregistrer
+  if (body && body.website) return { statusCode: 200, headers, body: JSON.stringify({ ok: true, ref: 'GM-OK' }) };
 
   const { orgSlug, campaignId, idHash, cp, email, ref: clientRef, source = 'web', contactOptIn = false } = body;
 

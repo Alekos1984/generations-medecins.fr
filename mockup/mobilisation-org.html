@@ -229,6 +229,7 @@
           </div>
         </div>
 
+        <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Ne pas remplir <input type="text" id="f-website" tabindex="-1" autocomplete="off"></label></div>
         <!-- RGPD -->
         <div class="rgpd-box">
           <strong>Vie privée :</strong> Votre identifiant est transformé en empreinte numérique irréversible (SHA-256) directement dans votre navigateur - il ne quitte jamais votre appareil. Seule cette empreinte est transmise. Votre email, s'il est fourni, sert à l'envoi de votre attestation ; il n'est conservé que si vous cochez la case de consentement dédiée.
@@ -452,6 +453,7 @@
       const ref = 'ORG-' + Date.now().toString(36).toUpperCase();
 
       const body = {
+        website:   ($('f-website')||{}).value || '',
         orgSlug:   ORG_SLUG,
         campaignId: campagne.id,
         idHash,

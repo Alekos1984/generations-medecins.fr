@@ -1,3 +1,4 @@
+const { rateLimit, TOO_MANY } = require('./_security');
 /**
  * Netlify Function - Invitation d'un admin délégué pour une organisation
  *
@@ -35,6 +36,7 @@ exports.handler = async (event) => {
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: '{"error":"Method not allowed"}' };
+  if (!(await rateLimit(event, 'invit', 30, 3600))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
   if (!process.env.BREVO_API_KEY || !process.env.SENDER_EMAIL || !SB() || !SRK())
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'Configuration serveur manquante' }) };
 

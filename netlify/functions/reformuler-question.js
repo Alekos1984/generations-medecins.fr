@@ -1,3 +1,4 @@
+const { rateLimit, TOO_MANY } = require('./_security');
 /**
  * Netlify Function - Anonymise et reformule une question juridique pour Doctrine.fr
  *
@@ -48,6 +49,7 @@ exports.handler = async (event) => {
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: '{"error":"Method not allowed"}' };
+  if (!(await rateLimit(event, 'rq', 20, 3600))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
 
   const token = (event.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   const membre = await getMembre(token);
