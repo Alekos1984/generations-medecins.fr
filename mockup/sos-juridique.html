@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SOS Juridique - Générations Médecins</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="fonts/inter.css">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
   <link rel="stylesheet" href="style.css">
   <style>
@@ -179,7 +178,7 @@
   <!-- Confidentialité -->
   <div class="privacy-bar">
     <div class="privacy-bar-inner">
-      🔒 <strong>Confidentialité :</strong> votre question est anonymisée avant transmission (noms, adresses et identifiants supprimés). Seul le syndicat accède aux données complètes.
+      🔒 <strong>Confidentialité :</strong> ne saisissez aucun nom de patient ni donnée de santé identifiante. Votre question est reformulée par un outil d'intelligence artificielle (prestataire OpenAI, hors Union européenne) avant analyse : l'anonymisation repose en partie sur cet outil, il faut donc anonymiser vous-même. Seul le syndicat accède aux données complètes.
       &nbsp;·&nbsp; Ce service est réservé aux adhérents.
       &nbsp;·&nbsp; Les réponses sont indicatives et ne remplacent pas un conseil juridique personnalisé.
     </div>
@@ -253,7 +252,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
+  <script src="vendor/supabase-2.119.1.min.js"></script>
   <script>
   (function() {
     const SUPABASE_URL  = 'https://faegpfkhlkkwmtaichin.supabase.co';

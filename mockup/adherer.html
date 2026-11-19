@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Adhérer - Générations Médecins</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="fonts/inter.css">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
+  <script src="vendor/supabase-2.119.1.min.js"></script>
   <style>
     .adherer-grid {
       display: grid;
@@ -434,7 +433,12 @@
 
             <div class="cgu-row">
               <input type="checkbox" id="cgu" name="cgu" required>
-              <label for="cgu">J'accepte les <a href="#" style="color:var(--blue)">conditions d'utilisation</a> et la <a href="#" style="color:var(--blue)">politique de confidentialité</a> de Générations Médecins.</label>
+              <label for="cgu">J'accepte les <a href="cgu.html" target="_blank" rel="noopener" style="color:var(--blue)">conditions générales d'utilisation</a> et la <a href="politique-confidentialite.html" target="_blank" rel="noopener" style="color:var(--blue)">politique de confidentialité</a> de Générations Médecins.</label>
+            </div>
+
+            <div class="cgu-row">
+              <input type="checkbox" id="newsletter" name="newsletter">
+              <label for="newsletter">(Facultatif) Je souhaite recevoir la newsletter et les communiqués du syndicat. Je peux retirer mon accord à tout moment.</label>
             </div>
 
             <button type="submit" class="btn-submit" id="submit-btn">
@@ -466,6 +470,9 @@
         <a href="outils.html">Outils</a>
         <a href="bureau.html">Bureau</a>
         <a href="#">Contact</a>
+              <a href="mentions-legales.html">Mentions légales</a>
+        <a href="cgu.html">CGU</a>
+        <a href="politique-confidentialite.html">Confidentialité</a>
       </div>
     </div>
   </footer>
@@ -526,6 +533,7 @@
     const specialite   = form.specialite.value;
     const secteur      = form.secteur.value || null;
     const cgu          = form.cgu.checked;
+    const newsletter   = form.newsletter.checked;
 
     // Modes d'exercice (cases cochées)
     const modesChecked = [...form.querySelectorAll('input[name="modes_exercice"]:checked')].map(cb => cb.value);
@@ -574,7 +582,11 @@
       specialite,
       mode_exercice: modeExercice,
       secteur,
-      statut:        'en_attente'
+      statut:        'en_attente',
+      cgu_version:   '2026-11',
+      cgu_acceptees_le: new Date().toISOString(),
+      newsletter_consent: newsletter,
+      newsletter_consent_le: newsletter ? new Date().toISOString() : null,
     });
 
     if (memberError) {
