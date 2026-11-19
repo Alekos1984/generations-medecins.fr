@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -1169,8 +1169,8 @@
 
               <!-- Liens rapides -->
               <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap">
-                <a class="g-btn g-btn-outline" id="eco-org-front" href="#" target="_blank">Page publique ↗</a>
-                <a class="g-btn g-btn-outline" id="eco-org-admin" href="#" target="_blank">Admin de la plateforme ↗</a>
+                <a class="g-btn g-btn-outline" id="eco-org-front" href="#" target="_blank" rel="noopener noreferrer">Page publique ↗</a>
+                <a class="g-btn g-btn-outline" id="eco-org-admin" href="#" target="_blank" rel="noopener noreferrer">Admin de la plateforme ↗</a>
               </div>
 
               <!-- Admins / équipe -->
@@ -1301,7 +1301,7 @@
             <div style="position:sticky;top:80px">
               <div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Aperçu en direct</div>
               <div style="border:1.5px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)">
-                <iframe id="nl-preview" style="width:100%;height:560px;border:none"></iframe>
+                <iframe sandbox="allow-same-origin" id="nl-preview" style="width:100%;height:560px;border:none"></iframe>
               </div>
             </div>
 
@@ -1399,7 +1399,7 @@
             <div style="position:sticky;top:80px">
               <div style="font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Aperçu en direct</div>
               <div style="border:1.5px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)">
-                <iframe id="cp-preview" style="width:100%;height:600px;border:none"></iframe>
+                <iframe sandbox="allow-same-origin" id="cp-preview" style="width:100%;height:600px;border:none"></iframe>
               </div>
             </div>
 
@@ -1582,7 +1582,7 @@
         <h3 id="hist-preview-title" style="margin:0">Aperçu</h3>
         <button onclick="closeHistPreview()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">✕</button>
       </div>
-      <iframe id="hist-preview-iframe" style="flex:1;border:1.5px solid var(--line);border-radius:10px;min-height:500px"></iframe>
+      <iframe sandbox="allow-same-origin" id="hist-preview-iframe" style="flex:1;border:1.5px solid var(--line);border-radius:10px;min-height:500px"></iframe>
     </div>
   </div>
 
@@ -1952,7 +1952,7 @@
   // Mini-Markdown → HTML (## titres, **gras**, * listes, paragraphes)
   function md2html(md) {
     if (!md) return '';
-    const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     return esc(md)
       .replace(/^### (.+)$/gm, '<h4 style="margin:14px 0 4px;font-size:.92rem">$1</h4>')
       .replace(/^## (.+)$/gm,  '<h3 style="margin:16px 0 6px;font-size:1rem;color:#5b21b6">$1</h3>')
@@ -2067,7 +2067,7 @@
 
   function md2html(md) {
     if (!md) return '';
-    const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     return esc(md)
       .replace(/^### (.+)$/gm, '<h4 style="margin:10px 0 4px;font-size:.92rem">$1</h4>')
       .replace(/^## (.+)$/gm,  '<h3 style="margin:12px 0 6px;font-size:1rem;color:#5b21b6">$1</h3>')
@@ -2262,7 +2262,7 @@
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error + (data.detail ? ' - ' + data.detail : ''));
-      statusEl.innerHTML = '✓ Workflow déclenché. Suivi : <a href="' + data.run_url + '" target="_blank" style="color:#1e40af;text-decoration:underline">GitHub Actions</a>. Compte ~1-2 min, puis rafraîchis l\'admin pour voir les nouvelles valeurs en attente.';
+      statusEl.innerHTML = '✓ Workflow déclenché. Suivi : <a href="' + data.run_url + '" target="_blank" rel="noopener noreferrer" style="color:#1e40af;text-decoration:underline">GitHub Actions</a>. Compte ~1-2 min, puis rafraîchis l\'admin pour voir les nouvelles valeurs en attente.';
       toast('Import déclenché ✓', 'success');
     } catch (e) {
       statusEl.style.color = '#dc2626';
@@ -2325,7 +2325,7 @@
           <b>Statut :</b> ${escapeHtml(imp.statut)} &middot;
           <b>Date :</b> ${ts}<br>
           <b>Fichier :</b> ${escapeHtml(imp.fichier||'-')}<br>
-          <b>URL :</b> ${imp.storage_path ? `<a href="${escapeHtml(imp.storage_path)}" target="_blank" style="color:var(--blue);word-break:break-all">${escapeHtml(imp.storage_path)}</a>` : '-'}<br>
+          <b>URL :</b> ${imp.storage_path ? `<a href="${escapeHtml(imp.storage_path)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue);word-break:break-all">${escapeHtml(imp.storage_path)}</a>` : '-'}<br>
           <b>Lignes brutes :</b> ${imp.nb_lignes_brutes?.toLocaleString('fr-FR')||'-'} &middot;
           <b>Indicateurs écrits :</b> ${imp.nb_indicateurs||0}
           ${imp.erreur ? `<br><b style="color:#dc2626">Erreur :</b> ${escapeHtml(imp.erreur)}` : ''}
@@ -3542,7 +3542,7 @@
           <td>
             <div class="actions">
               <button class="btn-action btn-publier" onclick="publierArticle('${a.id}')" title="Publier"><span class="btn-label">Publier ✓</span></button>
-              <a class="btn-voir" href="decrypteur.html?slug=${encodeURIComponent(a.slug || '')}" target="_blank" title="Voir">Voir →</a>
+              <a class="btn-voir" href="decrypteur.html?slug=${encodeURIComponent(a.slug || '')}" target="_blank" rel="noopener noreferrer" title="Voir">Voir →</a>
               <button class="btn-action btn-supprimer" onclick="supprimerArticleAValider('${a.id}')" title="Supprimer">🗑</button>
             </div>
           </td>
@@ -3633,7 +3633,7 @@
         actions = `
           <div class="actions">
             ${!m.rpps_verifie ? `<button class="btn-action btn-rpps-ok" onclick="validerRpps('${m.id}')">RPPS OK ✓</button>` : ''}
-            ${m.rpps ? `<a class="btn-ext" href="${rppsUrl}" target="_blank">Vérifier sur RPPS ↗</a>` : ''}
+            ${m.rpps ? `<a class="btn-ext" href="${rppsUrl}" target="_blank" rel="noopener noreferrer">Vérifier sur RPPS ↗</a>` : ''}
           </div>`;
       }
 
@@ -3693,7 +3693,7 @@
   // ── Helpers ──────────────────────────────────────────────────
   function esc(s) {
     if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
   function fmtDate(s) {
     if (!s) return '-';
@@ -3882,12 +3882,12 @@
     }
     grid.innerHTML = data.filter(f => f.name !== '.emptyFolderPlaceholder').map(f => {
       const url = sb.storage.from(BUCKET).getPublicUrl(f.name).data.publicUrl;
-      return `<div style="border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:white;position:relative;cursor:pointer" onclick="selectGalleryImage('${url}')">
+      return `<div style="border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:white;position:relative;cursor:pointer" data-u="${esc(url)}" onclick="selectGalleryImage(this.dataset.u)">
         <div style="width:100%;aspect-ratio:4/3;overflow:hidden;background:#f0f4f9">
           <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">
         </div>
-        <div style="padding:8px 10px;font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${f.name}">${f.name}</div>
-        <button onclick="event.stopPropagation();deleteGalleryImage('${f.name}')"
+        <div style="padding:8px 10px;font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(f.name)}">${esc(f.name)}</div>
+        <button data-n="${esc(f.name)}" onclick="event.stopPropagation();deleteGalleryImage(this.dataset.n)"
           style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:white;border:none;border-radius:5px;padding:2px 7px;font-size:.7rem;cursor:pointer;font-family:inherit">✕</button>
       </div>`;
     }).join('');
@@ -4283,6 +4283,11 @@
     if (test()) return Promise.resolve();
     return new Promise((res, rej) => {
       const el = document.createElement('script');
+      const SRI = {
+        'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js': 'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H',
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
+      };
+      if (SRI[src]) { el.integrity = SRI[src]; el.crossOrigin = 'anonymous'; }
       el.src = src; el.onload = res; el.onerror = () => rej(new Error('Chargement impossible : ' + src));
       document.head.appendChild(el);
     });
@@ -4662,7 +4667,7 @@
           <td style="font-size:12px;color:var(--muted)">${c.mass_mailing_le ? new Date(c.mass_mailing_le).toLocaleDateString('fr-FR') : ''}</td>
           <td>
             <div style="display:flex;gap:6px">
-              <a href="courrier-editeur.html?courrier=${c.id}" target="_blank" class="btn-voir" title="Voir le courrier">👁</a>
+              <a href="courrier-editeur.html?courrier=${c.id}" target="_blank" rel="noopener noreferrer" class="btn-voir" title="Voir le courrier">👁</a>
               <button class="btn-action btn-supprimer" onclick="mmRetirer('${c.id}')" title="Retirer du mass-mailing">✕</button>
             </div>
           </td>
@@ -4689,11 +4694,11 @@
               </div>
               <!-- Actions du groupe -->
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
-                <button class="btn-action btn-valider" onclick='copyMassEmails(${JSON.stringify(emails)})' title="Copier les adresses email">
+                <button class="btn-action btn-valider" data-emails="${esc(JSON.stringify(emails))}" onclick="copyMassEmails(JSON.parse(this.dataset.emails))" title="Copier les adresses email">
                   📋 Emails (${emails.length})
                 </button>
                 <button class="btn-action" style="background:rgba(42,109,184,.08);color:var(--blue);border-color:rgba(42,109,184,.25)"
-                  onclick='exportMmCsv(${JSON.stringify(nomModele)}, ${JSON.stringify(csvData)})' title="Exporter CSV">
+                  data-nom="${esc(nomModele)}" data-csv="${esc(JSON.stringify(csvData))}" onclick="exportMmCsv(this.dataset.nom, JSON.parse(this.dataset.csv))" title="Exporter CSV">
                   ⬇ CSV
                 </button>
               </div>
@@ -4830,7 +4835,7 @@
       <div style="margin-top:18px">
         <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:6px">Question originale</div>
         <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px;font-size:.88rem;line-height:1.6;white-space:pre-wrap">${esc(c.question||'')}</div>
-        ${docs.length ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${docs.map(d=>`<button onclick="doctrineOpenDoc('${esc(d.path || d.url)}')" style="font-size:.76rem;color:var(--blue);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">📎 ${esc(d.name)}</button>`).join('')}</div>` : ''}
+        ${docs.length ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${docs.map(d=>`<button data-p="${esc(d.path || d.url)}" onclick="doctrineOpenDoc(this.dataset.p)" style="font-size:.76rem;color:var(--blue);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">📎 ${esc(d.name)}</button>`).join('')}</div>` : ''}
       </div>
 
       <!-- Question reformulée -->
@@ -4843,7 +4848,7 @@
           ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;font-size:.88rem;line-height:1.6;white-space:pre-wrap" id="doctrine-reformulee-${c.id}">${esc(c.question_reformulee)}</div>
              <div style="display:flex;gap:8px;margin-top:8px">
                <button class="btn-action" onclick="doctrineCopier('${c.id}')" style="font-size:.78rem">📋 Copier pour Doctrine</button>
-               <a href="https://www.doctrine.fr" target="_blank" class="btn-action" style="font-size:.78rem;text-decoration:none">→ Ouvrir Doctrine.fr</a>
+               <a href="https://www.doctrine.fr" target="_blank" rel="noopener noreferrer" class="btn-action" style="font-size:.78rem;text-decoration:none">→ Ouvrir Doctrine.fr</a>
              </div>`
           : `<div style="color:var(--muted);font-size:.84rem;font-style:italic">Non encore reformulée. Cliquez sur "Reformuler maintenant" ci-dessus.</div>`}
       </div>
@@ -4865,14 +4870,14 @@
       <div style="margin-top:18px">
         <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:6px">Synthèse IA</div>
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;font-size:.85rem;line-height:1.7;white-space:pre-wrap">${esc(c.synthese)}</div>
-        ${c.pdf_url ? `<div style="margin-top:8px"><button onclick="doctrineOpenDoc('${esc(c.pdf_url)}')" class="btn-action btn-primary" style="font-size:.78rem">📥 Télécharger le PDF</button></div>` : ''}
+        ${c.pdf_url ? `<div style="margin-top:8px"><button data-p="${esc(c.pdf_url)}" onclick="doctrineOpenDoc(this.dataset.p)" class="btn-action btn-primary" style="font-size:.78rem">📥 Télécharger le PDF</button></div>` : ''}
       </div>` : ''}
 
       ${c.escalade_spi ? `
       <div style="margin-top:18px;padding:14px;background:#f0faf5;border:1px solid #b8e8d0;border-radius:10px">
         <div style="font-size:.84rem;color:#0d6e3f;line-height:1.5">
           🧑‍⚖️ <strong>Escalade SPI Avocats demandée</strong> le ${c.escalade_spi_le ? new Date(c.escalade_spi_le).toLocaleDateString('fr-FR') : ''}.
-          À transmettre à <a href="https://spi-avocats.com/" target="_blank" style="color:#0d6e3f;font-weight:700">SPI Avocats</a> (question + synthèse).
+          À transmettre à <a href="https://spi-avocats.com/" target="_blank" rel="noopener noreferrer" style="color:#0d6e3f;font-weight:700">SPI Avocats</a> (question + synthèse).
         </div>
       </div>` : ''}
 
@@ -4971,6 +4976,7 @@
       await new Promise((res, rej) => {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.integrity = 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'; s.crossOrigin = 'anonymous';
         s.onload = res; s.onerror = rej; document.head.appendChild(s);
       });
     }

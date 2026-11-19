@@ -253,7 +253,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1/dist/umd/supabase.min.js" integrity="sha384-rONULF7BcIpU+mBrW9/e9DhAVbCUwcewd5ivsb4/z3qqi1anKKkZ+KZpFRHHM3pG" crossorigin="anonymous"></script>
   <script>
   (function() {
     const SUPABASE_URL  = 'https://faegpfkhlkkwmtaichin.supabase.co';
@@ -279,7 +279,7 @@
       archivee:         { label: 'Archivée',         color: '#94a3b8', bg: '#f8fafc', dot: '#cbd5e1' },
     };
 
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function esc(s) { return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     // ── Init ─────────────────────────────────────────────────────────────────
     async function init() {
@@ -412,7 +412,7 @@
             ${docs.length ? `<div class="consult-body-section">
               <div class="section-label-sm">Documents joints</div>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
-                ${docs.map(d => `<button onclick="openDoc('${esc(d.path || d.url)}')" style="font-size:.76rem;color:var(--blue);background:none;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit">📎 ${esc(d.name)}</button>`).join('')}
+                ${docs.map(d => `<button data-p="${esc(d.path || d.url)}" onclick="openDoc(this.dataset.p)" style="font-size:.76rem;color:var(--blue);background:none;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit">📎 ${esc(d.name)}</button>`).join('')}
               </div>
             </div>` : ''}
 
@@ -421,7 +421,7 @@
               <div class="section-label-sm">Synthèse de la réponse</div>
               ${c.synthese
                 ? `<div class="synthese-box">${esc(c.synthese)}</div>
-                   ${c.pdf_url ? `<button onclick="openDoc('${esc(c.pdf_url)}')" class="btn-dl">📥 Télécharger le PDF complet</button>` : ''}`
+                   ${c.pdf_url ? `<button data-p="${esc(c.pdf_url)}" onclick="openDoc(this.dataset.p)" class="btn-dl">📥 Télécharger le PDF complet</button>` : ''}`
                 : '<div style="color:var(--muted);font-size:.85rem">La synthèse sera disponible ici dès que prête.</div>'
               }
             </div>
