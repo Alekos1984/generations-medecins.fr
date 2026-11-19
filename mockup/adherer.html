@@ -557,47 +557,39 @@
     btnSub.disabled = true;
     btnSub.textContent = 'Inscription en cours…';
 
-    // 1. Créer le compte auth
-    const { data, error: authError } = await sb.auth.signUp({ email, password });
+    // 1. Créer le compte : le profil adhérent est créé côté base à partir de ces métadonnées
+    //    (l'adresse e-mail doit être confirmée avant la première connexion).
+    const { data, error: authError } = await sb.auth.signUp({
+      email, password,
+      options: {
+        emailRedirectTo: window.location.origin + '/connexion.html',
+        data: {
+          prenom, nom,
+          rpps:          estInterne ? '' : rpps,
+          est_interne:   estInterne,
+          telephone:     telephone || '',
+          code_postal:   codePostal || '',
+          specialite,
+          mode_exercice: modeExercice || '',
+          secteur:       secteur || '',
+          cgu_version:   '2026-11',
+          newsletter_consent: newsletter,
+        },
+      },
+    });
     if (authError) {
-      if (authError.message.includes('already registered')) return showError('Un compte existe déjà avec cet email.');
+      btnSub.disabled = false; btnSub.textContent = 'Adhérer';
+      if (/already registered|already been registered/i.test(authError.message)) return showError('Un compte existe déjà avec cet email.');
+      if (/database error/i.test(authError.message)) return showError('Inscription impossible : un compte existe déjà avec cet email ou ce RPPS. Contactez-nous si vous pensez à une erreur.');
       return showError(authError.message);
     }
+    if (!data.user) { btnSub.disabled = false; btnSub.textContent = 'Adhérer'; return showError('Erreur lors de la création du compte. Réessayez.'); }
 
-    const userId = data.user?.id;
-    if (!userId) return showError('Erreur lors de la création du compte. Réessayez.');
-
-    if (!data.session) return showError('Configuration requise : désactivez la confirmation email dans Supabase Auth.');
-
-    // 2. Créer le profil membre
-    const { error: memberError } = await sb.from('membres').insert({
-      user_id:       userId,
-      email,
-      prenom,
-      nom,
-      rpps:          estInterne ? null : rpps,
-      est_interne:   estInterne,
-      telephone,
-      code_postal:   codePostal,
-      specialite,
-      mode_exercice: modeExercice,
-      secteur,
-      statut:        'en_attente',
-      cgu_version:   '2026-11',
-      cgu_acceptees_le: new Date().toISOString(),
-      newsletter_consent: newsletter,
-      newsletter_consent_le: newsletter ? new Date().toISOString() : null,
-    });
-
-    if (memberError) {
-      if (memberError.code === '23505') return showError('Un compte existe déjà avec cet email ou ce RPPS.');
-      return showError('Erreur profil : ' + memberError.message);
-    }
-
+    // 2. Succès : il reste à confirmer l'e-mail
+    okBox.innerHTML = '<strong>Presque terminé !</strong> Nous venons de vous envoyer un e-mail : cliquez sur le lien de confirmation pour activer votre connexion. Votre adhésion sera ensuite validée par le bureau.';
     // 3. Succès
     okBox.classList.add('show');
     form.style.display = 'none';
-    setTimeout(() => { window.location.href = 'espace-membre.html'; }, 2500);
   });
 })();
 </script>
