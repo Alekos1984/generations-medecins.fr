@@ -49,7 +49,7 @@ exports.handler = async (event) => {
   const {
     campagneId, rppsHash, specialite, cp, modeExercice, motifs = [],
     email, tel, wantsAttestation = false, estInterne = false, pdfBase64,
-    ref: clientRef,
+    ref: clientRef, contactOptIn = false,
   } = body;
 
   if (!campagneId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Campagne non précisée' }) };
@@ -152,7 +152,22 @@ exports.handler = async (event) => {
     emailEnvoye = brevoRes.ok;
   }
 
-  // Aucune inscription à une liste de diffusion : l'e-mail ne sert qu'à envoyer l'attestation (consentement distinct requis pour toute autre utilisation).
+  // Contact conservé UNIQUEMENT si la personne a coché la case de consentement dédiée (séparée de l'attestation)
+  if (contactOptIn === true && email) {
+    const lower = String(email).trim().toLowerCase();
+    await fetch(`${SB}/rest/v1/greve_contacts?on_conflict=campagne_id,email`, {
+      method: 'POST',
+      headers: srvHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify({ campagne_id: campagneId, org_id: null, email: lower }),
+    }).catch(() => {});
+    if (process.env.BREVO_API_KEY && process.env.GREVE_LIST_ID) {
+      await fetch('https://api.brevo.com/v3/contacts', {
+        method: 'POST',
+        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: lower, listIds: [parseInt(process.env.GREVE_LIST_ID, 10)], updateEnabled: true }),
+      }).catch(() => {});
+    }
+  }
 
   return {
     statusCode: 200,
