@@ -2580,30 +2580,35 @@
   });
 
 
-  // ── Comptes créés sans fiche adhérent ───────────────────────
+  // ── Fiches à compléter / comptes sans fiche ──────────────────
   async function loadComptesSansProfil() {
     const el = document.getElementById('orphans-banner');
-    const { data, error } = await sb.rpc('comptes_sans_profil');
-    if (error || !data || !data.length) { el.style.display = 'none'; return; }
+    const [{ data: sansFiche }, { data: provisoires }] = await Promise.all([
+      sb.rpc('comptes_sans_profil'),
+      sb.from('membres').select('email, created_at').eq('profil_complet', false),
+    ]);
+    const parts = [];
+    if (provisoires && provisoires.length) {
+      parts.push(`<strong>📝 ${provisoires.length} fiche(s) à compléter</strong> : ces personnes ont créé leur compte, mais leur inscription n'avait pas pu être enregistrée (incident corrigé). Leur fiche est en attente ; elles doivent la compléter à leur prochaine connexion.<br>
+        ${provisoires.map(c => esc(c.email)).join(' · ')}
+        <div style="margin-top:8px"><button class="btn-action" id="orph-invite">✉️ Envoyer un e-mail d'invitation à compléter la fiche</button></div>`);
+    }
+    if (sansFiche && sansFiche.length) {
+      parts.push(`<strong>⚠️ ${sansFiche.length} compte(s) sans fiche adhérent</strong> : ${sansFiche.map(c => esc(c.email)).join(' · ')}`);
+    }
+    if (!parts.length) { el.style.display = 'none'; return; }
     el.style.display = 'block';
-    el.innerHTML = `<strong>⚠️ ${data.length} compte(s) créé(s) sans fiche adhérent</strong> : ces personnes ont créé leur compte mais leur adhésion n'a pas été enregistrée (ils n'apparaissent donc pas dans la liste ci-dessous).<br>
-      ${data.map(c => esc(c.email) + ' <span style="opacity:.7">(' + new Date(c.cree_le).toLocaleDateString('fr-FR') + ')</span>').join(' · ')}<br>
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-action" id="orph-copy">📋 Copier les e-mails</button>
-        <button class="btn-action btn-supprimer" id="orph-del">Supprimer ces comptes (ils pourront refaire leur adhésion)</button>
-      </div>`;
-    document.getElementById('orph-copy').onclick = () => { navigator.clipboard.writeText(data.map(c => c.email).join(', ')); toast('E-mails copiés', 'success'); };
-    document.getElementById('orph-del').onclick = async () => {
-      if (!confirm(`Supprimer ${data.length} compte(s) sans fiche adhérent ?\n\nIls ne contiennent aucune donnée d'adhérent. Pensez à prévenir ces personnes (bouton « Copier les e-mails ») pour qu'elles refassent leur adhésion.`)) return;
+    el.innerHTML = parts.join('<hr style="border:none;border-top:1px solid #f3d27a;margin:10px 0">');
+    const inv = document.getElementById('orph-invite');
+    if (inv) inv.onclick = async () => {
+      if (!confirm(`Envoyer un e-mail à ${provisoires.length} personne(s) pour leur demander de compléter leur fiche ?`)) return;
       const { data: { session } } = await sb.auth.getSession();
-      const res = await fetch('/.netlify/functions/comptes-orphelins', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-        body: JSON.stringify({ action: 'delete' }),
+      const res = await fetch('/.netlify/functions/profils-a-completer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token }, body: '{}',
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) { toast('Erreur : ' + (out.error || res.status), 'error'); return; }
-      toast(`${out.supprimes} compte(s) supprimé(s) ✓`, 'success');
-      loadComptesSansProfil();
+      toast(`E-mail envoyé à ${out.envoyes} personne(s) ✓`, 'success');
     };
   }
 

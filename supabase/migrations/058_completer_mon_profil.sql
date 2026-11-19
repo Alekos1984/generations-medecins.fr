@@ -1,0 +1,4 @@
+-- Migration 058/059 - completer_mon_profil(jsonb) : l'adhérent complète sa fiche provisoire.
+-- Le trigger membres_proteger laisse passer cette fonction (drapeau app.profil_completion) ;
+-- l'adhérent ne peut toujours pas modifier statut, RPPS vérifié ni numéro hors de cette fonction.
+-- Voir la définition appliquée en base (migrations 058_completer_mon_profil et 059_completer_profil_garde).
