@@ -1,4 +1,4 @@
-const { cronSecret, isSchedulerCall } = require('./_security');
+const { cronSecret, isSchedulerCall, cronSlot, isCron } = require('./_security');
 
 /**
  * Netlify Scheduled Function - déclencheur quotidien de la veille
@@ -11,6 +11,7 @@ const { cronSecret, isSchedulerCall } = require('./_security');
 
 exports.handler = async (event) => {
   if (!isSchedulerCall(event)) return { statusCode: 403, body: 'Acces refuse' };
+  if (!(await cronSlot(event, 'veille', 86400))) return { statusCode: 200, body: 'Déjà exécuté sur cette période' };
   const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL;
   if (!base) {
     console.error('Veille cron : URL du site introuvable');

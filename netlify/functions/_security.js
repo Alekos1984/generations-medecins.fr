@@ -30,6 +30,21 @@ function isSchedulerCall(event) {
   return isCron((event && event.headers) || {});
 }
 
+// Créneau d'exécution unique pour une fonction planifiée : même si quelqu'un appelle l'adresse publique de la fonction
+// en imitant le planificateur, la tâche ne s'exécute qu'une fois par fenêtre (jour, semaine) et jamais en rafale.
+// Un appel manuel portant l'en-tête x-cron-key valide n'est pas limité. Refus si la base est injoignable.
+async function cronSlot(event, nom, fenetreSecondes) {
+  if (isCron((event && event.headers) || {})) return true;
+  try {
+    const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/check_rate_limit`, {
+      method: 'POST',
+      headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_key: `cronslot:${nom}`, p_max: 1, p_window_seconds: fenetreSecondes }),
+    });
+    return r.ok && (await r.json()) === true;
+  } catch { return false; }
+}
+
 function bearer(headers = {}) {
   return String(headers.authorization || headers.Authorization || '').replace(/^Bearer\s+/i, '').trim();
 }
@@ -60,4 +75,4 @@ async function rateLimit(event, name, max, windowSeconds, extraKey = '', opts = 
 
 const TOO_MANY = { statusCode: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '600' }, body: '{"error":"Trop de requêtes, réessayez plus tard."}' };
 
-module.exports = { isSchedulerCall, cronSecret, safeEqual, isCron, bearer, rateLimit, TOO_MANY };
+module.exports = { isSchedulerCall, cronSlot, cronSecret, safeEqual, isCron, bearer, rateLimit, TOO_MANY };
