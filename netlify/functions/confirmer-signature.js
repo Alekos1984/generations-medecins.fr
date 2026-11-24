@@ -1,8 +1,9 @@
 /**
  * Netlify Function - Confirme la signature électronique (lien cliqué dans l'email).
  *
- * GET ?token=XXX → vérifie le jeton, appose signe_le / signe_par, passe statut='signe'
- * et renvoie une page HTML de confirmation.
+ * GET ?token=XXX → affiche une page de confirmation (aucune signature, un GET ne signe jamais).
+ * POST (formulaire, champ token) → appose signe_le / signe_par, passe statut='signe',
+ * invalide le jeton et renvoie une page HTML de confirmation.
  *
  * Env vars : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, URL
  */
@@ -19,7 +20,7 @@ function srvHeaders(extra = {}) {
   return { apikey: SRK, Authorization: `Bearer ${SRK}`, 'Content-Type': 'application/json', ...extra };
 }
 
-function page(title, message, ok) {
+function page(title, message, ok, noBack) {
   const color = ok ? '#62c040' : '#e74c3c';
   const icon  = ok ? '✓' : '✕';
   const base  = process.env.URL || 'https://generation-medecins.netlify.app';
@@ -42,55 +43,71 @@ function page(title, message, ok) {
   <div class="body">
     <h1>${title}</h1>
     ${message}
-    <a class="btn" href="${base}/espace-membre.html">Retour à mon espace</a>
+    ${noBack ? '' : `<a class="btn" href="${base}/espace-membre.html">Retour à mon espace</a>`}
   </div>
 </div></body></html>`;
 }
 
 exports.handler = async (event) => {
-  const htmlHeaders = { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:" };
-  const token = event.queryStringParameters?.token;
-
-  if (!token) {
-    return { statusCode: 400, headers: htmlHeaders, body: page('Lien invalide', '<p>Aucun jeton de signature fourni.</p>', false) };
+  const htmlHeaders = { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'", 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
+  const method = event.httpMethod;
+  if (method !== 'GET' && method !== 'POST') {
+    return { statusCode: 405, headers: { ...htmlHeaders, Allow: 'GET, POST' }, body: page('Méthode non autorisée', '<p>Requête non prise en charge.</p>', false) };
   }
 
-  // Recherche le courrier par jeton
+  let token;
+  if (method === 'GET') {
+    token = event.queryStringParameters?.token;
+  } else {
+    const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '');
+    token = new URLSearchParams(raw).get('token');
+  }
+
+  if (!token || typeof token !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(token)) {
+    return { statusCode: 400, headers: htmlHeaders, body: page('Lien invalide', '<p>Aucun jeton de signature valide fourni.</p>', false) };
+  }
+
+  // Recherche le courrier par jeton (un jeton est effacé après signature)
   const cRes = await fetch(
-    `${SB}/rest/v1/courriers_generes?select=id,titre,signataire_nom,signe_le,signe_par,membre_id&signature_token=eq.${encodeURIComponent(token)}`,
+    `${SB}/rest/v1/courriers_generes?select=id,titre,signataire_nom,signe_le,membre_id&signature_token=eq.${encodeURIComponent(token)}`,
     { headers: srvHeaders() }
   );
-  const rows = await cRes.json();
-  const courrier = rows?.[0];
+  const rows = cRes.ok ? await cRes.json() : null;
+  const courrier = Array.isArray(rows) ? rows[0] : null;
 
   if (!courrier) {
     return { statusCode: 404, headers: htmlHeaders, body: page('Lien invalide ou expiré', '<p>Ce lien de signature n\'est plus valide.</p>', false) };
   }
 
-  // Déjà signé ?
+  // Déjà signé : message générique, sans e-mail ni titre
   if (courrier.signe_le) {
-    const d = new Date(courrier.signe_le).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
-    return {
-      statusCode: 200, headers: htmlHeaders,
-      body: page('Courrier déjà signé',
-        `<p>Le courrier « <strong>${esc(courrier.titre)}</strong> » a déjà été signé.</p>
-         <div class="sig">Signé électroniquement le ${d}<br>par ${esc(courrier.signe_par)}</div>`, true),
-    };
+    return { statusCode: 200, headers: htmlHeaders, body: page('Courrier déjà signé', '<p>Ce courrier a déjà été signé.</p>', true) };
   }
 
-  // Récupère l'email du signataire (celui du membre)
-  const mRes = await fetch(`${SB}/rest/v1/membres?select=email&id=eq.${courrier.membre_id}`, { headers: srvHeaders() });
-  const membres = await mRes.json();
+  // GET : simple page de confirmation, aucune écriture
+  if (method === 'GET') {
+    const form = `<p>Vous êtes sur le point de signer électroniquement le courrier « <strong>${esc(courrier.titre)}</strong> ».</p>
+      <form method="POST" action="">
+        <input type="hidden" name="token" value="${esc(token)}">
+        <button class="btn" type="submit" style="border:0;cursor:pointer;font-family:inherit">Confirmer la signature</button>
+      </form>`;
+    return { statusCode: 200, headers: htmlHeaders, body: page('Confirmer la signature', form, true, true) };
+  }
+
+  // POST : signature
+  const mRes = await fetch(`${SB}/rest/v1/membres?select=email&id=eq.${encodeURIComponent(courrier.membre_id)}`, { headers: srvHeaders() });
+  const membres = mRes.ok ? await mRes.json() : null;
   const email = membres?.[0]?.email || 'inconnu';
 
   const now = new Date().toISOString();
-  const upd = await fetch(`${SB}/rest/v1/courriers_generes?id=eq.${courrier.id}`, {
+  const upd = await fetch(`${SB}/rest/v1/courriers_generes?id=eq.${encodeURIComponent(courrier.id)}&signe_le=is.null`, {
     method: 'PATCH',
     headers: srvHeaders({ Prefer: 'return=minimal' }),
-    body: JSON.stringify({ signe_le: now, signe_par: email, statut: 'signe' }),
+    body: JSON.stringify({ signe_le: now, signe_par: email, statut: 'signe', signature_token: null }),
   });
 
   if (!upd.ok) {
+    console.error('confirmer-signature: PATCH refusé', upd.status);
     return { statusCode: 502, headers: htmlHeaders, body: page('Erreur', '<p>Impossible d\'enregistrer la signature. Réessayez.</p>', false) };
   }
 

@@ -1855,6 +1855,7 @@
   const SUPABASE_URL  = 'https://faegpfkhlkkwmtaichin.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const csvCell = v => { let s=String(v??''); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; };
 
   let allMembres = [];
   let deleteTargetId = null;
@@ -2795,12 +2796,7 @@
       return [
         m.prenom, m.nom, m.email, m.telephone, m.code_postal, region,
         m.specialite, m.secteur, m.mode_exercice, m.rpps, m.statut, m.created_at
-      ].map(v => {
-        if (v == null) return '';
-        const s = String(v);
-        if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
-        return s;
-      }).join(',');
+      ].map(csvCell).join(',');
     });
     const csv = [header, ...rows].join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -3709,7 +3705,7 @@
       </div>
       <div style="margin-top:14px;font-size:.78rem;color:var(--muted)"><b>Journal :</b> ${(audit || []).map(a => esc(a.action) + ' (' + esc(csFmt(a.created_at)) + ')').join(' → ') || '-'}</div>`;
     const dl = (name, lines) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click(); };
-    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const q = csvCell;
     document.getElementById('cs-exp-res').onclick = () => dl('consultation-resultats.csv',
       ['option,' + (classement ? 'points,premier_choix' : 'voix')].concat(r.options.map(o => [q(o.libelle), classement ? o.points : o.voix, classement ? o.premier_choix : ''].filter(v => v !== '' || classement).join(','))));
     const nom = document.getElementById('cs-exp-nom');
@@ -4915,7 +4911,7 @@
       const total     = courriers.length;
       const pct       = Math.round((signes / total) * 100);
       const emails    = courriers.map(c => c.membre?.email).filter(Boolean);
-      const csvData   = courriers.map(c => `"${c.membre ? 'Dr ' + (c.membre.prenom||'') + ' ' + (c.membre.nom||'') : ''}","${c.membre?.email||''}","${c.membre?.ville||c.membre?.code_postal||''}","${c.statut}"`).join('\n');
+      const csvData   = courriers.map(c => [c.membre ? 'Dr ' + (c.membre.prenom||'') + ' ' + (c.membre.nom||'') : '', c.membre?.email||'', c.membre?.ville||c.membre?.code_postal||'', c.statut].map(csvCell).join(',')).join('\n');
 
       const rows = courriers.map(c => {
         const nom = c.membre ? `Dr ${c.membre.prenom||''} ${c.membre.nom||''}`.trim() : '-';
@@ -5161,10 +5157,16 @@
 
   // Ouvre un fichier du bucket privé via URL signée temporaire (5 min)
   window.doctrineOpenDoc = async function(path) {
-    if (/^https?:\/\//.test(path)) { window.open(path, '_blank'); return; } // ancien format
+    if (/^https?:\/\//.test(path)) { // ancien format : uniquement l'hote Supabase du projet
+      let host = '';
+      try { host = new URL(path).host; } catch (e) {}
+      if (host && host === new URL(SUPABASE_URL).host) window.open(path, '_blank', 'noopener,noreferrer');
+      else alert("Ouverture des liens externes refusée pour des raisons de sécurité.");
+      return;
+    }
     const { data, error } = await sb.storage.from('consultations').createSignedUrl(path, 300);
     if (error || !data?.signedUrl) { toast('Accès refusé ou fichier introuvable', 'error'); return; }
-    window.open(data.signedUrl, '_blank');
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
   window.toggleDoctrineCard = function(id) {
@@ -5660,7 +5662,7 @@
     const modeLabels = { liberal:'Libéral', hospitalier:'Hospitalier', salarie:'Salarié', mixte:'Mixte' };
     document.getElementById('gs-modes').innerHTML = Object.keys(modes).length
       ? Object.entries(modes).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
-          `<div style="display:flex;justify-content:space-between"><span>${modeLabels[k]||k}</span><strong>${v}</strong></div>`).join('')
+          `<div style="display:flex;justify-content:space-between"><span>${esc(modeLabels[k]||k)}</span><strong>${v}</strong></div>`).join('')
       : '<span style="color:var(--muted)">Aucune donnée</span>';
 
     const specs = {};
@@ -5705,7 +5707,7 @@
     const campTitle = (greveCampagne.titre || 'campagne').replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 30);
     const rows = [['ref','specialite','cp','mode_exercice','date'].join(',')]
       .concat(greveDecls.map(d => [d.ref, d.specialite||'', d.cp||'', d.mode_exercice||'', d.created_at.slice(0,10)]
-        .map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')));
+        .map(csvCell).join(',')));
     const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -5721,7 +5723,7 @@
     if (!data || !data.length) { toast('Aucun contact ayant consenti pour cette campagne', 'error'); return; }
     const campTitle = (greveCampagne.titre || 'campagne').replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 30);
     const rows = ['email,date_consentement,version_texte'].concat(data.map(c =>
-      [c.email, c.consent_at.slice(0, 10), c.consent_version].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')));
+      [c.email, c.consent_at.slice(0, 10), c.consent_version].map(csvCell).join(',')));
     const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

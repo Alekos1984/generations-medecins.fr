@@ -8,7 +8,7 @@
   <link rel="icon" type="image/jpeg" href="logoGM.jpeg">
   <link rel="stylesheet" href="style.css">
   <script src="vendor/dompurify-3.1.6.min.js"></script>
-  <script src="security.js"></script>
+  <script src="security.js" data-safe-html></script>
   <script src="vendor/supabase-2.119.1.min.js"></script>
   <style>
     .filter-bar {
@@ -416,9 +416,9 @@
     const visible = tags.slice(0, 4);
     const rest = tags.length - 4;
     let html = visible.map(slug => {
-      const label = tagsMap[slug] || slug;
+      const label = escHtml(tagsMap[slug] || slug);
       const c = PILL_COLORS[slug];
-      const style = c ? ` style="background:${c[0]};color:${c[1]}"` : '';
+      const style = c ? ` style="background:${escHtml(c[0])};color:${escHtml(c[1])}"` : '';
       return `<span class="tag-pill"${style}>${label}</span>`;
     }).join('');
     if (rest > 0) html += `<span class="tag-pill-more">+${rest}</span>`;
@@ -435,19 +435,19 @@
       }
     }
     const chip = '';
-    const sourcePart = a.source ? `${a.source} · ` : '';
+    const sourcePart = a.source ? `${escHtml(a.source)} · ` : '';
     const datePart = fmt(a.publie_le);
     const sourceDate = (sourcePart || datePart)
       ? `<span class="article-source-date">${sourcePart}${datePart}</span>`
       : '';
     return `
-      <a href="decrypteur.html?slug=${a.slug}" class="article-card">
+      <a href="decrypteur.html?slug=${encodeURIComponent(a.slug)}" class="article-card">
         <div class="article-top" style="background:${display.grad}">
-          <span class="article-cat">${display.label}</span>
+          <span class="article-cat">${escHtml(display.label)}</span>
         </div>
         <div class="article-body">
-          <div class="article-title">${a.titre}</div>
-          <p class="article-excerpt">${a.extrait || ''}</p>
+          <div class="article-title">${escHtml(a.titre)}</div>
+          <p class="article-excerpt">${escHtml(a.extrait || '')}</p>
           ${renderTagPills(a.tags)}
           <div class="article-meta">
             ${sourceDate}

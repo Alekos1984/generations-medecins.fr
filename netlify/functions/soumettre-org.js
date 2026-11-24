@@ -3,21 +3,35 @@ const { rateLimit, TOO_MANY } = require('./_security');
  * Netlify Function - Soumission d'une déclaration pour les organisations non-médecins
  *
  * Privacy-by-design :
- *   - Reçoit un idHash (SHA-256 calculé côté client sur l'identifiant pro)
+ *   - Reçoit l'identifiant pro en TLS (champ `id`), pseudonymisé côté serveur par HMAC-SHA256
+ *     avec un secret serveur ; l'identifiant brut n'est ni stocké ni journalisé
  *   - Email utilisé uniquement pour l'attestation, jamais stocké en base
- *   - UPSERT : même identifiant/campagne → mise à jour, pas doublon
+ *   - Doublon (même identifiant/campagne) : la déclaration existante est conservée telle quelle
  *
- * Body attendu : { orgSlug, campaignId, idHash, cp, email, ref, source }
+ * Body attendu : { orgSlug, campaignId, id, cp, email, source }
  *
  * Env vars : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BREVO_API_KEY,
  *            SENDER_EMAIL, SENDER_NAME
  */
 
+const crypto = require('crypto');
 const SB  = process.env.SUPABASE_URL;
 const SSK = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function srvHeaders(extra = {}) {
   return { apikey: SSK, Authorization: `Bearer ${SSK}`, 'Content-Type': 'application/json', ...extra };
+}
+
+function pepper() {
+  return process.env.RPPS_PEPPER
+    || crypto.createHmac('sha256', SSK || '').update('rpps-pepper-v1').digest('hex');
+}
+
+function genRef() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[crypto.randomInt(chars.length)];
+  return 'ORG-' + code;
 }
 
 function esc(s) {
@@ -34,7 +48,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: '{"error":"Method not allowed"}' };
   if (!(await rateLimit(event, 'org', 12, 3600))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
-  if (!SB || !SSK) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Configuration Supabase manquante' }) };
+  if (!SB || !SSK) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Service momentanément indisponible' }) };
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch {
@@ -43,12 +57,16 @@ exports.handler = async (event) => {
   // Pot de miel : champ invisible rempli = robot, réponse OK sans rien enregistrer
   if (body && body.website) return { statusCode: 200, headers, body: JSON.stringify({ ok: true, ref: 'GM-OK' }) };
 
-  const { orgSlug, campaignId, idHash, cp, email, ref: clientRef, source = 'web', contactOptIn = false } = body;
+  const { orgSlug, campaignId, id, cp, email, source = 'web', contactOptIn = false } = body;
 
   if (!orgSlug)    return { statusCode: 400, headers, body: JSON.stringify({ error: 'orgSlug requis' }) };
   if (!campaignId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'campaignId requis' }) };
-  if (!idHash || !/^[a-f0-9]{64}$/.test(idHash))
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Empreinte identifiant invalide' }) };
+  if (typeof orgSlug !== 'string' || orgSlug.length > 80 || typeof campaignId !== 'string' || campaignId.length > 64)
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Données invalides' }) };
+  if (typeof id !== 'string' || !/^[A-Za-z0-9-]{4,40}$/.test(id.trim()))
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Identifiant invalide' }) };
+  if (cp != null && cp !== '' && !/^\d{2,5}$/.test(String(cp)))
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Code postal invalide' }) };
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Email invalide' }) };
 
@@ -72,16 +90,15 @@ exports.handler = async (event) => {
   if (camp.date_fin && today > camp.date_fin)
     return { statusCode: 403, headers, body: JSON.stringify({ error: `Les déclarations sont closes depuis le ${camp.date_fin}.` }) };
 
-  // 3. UPSERT déclaration
-  const ref = (typeof clientRef === 'string' && /^ORG-[a-z0-9]+$/i.test(clientRef))
-    ? clientRef.toUpperCase()
-    : 'ORG-' + Date.now().toString(36).toUpperCase();
+  // 3. Insertion (référence toujours générée côté serveur ; doublon = déclaration existante conservée)
+  const ref = genRef();
+  const idHash = crypto.createHmac('sha256', pepper()).update(id.trim() + '|' + campaignId).digest('hex');
 
   const insRes = await fetch(
     `${SB}/rest/v1/greve_declarations?on_conflict=rpps_hash,campagne_id`,
     {
       method: 'POST',
-      headers: srvHeaders({ Prefer: 'resolution=merge-duplicates,return=representation' }),
+      headers: srvHeaders({ Prefer: 'resolution=ignore-duplicates,return=representation' }),
       body: JSON.stringify({
         campagne_id: campaignId,
         org_id:      org.id,
@@ -93,9 +110,12 @@ exports.handler = async (event) => {
   );
 
   if (!insRes.ok) {
-    const errText = await insRes.text();
+    console.error('soumettre-org: insertion refusée', insRes.status);
     return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement' }) };
   }
+
+  let inserted = false;
+  try { const rows = await insRes.json(); inserted = Array.isArray(rows) && rows.length > 0; } catch { inserted = false; }
 
   // Contact conservé UNIQUEMENT avec consentement explicite (case dédiée)
   if (contactOptIn === true && email) {
@@ -108,7 +128,11 @@ exports.handler = async (event) => {
 
   // 4. Email d'attestation (optionnel, best effort)
   let emailEnvoye = false;
-  if (email && process.env.BREVO_API_KEY && process.env.SENDER_EMAIL) {
+  // Limite par destinataire (3 / 24 h), indépendante de l'IP ; échec ouvert si la base ne répond pas
+  const mailOk = inserted && email
+    ? await rateLimit({ headers: {} }, 'org-mail', 3, 86400, crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex'))
+    : false;
+  if (mailOk && process.env.BREVO_API_KEY && process.env.SENDER_EMAIL) {
     const html = `<!DOCTYPE html><html><body style="margin:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:28px 18px">
   <div style="background:#fff;border-radius:16px;padding:30px 28px;box-shadow:0 2px 12px rgba(20,32,51,.08)">
@@ -121,8 +145,8 @@ exports.handler = async (event) => {
       <strong>Référence :</strong> ${esc(ref)}
     </p>
     <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;margin:20px 0;font-size:13px;color:#166534;line-height:1.6">
-      🔒 Votre identifiant professionnel n'a jamais quitté votre appareil -
-      seule son empreinte numérique a été transmise.
+      🔒 Votre identifiant professionnel n'est pas conservé : seule une empreinte pseudonymisée
+      (calculée avec une clé secrète côté serveur) est enregistrée.
     </div>
     <p style="margin:18px 0 0;font-size:12px;color:#94a3b8;line-height:1.5">
       Plateforme de mobilisation hébergée par Générations Médecins Île-de-France.
@@ -133,7 +157,8 @@ exports.handler = async (event) => {
   </p>
 </div></body></html>`;
 
-    const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+    let brevoRes;
+    try { brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -142,10 +167,14 @@ exports.handler = async (event) => {
         subject:     `${org.emoji || '✊'} Votre participation est confirmée - ${ref}`,
         htmlContent: html,
       }),
-    }).catch(() => ({ ok: false }));
+    }); } catch { brevoRes = { ok: false }; }
     emailEnvoye = brevoRes.ok;
+    if (!brevoRes.ok) console.error('soumettre-org: envoi e-mail refusé');
   }
 
+  if (!inserted) {
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, dejaEnregistree: true, message: 'Déclaration déjà enregistrée', emailEnvoye: false }) };
+  }
   return {
     statusCode: 200,
     headers,

@@ -80,8 +80,8 @@ exports.handler = async (event) => {
     body: JSON.stringify({ signataire_nom: signataireNom.trim().slice(0, 120), signature_token: sigToken }),
   });
   if (!upd.ok) {
-    const t = await upd.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur enregistrement jeton', detail: t.slice(0, 200) }) };
+    console.error('signer-courrier: PATCH refusé', upd.status, (await upd.text()).slice(0, 200));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Impossible de préparer la signature. Réessayez plus tard.' }) };
   }
 
   // Construit le lien de confirmation
@@ -96,7 +96,7 @@ exports.handler = async (event) => {
       <span style="color:#fff;font-size:20px;font-weight:800">Signature électronique</span>
     </div>
     <div style="padding:28px 32px;color:#152033">
-      <p style="margin:0 0 14px;font-size:15px">Bonjour ${membre.prenom || ''},</p>
+      <p style="margin:0 0 14px;font-size:15px">Bonjour ${esc(membre.prenom || '')},</p>
       <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#475569">
         Vous avez demandé à signer électroniquement le courrier
         « <strong>${esc(courrier.titre)}</strong> » sous le nom <strong>${esc(signataireNom.trim().slice(0, 120))}</strong>.
@@ -130,8 +130,8 @@ exports.handler = async (event) => {
   });
 
   if (!brevoRes.ok) {
-    const err = await brevoRes.json().catch(() => ({}));
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur envoi email', detail: err }) };
+    console.error('signer-courrier: Brevo refusé', brevoRes.status, JSON.stringify(await brevoRes.json().catch(() => ({}))).slice(0, 300));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: "Impossible d'envoyer l'e-mail de confirmation. Réessayez plus tard." }) };
   }
 
   return { statusCode: 200, headers, body: JSON.stringify({ ok: true, email: membre.email }) };

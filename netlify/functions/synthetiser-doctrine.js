@@ -8,6 +8,8 @@
  * Env vars : OPENAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  */
 
+const { rateLimit, TOO_MANY } = require('./_security');
+
 const SB  = process.env.SUPABASE_URL;
 const SSK = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON = process.env.SUPABASE_ANON_KEY;
@@ -17,20 +19,20 @@ function srvHeaders(extra = {}) {
 }
 
 async function requireAdmin(token) {
-  if (!token) return false;
+  if (!token) return null;
   const userRes = await fetch(`${SB}/auth/v1/user`, {
     headers: { Authorization: `Bearer ${token}`, apikey: ANON },
   });
-  if (!userRes.ok) return false;
+  if (!userRes.ok) return null;
   const user = await userRes.json();
-  if (!user?.id) return false;
+  if (!user?.id) return null;
   const adminRes = await fetch(
     `${SB}/rest/v1/admins?user_id=eq.${user.id}&select=id`,
     { headers: srvHeaders() },
   );
-  if (!adminRes.ok) return false;
+  if (!adminRes.ok) return null;
   const rows = await adminRes.json();
-  return Array.isArray(rows) && rows.length > 0;
+  return Array.isArray(rows) && rows.length > 0 ? user : null;
 }
 
 const MAX_REPONSE_LENGTH = 15000;
@@ -47,16 +49,19 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST')    return { statusCode: 405, headers, body: '{"error":"Method not allowed"}' };
 
   const token = (event.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  if (!(await requireAdmin(token))) {
+  const user = await requireAdmin(token);
+  if (!user) {
     return { statusCode: 403, headers, body: '{"error":"Accès réservé aux administrateurs"}' };
   }
 
+  if (!(await rateLimit(event, 'synth-doctrine', 20, 3600, user.id))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'OPENAI_API_KEY non configurée' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
   if (!SSK) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY non configurée' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   let body;
@@ -97,17 +102,18 @@ exports.handler = async (event) => {
     });
 
     if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur OpenAI', detail: errText.slice(0, 200) }) };
+      console.error('synthetiser-doctrine : OpenAI HTTP', aiRes.status, (await aiRes.text().catch(() => '')).slice(0, 200));
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service de synthèse indisponible' }) };
     }
 
     const aiData = await aiRes.json();
     synthese = aiData.choices?.[0]?.message?.content?.trim();
     if (!synthese) {
-      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Réponse OpenAI vide' }) };
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service de synthèse indisponible' }) };
     }
   } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur lors de la synthèse', detail: e.message }) };
+    console.error('synthetiser-doctrine :', e.message);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   // Mise à jour de la ligne dans Supabase (service role, bypass RLS)
@@ -121,8 +127,8 @@ exports.handler = async (event) => {
   );
 
   if (!upd.ok) {
-    const t = await upd.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur mise à jour Supabase', detail: t.slice(0, 200) }) };
+    console.error('synthetiser-doctrine : mise à jour HTTP', upd.status, (await upd.text().catch(() => '')).slice(0, 200));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   return {

@@ -9,6 +9,8 @@
  * Env vars : OPENAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
  */
 
+const { rateLimit, TOO_MANY } = require('./_security');
+
 const SB   = process.env.SUPABASE_URL;
 const SSK  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANON = process.env.SUPABASE_ANON_KEY;
@@ -71,9 +73,11 @@ exports.handler = async (event) => {
   const user = await requireAdmin(token);
   if (!user) return { statusCode: 403, headers, body: '{"error":"Accès réservé aux administrateurs"}' };
 
+  if (!(await rateLimit(event, 'synth-observatoire', 20, 3600, user.id))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
+
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return { statusCode: 500, headers, body: JSON.stringify({ error: 'OPENAI_API_KEY non configurée' }) };
-  if (!SSK)    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY non configurée' }) };
+  if (!apiKey) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
+  if (!SSK)    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
 
   // 1. Récupère KPIs validés + tendances + 12 mois d'historique
   const [kpisR, tendR, histR, seriesR] = await Promise.all([
@@ -119,14 +123,15 @@ exports.handler = async (event) => {
       }),
     });
     if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur OpenAI', detail: errText.slice(0, 300) }) };
+      console.error('synthetiser-observatoire : OpenAI HTTP', aiRes.status, (await aiRes.text().catch(() => '')).slice(0, 300));
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service de synthèse indisponible' }) };
     }
     const aiData = await aiRes.json();
     analyse = aiData.choices?.[0]?.message?.content?.trim();
-    if (!analyse) return { statusCode: 502, headers, body: JSON.stringify({ error: 'Réponse OpenAI vide' }) };
+    if (!analyse) return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service de synthèse indisponible' }) };
   } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur génération', detail: e.message }) };
+    console.error('synthetiser-observatoire :', e.message);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   // 4. Stocke dans observatoire_analyses
@@ -141,8 +146,8 @@ exports.handler = async (event) => {
     }),
   });
   if (!ins.ok) {
-    const t = await ins.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur insertion', detail: t.slice(0, 200) }) };
+    console.error('synthetiser-observatoire : insertion HTTP', ins.status, (await ins.text().catch(() => '')).slice(0, 200));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
   const row = (await ins.json())[0];
 

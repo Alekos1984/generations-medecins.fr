@@ -579,9 +579,8 @@
     });
     if (authError) {
       btnSub.disabled = false; btnSub.textContent = 'Adhérer';
-      if (/already registered|already been registered/i.test(authError.message)) return showError('Un compte existe déjà avec cet email.');
-      if (/database error/i.test(authError.message)) return showError('Inscription impossible : un compte existe déjà avec cet email ou ce RPPS. Contactez-nous si vous pensez à une erreur.');
-      return showError(authError.message);
+      // Message neutre : on ne révèle pas si un e-mail ou un RPPS existe déjà
+      return showError('Inscription impossible pour le moment. Vérifiez vos informations et réessayez, ou contactez-nous.');
     }
     if (!data.user) { btnSub.disabled = false; btnSub.textContent = 'Adhérer'; return showError('Erreur lors de la création du compte. Réessayez.'); }
 

@@ -2,9 +2,11 @@
  * Netlify Scheduled Function - quotidien : clôture automatique des consultations échues
  * et rappel (une seule fois) aux non-votants des consultations qui se terminent dans moins de 48 h.
  */
+const { isSchedulerCall } = require('./_security');
 const { sendBatch, marquer, srv, SB } = require('./_consultation-mail');
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  if (!isSchedulerCall(event)) return { statusCode: 403, body: 'Acces refuse' };
   if (!SB() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return { statusCode: 500 };
   try {
     await fetch(`${SB()}/rest/v1/rpc/consultations_cloture_auto`, { method: 'POST', headers: srv(), body: '{}' });

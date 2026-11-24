@@ -1,4 +1,4 @@
-const { cronSecret } = require('./_security');
+const { cronSecret, isSchedulerCall } = require('./_security');
 
 /**
  * Netlify Scheduled Function - déclencheur bimensuel de la newsletter auto
@@ -8,7 +8,8 @@ const { cronSecret } = require('./_security');
  * la Background Function generer-newsletter-background (limite 15 min).
  */
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  if (!isSchedulerCall(event)) return { statusCode: 403, body: 'Acces refuse' };
   const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL;
   if (!base) {
     console.error('Newsletter cron : URL du site introuvable');
