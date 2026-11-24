@@ -173,6 +173,7 @@
     .cs-btn-danger { background:#fff; color:#b91c1c; border-color:#fecaca; }
     .cs-btn-danger:hover { background:#fef2f2; border-color:#fca5a5; }
     .cs-btn-icon { padding:8px; }
+    .cs-pill { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:rgba(255,255,255,.25); font-size:.72rem; font-weight:800; }
 
     /* Icon-only action buttons */
     .btn-icon {
@@ -3865,6 +3866,9 @@
   const csToLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
   const csCount = c => { const x = c.consultation_questions; return Array.isArray(x) && x[0] && typeof x[0].count === 'number' ? x[0].count : 0; };
 
+  let csNbActifs = 0, csDestMap = {};
+  const csDestCount = c => c && c.audience === 'selection' ? (csDestMap[c.id] || 0) : csNbActifs;
+  const csPill = n => `<span class="cs-pill">${Number(n) || 0}</span>`;
   const CS_ICONS = {"edit": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z\"/></svg>", "send": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 2L11 13\"/><path d=\"M22 2l-7 20-4-9-9-4 20-7z\"/></svg>", "play": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M10 8l6 4-6 4V8z\"/></svg>", "trash": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 6h18\"/><path d=\"M8 6V4h8v2\"/><path d=\"M19 6l-1 14H6L5 6\"/></svg>", "eye": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>", "bell": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9\"/><path d=\"M13.7 21a2 2 0 01-3.4 0\"/></svg>", "stop": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"5\" width=\"14\" height=\"14\" rx=\"2\"/></svg>", "chart": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 20V10M12 20V4M6 20v-6\"/></svg>"};
   const csBtn = (act, id, label, kind, icon, title) => `<button class="cs-btn cs-btn-${kind}" data-cs="${act}" data-id="${csE(id)}"${title ? ' title="' + csE(title) + '"' : ''}>${CS_ICONS[icon] || ''}${label ? '<span>' + label + '</span>' : ''}</button>`;
   async function loadConsultationsAdmin() {
@@ -3873,6 +3877,16 @@
     if (error) { tbody.innerHTML = `<tr><td colspan="6" style="color:#c0392b;padding:20px">Erreur : ${csE(error.message)}</td></tr>`; return; }
     csCache = data || [];
     if (!csCache.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Aucune consultation. Créez la première.</td></tr>'; return; }
+    // Nombre réel de destinataires (adhérents actifs) : tous les actifs, ou les actifs parmi la sélection
+    csNbActifs = 0; csDestMap = {};
+    try {
+      const rA = await sb.from('membres').select('id', { count: 'exact', head: true }).eq('statut', 'actif');
+      csNbActifs = rA.count || 0;
+      if (csCache.some(c => c.audience === 'selection')) {
+        const rP = await sb.from('consultation_participants').select('consultation_id, membres!inner(statut)').eq('membres.statut', 'actif').limit(20000);
+        (rP.data || []).forEach(r => { csDestMap[r.consultation_id] = (csDestMap[r.consultation_id] || 0) + 1; });
+      }
+    } catch (e) { /* le compteur est un confort : on continue sans */ }
     tbody.innerHTML = csCache.map(c => {
       const closed = csClosed(c);
       const st = c.statut === 'brouillon' ? '<span style="color:#92400e;font-weight:700">Brouillon</span>' : closed ? '<span style="color:var(--muted);font-weight:700">Close</span>' : '<span style="color:#2d7a1a;font-weight:700">● Ouverte</span>';
@@ -3880,11 +3894,11 @@
       if (c.statut === 'brouillon') {
         btns.push(csBtn('edit', c.id, 'Modifier', 'ghost', 'edit'));
         btns.push(csBtn('open_silent', c.id, 'Ouvrir sans e-mail', 'secondary', 'play', 'Ouvre la consultation sans prévenir personne par e-mail : idéal pour un test'));
-        btns.push(csBtn('open', c.id, 'Ouvrir et annoncer', 'primary', 'send', 'Ouvre la consultation et envoie l\'e-mail d\'annonce aux destinataires'));
+        btns.push(csBtn('open', c.id, 'Ouvrir et annoncer ' + csPill(csDestCount(c)), 'primary', 'send', 'Ouvre la consultation et envoie l\'e-mail d\'annonce à ' + csDestCount(c) + ' adhérent(s)'));
         btns.push(csBtn('del', c.id, '', 'danger cs-btn-icon', 'trash', 'Supprimer le brouillon'));
       } else if (!closed) {
         btns.push(csBtn('view', c.id, 'Consulter', 'ghost', 'eye'));
-        if (!c.annonce_envoyee) btns.push(csBtn('annonce', c.id, 'Annoncer par e-mail', 'primary', 'send', 'Envoie l\'e-mail d\'annonce aux destinataires'));
+        if (!c.annonce_envoyee) btns.push(csBtn('annonce', c.id, 'Annoncer par e-mail ' + csPill(csDestCount(c)), 'primary', 'send', 'Envoie l\'e-mail d\'annonce à ' + csDestCount(c) + ' adhérent(s)'));
         btns.push(csBtn('remind', c.id, 'Rappel', 'secondary', 'bell', 'Relance par e-mail ceux qui n\'ont pas encore répondu'));
         btns.push(csBtn('close', c.id, 'Clôturer', 'danger', 'stop'));
       } else {
@@ -4067,7 +4081,7 @@
   }
 
   const csSelCount = c => { const x = c && c.consultation_participants; return Array.isArray(x) && x[0] && typeof x[0].count === 'number' ? x[0].count : 0; };
-  const csAudTxt = c => c && c.audience === 'selection' ? 'aux ' + csSelCount(c) + ' adhérents sélectionnés' : 'à tous les adhérents actifs';
+  const csAudTxt = c => c && c.audience === 'selection' ? 'aux ' + csDestCount(c) + ' adhérent(s) sélectionné(s) actif(s)' : 'à tous les adhérents actifs (' + csDestCount(c) + ')';
 
   // ----- Sélecteur d'adhérents (grande fenêtre) -----
   const CS_PK_COLS = 'id,prenom,nom,email,numero_adherent,specialite,secteur,code_postal,mode_exercice,est_interne,created_at';
@@ -4536,7 +4550,7 @@
       }
       if (a === 'open_silent') {
         const csS = csCache.find(x => x.id === id);
-        if (!confirm('Ouvrir la consultation SANS envoyer d\'e-mail ?\n\nElle sera visible tout de suite ' + (csS && csS.audience === 'selection' ? 'par les ' + csSelCount(csS) + ' adhérent(s) sélectionné(s) seulement' : 'par tous les adhérents actifs') + ', mais personne ne sera prévenu. Vous pourrez envoyer l\'annonce plus tard avec le bouton « Annoncer par e-mail ».\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
+        if (!confirm('Ouvrir la consultation SANS envoyer d\'e-mail ?\n\nElle sera visible tout de suite ' + (csS && csS.audience === 'selection' ? 'par les ' + csDestCount(csS) + ' adhérent(s) sélectionné(s) actif(s) seulement' : 'par tous les adhérents actifs (' + csDestCount(csS) + ')') + ', mais personne ne sera prévenu. Vous pourrez envoyer l\'annonce plus tard avec le bouton « Annoncer par e-mail ».\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
         const { error } = await sb.rpc('ouvrir_consultation', { p_id: id });
         if (error) { toast('Ouverture impossible : ' + error.message, 'error'); alert('La consultation ne peut pas être ouverte :\n\n' + error.message); return; }
         toast('Consultation ouverte, aucun e-mail envoyé ✓', 'success'); return loadConsultationsAdmin();
