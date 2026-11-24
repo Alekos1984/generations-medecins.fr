@@ -1,4 +1,4 @@
-const { cronSecret, isSchedulerCall } = require('./_security');
+const { cronSecret, isSchedulerCall, cronSlot, isCron } = require('./_security');
 
 /**
  * Netlify Scheduled Function - déclencheur bimensuel de la newsletter auto
@@ -10,6 +10,8 @@ const { cronSecret, isSchedulerCall } = require('./_security');
 
 exports.handler = async (event) => {
   if (!isSchedulerCall(event)) return { statusCode: 403, body: 'Acces refuse' };
+  { const j = new Date().getUTCDate(); if (!isCron((event && event.headers) || {}) && j !== 1 && j !== 15) return { statusCode: 200, body: 'Hors calendrier' }; }
+  if (!(await cronSlot(event, 'newsletter', 86400))) return { statusCode: 200, body: 'Déjà exécuté sur cette période' };
   const base = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.DEPLOY_URL;
   if (!base) {
     console.error('Newsletter cron : URL du site introuvable');
