@@ -278,11 +278,11 @@
         </div>
       </div>
 
-      <!-- Honoraires (full-width, indépendant de la région) -->
-      <div class="chart-card" style="margin-top:24px">
-        <div class="chart-title">Honoraires moyens par mode d'exercice</div>
-        <div class="chart-sub">Revenus nets annuels estimés - données nationales</div>
-        <div class="bar-chart" id="chart-honoraires">
+      <!-- Densité médicale par département (Île-de-France uniquement) -->
+      <div class="chart-card" id="card-densite-dep" style="margin-top:24px;display:none">
+        <div class="chart-title">Densité médicale par département - Île-de-France</div>
+        <div class="chart-sub" id="chart-sub-densite-dep">Médecins actifs pour 100 000 habitants</div>
+        <div class="bar-chart" id="chart-densite-dep">
           <div style="color:var(--muted);font-size:.85rem;padding:8px">Données en cours d'intégration.</div>
         </div>
       </div>
@@ -526,6 +526,13 @@
         });
       });
 
+      // Masque les indicateurs sans valeur (plutôt qu'un tiret ou « à vérifier »)
+      document.querySelectorAll('.stat-card').forEach(card => {
+        const v = (card.querySelector('.value') || {}).textContent || '';
+        const vide = /^\s*[-\u2014]\s*([%a-z]+)?\s*$/i.test(v);
+        card.style.display = vide ? 'none' : '';
+      });
+
       // Séries : filtre par région
       const seriesRegion = (series||[]).filter(s => (s.region || 'FR') === region);
       const byId = {};
@@ -544,7 +551,17 @@
       });
 
       renderBarChart('chart-demographie', byId['demographie'], histByLabel);
-      renderBarChart('chart-honoraires',  byId['honoraires_exercice']);
+      // Densité par département : uniquement pour l'Île-de-France
+      const cardDep = document.getElementById('card-densite-dep');
+      if (cardDep) {
+        const dep = byId['densite_dep'] || [];
+        cardDep.style.display = (region === '11' && dep.length) ? '' : 'none';
+        if (region === '11' && dep.length) {
+          renderBarChart('chart-densite-dep', dep);
+          const sub = document.getElementById('chart-sub-densite-dep');
+          if (sub) sub.textContent = 'Médecins actifs pour 100 000 habitants · Source : ' + dep[0].source + ' ' + dep[0].annee;
+        }
+      }
 
       // Grise l'onglet 5A si on n'a pas assez d'historique global
       const totalHistPoints = Object.values(rawByLabel).reduce((s, arr) => s + arr.length, 0);
