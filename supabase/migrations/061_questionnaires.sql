@@ -30,7 +30,6 @@ ALTER TABLE consultation_questions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "consult_q: lecture" ON consultation_questions FOR SELECT
   USING (EXISTS (SELECT 1 FROM consultations c WHERE c.id = consultation_id AND (c.statut IN ('ouverte','cloturee') OR is_admin())));
 CREATE POLICY "consult_q: admin" ON consultation_questions FOR ALL USING (is_admin()) WITH CHECK (is_admin());
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON consultation_questions FROM anon;
 
 -- Garde : questions modifiables seulement en brouillon ; l'option doit appartenir a une question de la meme consultation
 CREATE OR REPLACE FUNCTION consultation_questions_garde() RETURNS trigger
@@ -274,9 +273,3 @@ BEGIN
                      ORDER BY m.nom, m.prenom)
     FROM consultation_votes v LEFT JOIN membres m ON m.id = v.membre_id WHERE v.consultation_id = p_id), '[]'::jsonb);
 END $$;
-
-REVOKE ALL ON FUNCTION consultation_reponses_texte(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION consultation_reponses_texte(uuid) TO authenticated;
-REVOKE ALL ON FUNCTION ouvrir_consultation(uuid), voter(uuid, jsonb), consultation_resultats(uuid), consultation_votes_nominatifs(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION ouvrir_consultation(uuid), voter(uuid, jsonb), consultation_votes_nominatifs(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION consultation_resultats(uuid) TO anon, authenticated;
