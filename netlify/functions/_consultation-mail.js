@@ -54,10 +54,10 @@ async function sendBatch(c, kind) {
       body: JSON.stringify({
         sender: { name: process.env.CONSULTATION_SENDER_NAME || process.env.SENDER_NAME || 'Générations Médecins', email: expediteur },
         replyTo: { email: process.env.CONSULTATION_REPLY_TO || process.env.CONSULTATION_SENDER_EMAIL || process.env.SENDER_EMAIL },
-        subject, htmlContent: html.replace(/\{\{prenom\}\}/g, ''),
+        subject, htmlContent: html.replace(/\{\{prenom\}\}/g, () => ''),
         messageVersions: chunk.map(d => ({
           to: [{ email: d.email }],
-          htmlContent: html.replace(/\{\{prenom\}\}/g, esc(d.prenom || '')),
+          htmlContent: html.replace(/\{\{prenom\}\}/g, () => esc(d.prenom || '')),
         })),
       }),
     });
@@ -71,8 +71,8 @@ async function sendBatch(c, kind) {
         headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sender: { name: process.env.SENDER_NAME || 'Générations Médecins', email: expediteur },
-          subject, htmlContent: html.replace(/\{\{prenom\}\}/g, ''),
-          messageVersions: chunk.map(d => ({ to: [{ email: d.email }], htmlContent: html.replace(/\{\{prenom\}\}/g, esc(d.prenom || '')) })),
+          subject, htmlContent: html.replace(/\{\{prenom\}\}/g, () => ''),
+          messageVersions: chunk.map(d => ({ to: [{ email: d.email }], htmlContent: html.replace(/\{\{prenom\}\}/g, () => esc(d.prenom || '')) })),
         }),
       });
     }
@@ -88,10 +88,25 @@ async function sendBatch(c, kind) {
   return { destinataires: dest.length, envoyes };
 }
 
+// Réservation atomique du drapeau « envoyé » AVANT l'envoi : deux appels simultanés ne peuvent plus envoyer deux fois.
+async function reserver(id, champ) {
+  const r = await fetch(`${SB()}/rest/v1/consultations?id=eq.${encodeURIComponent(id)}&${champ}=eq.false`, {
+    method: 'PATCH', headers: { ...srv(), Prefer: 'return=representation' }, body: JSON.stringify({ [champ]: true }),
+  });
+  if (!r.ok) return false;
+  const rows = await r.json();
+  return Array.isArray(rows) && rows.length === 1;
+}
+async function liberer(id, champ) {
+  await fetch(`${SB()}/rest/v1/consultations?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { ...srv(), Prefer: 'return=minimal' }, body: JSON.stringify({ [champ]: false }),
+  });
+}
+
 async function marquer(id, champ) {
   await fetch(`${SB()}/rest/v1/consultations?id=eq.${encodeURIComponent(id)}`, {
     method: 'PATCH', headers: { ...srv(), Prefer: 'return=minimal' }, body: JSON.stringify({ [champ]: true }),
   });
 }
 
-module.exports = { sendBatch, marquer, srv, SB };
+module.exports = { sendBatch, marquer, reserver, liberer, srv, SB };

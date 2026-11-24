@@ -3,7 +3,7 @@
  * POST { consultationId, action: 'annonce' | 'rappel' }
  */
 const { bearer, rateLimit, TOO_MANY } = require('./_security');
-const { sendBatch, marquer, srv, SB } = require('./_consultation-mail');
+const { sendBatch, reserver, liberer, srv, SB } = require('./_consultation-mail');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const json = (statusCode, headers, obj) => ({ statusCode, headers, body: JSON.stringify(obj) });
@@ -23,7 +23,7 @@ exports.handler = async (event) => {
   if (!user?.id) return json(401, headers, { error: 'Authentification requise' });
   const adm = await fetch(`${SB()}/rest/v1/admins?user_id=eq.${user.id}&select=user_id&limit=1`, { headers: srv() });
   if (!adm.ok || !(await adm.json()).length) return json(403, headers, { error: 'Réservé aux administrateurs' });
-  if (!(await rateLimit(event, 'consult-notif', 20, 3600, user.id))) return { ...TOO_MANY, headers };
+  if (!(await rateLimit(event, 'consult-notif', 10, 3600, user.id, { failClosed: true }))) return { ...TOO_MANY, headers };
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return json(400, headers, { error: 'JSON invalide' }); }
@@ -34,16 +34,19 @@ exports.handler = async (event) => {
   const c = cr.ok ? (await cr.json())[0] : null;
   if (!c) return json(404, headers, { error: 'Consultation introuvable' });
   if (c.statut !== 'ouverte') return json(409, headers, { error: 'La consultation doit être ouverte' });
-  if (action === 'annonce' && c.annonce_envoyee) return json(409, headers, { error: 'Annonce déjà envoyée' });
+  const champ = action === 'annonce' ? 'annonce_envoyee' : 'rappel_envoye';
+  if (c[champ]) return json(409, headers, { error: action === 'annonce' ? 'Annonce déjà envoyée' : 'Rappel déjà envoyé' });
+  // Réservation atomique avant l'envoi : deux clics ou deux requêtes simultanées n'envoient qu'une fois
+  if (!(await reserver(c.id, champ))) return json(409, headers, { error: 'Envoi déjà effectué ou en cours' });
 
   try {
     const out = await sendBatch(c, action);
-    if (out.destinataires === 0) return json(409, headers, { error: 'Aucun destinataire actif avec une adresse e-mail' });
-    if (out.envoyes === 0) return json(502, headers, { error: 'Le service d\'envoi a refusé les messages : rien n\'est parti' });
-    await marquer(c.id, action === 'annonce' ? 'annonce_envoyee' : 'rappel_envoye');
+    if (out.destinataires === 0) { await liberer(c.id, champ); return json(409, headers, { error: 'Aucun destinataire actif avec une adresse e-mail' }); }
+    if (out.envoyes === 0) { await liberer(c.id, champ); return json(502, headers, { error: 'Le service d\'envoi a refusé les messages : rien n\'est parti' }); }
     return json(200, headers, { ok: true, ...out });
   } catch (e) {
     console.error('Notification consultation :', e.message);
+    await liberer(c.id, champ);
     return json(502, headers, { error: 'Envoi impossible' });
   }
 };
