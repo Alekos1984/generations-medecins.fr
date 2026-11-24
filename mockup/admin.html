@@ -1617,8 +1617,26 @@
         <div class="form-group full"><label>Résultats visibles par</label>
           <select id="cs-visibilite"><option value="public">Tout le monde (après clôture)</option><option value="adherents">Adhérents actifs seulement</option></select></div>
       </div>
+      <div style="margin-top:18px">
+        <h4 style="margin:0 0 8px">Destinataires</h4>
+        <label style="display:block;font-size:.9rem;margin-bottom:4px"><input type="radio" name="cs-audience" value="tous" checked> Tous les adhérents actifs</label>
+        <label style="display:block;font-size:.9rem;margin-bottom:6px"><input type="radio" name="cs-audience" value="selection"> Sélection d'adhérents (mode test ou consultation ciblée)</label>
+        <div id="cs-sel-zone" style="display:none;border:1px solid var(--line);border-radius:8px;padding:10px">
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Seuls les adhérents sélectionnés verront cette consultation et recevront les e-mails. Idéal pour tester sur votre propre téléphone avant d'ouvrir à tous.</div>
+          <div id="cs-sel-edit">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <input id="cs-sel-q" type="text" maxlength="80" placeholder="Rechercher (nom, prénom, e-mail, n° adhérent)" autocomplete="off" style="flex:1;min-width:180px">
+              <button type="button" class="btn-action" id="cs-sel-me">M'ajouter moi</button>
+            </div>
+            <div id="cs-sel-msg" style="font-size:.8rem;color:#92400e;margin-top:6px"></div>
+            <div id="cs-sel-res" style="margin-top:4px"></div>
+          </div>
+          <div id="cs-sel-count" style="font-weight:700;font-size:.85rem;margin-top:8px"></div>
+          <div id="cs-sel-chips" style="margin-top:4px"></div>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
-        <h4 style="margin:0">Questions <span id="cs-q-count" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h4>
+        <h4 style="margin:0">Questions<span id="cs-q-count" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h4>
         <button type="button" class="btn-action" id="cs-add-q">+ Ajouter une question</button>
       </div>
       <div id="cs-questions"></div>
@@ -3589,6 +3607,9 @@
   let csCache = [];
   let csQs = [];
   let csReadOnly = false;
+  let csSel = [];
+  let csResults_ = [];
+  let csSearchT = null;
   const csE = v => esc(v == null ? '' : String(v));
   const csOpen = id => document.getElementById(id).classList.add('open');
   const csClose = id => document.getElementById(id).classList.remove('open');
@@ -3599,7 +3620,7 @@
 
   async function loadConsultationsAdmin() {
     const tbody = document.getElementById('cs-tbody');
-    const { data, error } = await sb.from('consultations').select('*, consultation_questions(count)').order('created_at', { ascending: false });
+    const { data, error } = await sb.from('consultations').select('*, consultation_questions(count), consultation_participants(count)').order('created_at', { ascending: false });
     if (error) { tbody.innerHTML = `<tr><td colspan="6" style="color:#c0392b;padding:20px">Erreur : ${csE(error.message)}</td></tr>`; return; }
     csCache = data || [];
     if (!csCache.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Aucune consultation. Créez la première.</td></tr>'; return; }
@@ -3611,7 +3632,8 @@
       else if (!closed) btns.push(`<button class="btn-action" data-cs="view" data-id="${csE(c.id)}">Consulter</button><button class="btn-action" data-cs="remind" data-id="${csE(c.id)}">Envoyer un rappel</button><button class="btn-action" data-cs="close" data-id="${csE(c.id)}">Clôturer</button>`);
       else btns.push(`<button class="btn-action" data-cs="results" data-id="${csE(c.id)}">Résultats</button>`);
       const n = csCount(c);
-      return `<tr><td style="font-weight:700;max-width:280px">${csE(c.titre)}</td>
+      const selBadge = c.audience === 'selection' ? `<br><span style="display:inline-block;margin-top:4px;background:#fef3c7;color:#92400e;border-radius:10px;padding:2px 8px;font-size:.72rem;font-weight:700">Sélection (${csSelCount(c)})</span>` : '';
+      return `<tr><td style="font-weight:700;max-width:280px">${csE(c.titre)}${selBadge}</td>
         <td style="font-size:.82rem">${n} question${n > 1 ? 's' : ''}<br><span style="color:var(--muted)">${c.mode === 'secret' ? '🔒 secret' : '👤 nominatif'}</span></td>
         <td>${st}</td><td style="font-size:.82rem">${csE(csFmt(c.date_cloture))}</td>
         <td id="cs-part-${csE(c.id)}" style="font-size:.82rem;color:var(--muted)">${c.statut === 'brouillon' ? '-' : '…'}</td>
@@ -3694,6 +3716,67 @@
     else q[f] = t.value;
   }
 
+  // ----- Destinataires (ciblage) -----
+  const csAudience = () => { const r = document.querySelector('input[name="cs-audience"]:checked'); return r && r.value === 'selection' ? 'selection' : 'tous'; };
+  const csLabel = m => [m.prenom, m.nom].filter(Boolean).join(' ') + (m.numero_adherent ? ' (n° ' + m.numero_adherent + ')' : '');
+
+  function csRenderAud() {
+    const sel = csAudience() === 'selection';
+    document.getElementById('cs-sel-zone').style.display = sel ? '' : 'none';
+    document.getElementById('cs-sel-edit').style.display = sel && !csReadOnly ? '' : 'none';
+    const n = csSel.length;
+    document.getElementById('cs-sel-count').textContent = n + ' adhérent' + (n > 1 ? 's' : '') + ' sélectionné' + (n > 1 ? 's' : '');
+    const chips = document.getElementById('cs-sel-chips');
+    if (csReadOnly) {
+      chips.innerHTML = n ? `<details><summary style="cursor:pointer;font-size:.85rem">Voir les destinataires (${n})</summary><div style="margin-top:6px;font-size:.85rem;line-height:1.6">${csSel.map(m => csE(csLabel(m))).join('<br>')}</div></details>` : '';
+    } else {
+      chips.innerHTML = csSel.map(m => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--line);border-radius:14px;padding:4px 6px 4px 10px;font-size:.82rem;margin:3px 4px 3px 0">${csE(csLabel(m))}<button type="button" data-rm="${csE(m.id)}" aria-label="Retirer" style="border:0;background:transparent;cursor:pointer;font-size:1rem;line-height:1;padding:0 4px">×</button></span>`).join('');
+    }
+    csRenderRes();
+  }
+
+  function csRenderRes() {
+    const box = document.getElementById('cs-sel-res');
+    const list = csResults_.filter(m => !csSel.some(s => s.id === m.id));
+    box.innerHTML = list.map(m => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.85rem"><span style="min-width:0;overflow-wrap:anywhere">${csE(csLabel(m))}<br><span style="color:var(--muted);font-size:.78rem">${csE(m.email)}</span></span><button type="button" class="btn-action" data-add="${csE(m.id)}">Ajouter</button></div>`).join('');
+  }
+
+  function csAddSel(m) {
+    if (csSel.some(s => s.id === m.id)) return;
+    csSel.push({ id: m.id, prenom: m.prenom || '', nom: m.nom || '', numero_adherent: m.numero_adherent || '', email: m.email || '', statut: m.statut || '' });
+    csRenderAud();
+  }
+
+  async function csSearch() {
+    const msg = document.getElementById('cs-sel-msg');
+    const raw = document.getElementById('cs-sel-q').value.replace(/[,()%]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (raw.length < 2) { csResults_ = []; msg.textContent = raw.length ? 'Saisissez au moins 2 caractères.' : ''; csRenderRes(); return; }
+    const q = '"%' + raw.replace(/[\\"]/g, '') + '%"';
+    const { data, error } = await sb.from('membres').select('id,prenom,nom,email,numero_adherent,statut')
+      .eq('statut', 'actif')
+      .or(`nom.ilike.${q},prenom.ilike.${q},email.ilike.${q},numero_adherent.ilike.${q}`)
+      .order('nom').limit(15);
+    if (document.getElementById('cs-sel-q').value.replace(/[,()%]/g, ' ').replace(/\s+/g, ' ').trim() !== raw) return;
+    if (error) { msg.textContent = 'Erreur de recherche : ' + error.message; return; }
+    csResults_ = data || [];
+    msg.textContent = csResults_.length ? '' : 'Aucun adhérent actif trouvé.';
+    csRenderRes();
+  }
+
+  async function csAddMe() {
+    const msg = document.getElementById('cs-sel-msg');
+    const { data: { session } } = await sb.auth.getSession();
+    const { data, error } = await sb.from('membres').select('id,prenom,nom,email,numero_adherent,statut').eq('user_id', session.user.id).limit(1);
+    if (error) { msg.textContent = 'Erreur : ' + error.message; return; }
+    const m = data && data[0];
+    if (!m || m.statut !== 'actif') { msg.textContent = 'Votre compte n\'a pas de profil adhérent actif : vous ne pouvez pas vous ajouter comme destinataire de test. Recherchez plutôt un adhérent ci-dessus.'; return; }
+    msg.textContent = '';
+    csAddSel(m);
+  }
+
+  const csSelCount = c => { const x = c && c.consultation_participants; return Array.isArray(x) && x[0] && typeof x[0].count === 'number' ? x[0].count : 0; };
+  const csAudTxt = c => c && c.audience === 'selection' ? 'aux ' + csSelCount(c) + ' adhérents sélectionnés' : 'à tous les adhérents actifs';
+
   async function csEdit(id, readOnly) {
     const c = id ? csCache.find(x => x.id === id) : null;
     csReadOnly = !!readOnly || (c && c.statut !== 'brouillon');
@@ -3724,7 +3807,19 @@
     document.getElementById('cs-note').textContent = csReadOnly ? 'Cette consultation est ouverte : le questionnaire ne peut plus être modifié.' : 'Une fois ouverte, la consultation ne peut plus être modifiée (règles, questions, options, modalité).';
     ['cs-titre', 'cs-description', 'cs-categorie', 'cs-mode', 'cs-quorum', 'cs-cloture', 'cs-visibilite'].forEach(k => { document.getElementById(k).disabled = csReadOnly; });
     document.getElementById('cs-save').style.display = csReadOnly ? 'none' : '';
+    csSel = [];
+    const aud = c && c.audience === 'selection' ? 'selection' : 'tous';
+    document.querySelectorAll('input[name="cs-audience"]').forEach(r => { r.checked = r.value === aud; r.disabled = csReadOnly; });
+    document.getElementById('cs-sel-q').value = '';
+    csResults_ = [];
+    document.getElementById('cs-sel-msg').textContent = '';
+    if (c && aud === 'selection') {
+      const pr = await sb.from('consultation_participants').select('membre_id, membres(prenom,nom,numero_adherent,email,statut)').eq('consultation_id', id);
+      if (pr.error) { toast('Erreur : ' + pr.error.message, 'error'); return; }
+      csSel = (pr.data || []).map(p => { const m = p.membres || {}; return { id: p.membre_id, prenom: m.prenom || '', nom: m.nom || '', numero_adherent: m.numero_adherent || '', email: m.email || '', statut: m.statut || '' }; });
+    }
     csModeNote();
+    csRenderAud();
     csRenderQs();
     csOpen('cs-modal-overlay');
   }
@@ -3734,6 +3829,7 @@
     if (titre.length < 3) return 'Indiquez le titre de la consultation (3 caractères minimum).';
     const quorum = document.getElementById('cs-quorum').value.trim();
     if (quorum !== '' && !(/^\d+$/.test(quorum) && +quorum >= 1 && +quorum <= 100)) return 'Le quorum doit être un entier entre 1 et 100.';
+    if (csAudience() === 'selection' && !csSel.length) return 'Sélectionnez au moins un adhérent destinataire (ou choisissez « Tous les adhérents actifs »).';
     if (!csQs.length) return 'Ajoutez au moins une question.';
     if (csQs.length > 30) return 'Un questionnaire compte 30 questions au maximum.';
     for (let i = 0; i < csQs.length; i++) {
@@ -3771,6 +3867,7 @@
       description: document.getElementById('cs-description').value.trim() || null,
       categorie: document.getElementById('cs-categorie').value.trim() || null,
       mode: document.getElementById('cs-mode').value,
+      audience: csAudience(),
       type_vote: null, max_choix: null,
       quorum_pct: parseInt(document.getElementById('cs-quorum').value, 10) || null,
       resultats_visibilite: document.getElementById('cs-visibilite').value,
@@ -3807,6 +3904,10 @@
           });
           if (optRows.length) ({ error } = await sb.from('consultation_options').insert(optRows));
         }
+      }
+      if (!error) ({ error } = await sb.from('consultation_participants').delete().eq('consultation_id', cid));
+      if (!error && payload.audience === 'selection' && csSel.length) {
+        ({ error } = await sb.from('consultation_participants').insert(csSel.map(m => ({ consultation_id: cid, membre_id: m.id }))));
       }
       if (error) { toast('Erreur : ' + error.message, 'error'); return; }
       toast('Brouillon enregistré ✓', 'success');
@@ -3936,7 +4037,7 @@
   document.getElementById('cs-sel-res').addEventListener('click', ev => {
     const b = ev.target.closest('button[data-add]'); if (!b) return;
     const m = csResults_.find(x => x.id === b.dataset.add);
-    if (m) { csAddSel(m); csSearch(); }
+    if (m) csAddSel(m);
   });
   document.getElementById('cs-sel-chips').addEventListener('click', ev => {
     const b = ev.target.closest('button[data-rm]'); if (!b || csReadOnly) return;
