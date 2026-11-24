@@ -52,6 +52,26 @@
     .stats{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0 4px}
     .stats div{background:var(--surface);border-radius:12px;padding:10px 16px;font-size:.82rem;color:var(--muted)}
     .stats b{display:block;font-size:1.25rem;color:var(--blue-dark)}
+    .q{border:1.5px solid var(--line);border-radius:14px;padding:16px 16px 8px;margin:0 0 18px;min-width:0}
+    .q.bad{border-color:#b91c1c}
+    .q legend{font-weight:800;font-size:1rem;color:var(--ink);padding:0 6px}
+    .qn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--grad);color:#fff;font-size:.8rem;margin-right:6px}
+    .req{color:#b91c1c;font-size:.75rem;font-weight:700;margin-left:6px}
+    .opt-m{color:var(--muted);font-size:.75rem;font-weight:600;margin-left:6px}
+    .aide{color:var(--muted);font-size:.88rem;line-height:1.55;margin:0 0 12px}
+    .hint{color:var(--muted);font-size:.82rem;margin:4px 0 10px}
+    .qerr{color:#b91c1c;font-size:.85rem;font-weight:700;min-height:0;margin-bottom:8px}
+    .scale{display:flex;flex-wrap:wrap;gap:8px}
+    .sc{cursor:pointer}
+    .sc input{position:absolute;opacity:0;width:1px;height:1px}
+    .sc span{display:flex;align-items:center;justify-content:center;min-width:44px;height:44px;border:1.5px solid var(--line);border-radius:10px;font-weight:800;background:#fff}
+    .sc input:checked+span{background:var(--blue-dark);color:#fff;border-color:var(--blue-dark)}
+    .sc input:focus-visible+span{outline:3px solid var(--blue);outline-offset:2px}
+    .scale-lab{display:flex;justify-content:space-between;gap:12px;font-size:.8rem;color:var(--muted);margin:6px 0 12px}
+    .ta{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:.95rem;resize:vertical}
+    .sr{position:absolute;left:-9999px}
+    .res{border:none;border-top:1.5px solid var(--line);border-radius:0;padding:18px 0 4px;margin:0}
+    .res h3{font-size:1.02rem;font-weight:800;margin:0 0 6px}
   </style>
 </head>
 <body>
@@ -121,47 +141,134 @@
   (function () {
     const sb = supabase.createClient('https://faegpfkhlkkwmtaichin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo');
     const esc = escHtml;
-    const TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement' };
+    const TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement', oui_non: 'Oui / Non', echelle: 'Échelle', texte: 'Texte libre' };
     const fmt = d => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
     const params = new URLSearchParams(location.search);
     const id = params.get('id');
     const root = document.getElementById('state');
-    let ordre = [];
+    const MAXTXT = 2000;
+    let questions = [];
+    const ranks = {};
 
-    function header(c, closed) {
-      return `<div class="meta" style="margin-bottom:6px"><span class="pill ${closed ? 'pill-closed' : 'pill-open'}">${closed ? 'Close' : '● Vote ouvert'}</span>
+    function header(c, closed, nb) {
+      return `<div class="meta" style="margin-bottom:6px"><span class="pill ${closed ? 'pill-closed' : 'pill-open'}">${closed ? 'Clos' : '● Vote ouvert'}</span>
         <span class="pill ${c.mode === 'secret' ? 'pill-secret' : 'pill-nom'}">${c.mode === 'secret' ? '🔒 Vote secret' : '👤 Vote nominatif'}</span>
-        <span>${esc(TYPES[c.type_vote] || '')}${c.type_vote === 'choix_multiple' && c.max_choix ? ' (' + c.max_choix + ' choix maximum)' : ''}</span></div>
+        ${nb ? `<span>Questionnaire (${nb} question${nb > 1 ? 's' : ''})</span>` : ''}</div>
         <h2>${esc(c.titre)}</h2>
         <div class="meta">${closed ? 'Clôturée le ' : 'Se termine le '}${esc(fmt(c.date_cloture))}</div>
         ${c.description ? `<div class="desc">${esc(c.description)}</div>` : ''}`;
     }
     const modeNote = c => c.mode === 'secret'
-      ? '<div class="msg msg-info">🔒 <strong>Vote secret</strong> : le syndicat enregistre que vous avez voté, mais ne conserve aucun lien entre votre nom et votre choix.</div>'
-      : '<div class="msg msg-info">👤 <strong>Vote nominatif</strong> : votre choix sera associé à votre nom pour le bureau, après la clôture.</div>';
+      ? '<div class="msg msg-info">🔒 <strong>Vote secret</strong> : le syndicat enregistre que vous avez voté, mais ne conserve aucun lien entre votre nom et vos réponses.</div>'
+      : '<div class="msg msg-info">👤 <strong>Vote nominatif</strong> : vos réponses seront associées à votre nom pour le bureau, après la clôture.</div>';
 
-    function renderRanking() {
-      document.getElementById('rank').innerHTML = ordre.map((o, i) => `<div class="rank"><span class="n">${i + 1}</span><span class="l">${esc(o.libelle)}</span>
-        <button type="button" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Monter">↑</button>
-        <button type="button" data-i="${i}" data-d="1" ${i === ordre.length - 1 ? 'disabled' : ''} aria-label="Descendre">↓</button></div>`).join('');
+    function renderRanking(q) {
+      const ordre = ranks[q.id];
+      document.getElementById('rank-' + q.id).innerHTML = ordre.map((o, i) => `<div class="rank"><span class="n">${i + 1}</span><span class="l">${esc(o.libelle)}</span>
+        <button type="button" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''} aria-label="Monter ${esc(o.libelle)}">↑</button>
+        <button type="button" data-i="${i}" data-d="1" ${i === ordre.length - 1 ? 'disabled' : ''} aria-label="Descendre ${esc(o.libelle)}">↓</button></div>`).join('');
+    }
+
+    function questionHtml(q, idx, c) {
+      const qid = esc(q.id), name = 'q_' + qid;
+      let body = '';
+      const t = q.type_question;
+      if (t === 'choix_unique' || t === 'choix_multiple') {
+        const multi = t === 'choix_multiple';
+        body = (multi && q.max_choix ? `<p class="hint">Choisissez ${Number(q.max_choix)} option${q.max_choix > 1 ? 's' : ''} au maximum. <strong id="cnt-${qid}" aria-live="polite">0 / ${Number(q.max_choix)} sélectionnée(s)</strong></p>` : '')
+          + q.options.map(o => `<label class="opt"><input type="${multi ? 'checkbox' : 'radio'}" name="${name}" value="${esc(o.id)}"><span><b>${esc(o.libelle)}</b>${o.description ? '<small>' + esc(o.description) + '</small>' : ''}</span></label>`).join('');
+      } else if (t === 'classement') {
+        body = `<p class="hint">Classez toutes les options, de la préférée (1) à la moins préférée, avec les flèches.</p><div id="rank-${qid}"></div>`;
+      } else if (t === 'oui_non') {
+        body = [['oui', 'Oui'], ['non', 'Non'], ['abstention', 'Abstention']].map(([v, l]) =>
+          `<label class="opt"><input type="radio" name="${name}" value="${v}"><span><b>${l}</b></span></label>`).join('');
+      } else if (t === 'echelle') {
+        const mn = Number(q.echelle_min), mx = Number(q.echelle_max);
+        let btns = '';
+        for (let v = mn; v <= mx; v++) btns += `<label class="sc"><input type="radio" name="${name}" value="${v}"><span>${v}</span></label>`;
+        body = `<div class="scale">${btns}</div>
+          <div class="scale-lab"><span>${esc(q.echelle_label_min || '')}</span><span>${esc(q.echelle_label_max || '')}</span></div>`;
+      } else if (t === 'texte') {
+        body = `<label class="sr" for="ta-${qid}">Votre réponse</label><textarea id="ta-${qid}" class="ta" maxlength="${MAXTXT}" rows="5"></textarea>
+          <div class="hint" style="text-align:right"><span id="tc-${qid}" aria-live="polite">0 / ${MAXTXT}</span> caractères</div>
+          ${c.mode === 'secret' ? '<p class="hint">Votre vote est secret : n\'indiquez rien qui permette de vous identifier.</p>' : ''}`;
+      }
+      return `<fieldset class="q" id="fs-${qid}" data-qid="${qid}"><legend><span class="qn">${idx + 1}</span> ${esc(q.intitule)}
+        <span class="${q.obligatoire ? 'req' : 'opt-m'}">${q.obligatoire ? '* obligatoire' : 'facultatif'}</span></legend>
+        ${q.aide ? `<p class="aide">${esc(q.aide)}</p>` : ''}${body}
+        <div class="qerr" id="qe-${qid}" role="alert"></div></fieldset>`;
+    }
+
+    // Retourne { answers, errors:[{qid, msg}] }
+    function collect() {
+      const answers = {}, errors = [];
+      questions.forEach(q => {
+        const t = q.type_question, name = 'q_' + q.id;
+        let v = null, empty = true;
+        if (t === 'choix_unique' || t === 'oui_non') {
+          const el = document.querySelector(`input[name="${name}"]:checked`);
+          if (el) { v = el.value; empty = false; }
+        } else if (t === 'choix_multiple') {
+          const arr = [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+          if (arr.length) { v = arr; empty = false; }
+          if (arr.length && q.max_choix && arr.length > q.max_choix) errors.push({ qid: q.id, msg: 'Vous pouvez choisir ' + q.max_choix + ' option(s) au maximum.' });
+        } else if (t === 'classement') {
+          v = ranks[q.id].map(o => o.id); empty = false;
+        } else if (t === 'echelle') {
+          const el = document.querySelector(`input[name="${name}"]:checked`);
+          if (el) { v = parseInt(el.value, 10); empty = false; }
+        } else if (t === 'texte') {
+          const s = document.getElementById('ta-' + q.id).value.trim();
+          if (s) { v = s; empty = false; }
+        }
+        if (empty) { if (q.obligatoire) errors.push({ qid: q.id, msg: 'Cette question est obligatoire.' }); }
+        else answers[q.id] = v;
+      });
+      return { answers, errors };
+    }
+
+    function showBarGroup(items, base) {
+      return items.map(o => {
+        const pct = base > 0 ? Math.round(100 * o.val / base) : 0;
+        return `<div class="bar"><div class="t"><span>${esc(o.label)}</span><span>${esc(o.right != null ? o.right : o.val + ' voix · ' + pct + ' %')}</span></div><div class="tr"><div class="fl" style="width:${pct}%"></div></div></div>`;
+      }).join('');
+    }
+
+    function resultQuestion(q, i) {
+      const rep = Number(q.repondants) || 0;
+      let body = '';
+      const t = q.type;
+      if (t === 'choix_unique' || t === 'choix_multiple') {
+        body = showBarGroup((q.options || []).map(o => ({ label: o.libelle, val: Number(o.voix) || 0 })), rep);
+      } else if (t === 'classement') {
+        const opts = q.options || [], total = opts.reduce((s, o) => s + (Number(o.points) || 0), 0);
+        body = showBarGroup(opts.map(o => ({ label: o.libelle, val: Number(o.points) || 0, right: (Number(o.points) || 0) + ' pts (' + (Number(o.premier_choix) || 0) + ' fois 1er)' })), total)
+          + '<p class="hint">Classement établi par points : le premier choix d\'un bulletin rapporte autant de points qu\'il y a d\'options.</p>';
+      } else if (t === 'oui_non') {
+        const r = q.reponses || {};
+        body = showBarGroup([['Oui', r.oui], ['Non', r.non], ['Abstention', r.abstention]].map(([l, v]) => ({ label: l, val: Number(v) || 0 })), rep);
+      } else if (t === 'echelle') {
+        const r = q.reponses || {}, mn = Number(r.echelle_min), mx = Number(r.echelle_max), rp = r.repartition || {};
+        const items = [];
+        for (let v = mn; v <= mx; v++) items.push({ label: String(v) + (v === mn && r.label_min ? ' (' + r.label_min + ')' : '') + (v === mx && r.label_max ? ' (' + r.label_max + ')' : ''), val: Number(rp[String(v)]) || 0 });
+        const moy = r.moyenne != null ? Number(r.moyenne).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) : '-';
+        body = `<div class="stats"><div><b>${esc(moy)}</b>moyenne (de ${mn} à ${mx})</div></div>` + showBarGroup(items, rep);
+      } else if (t === 'texte') {
+        body = `<p><strong>${rep}</strong> réponse${rep > 1 ? 's' : ''}</p><p class="hint">Les commentaires libres ne sont pas publiés.</p>`;
+      }
+      return `<section class="q res"><h3><span class="qn">${i + 1}</span> ${esc(q.intitule)}</h3>
+        ${q.aide ? `<p class="aide">${esc(q.aide)}</p>` : ''}
+        <div class="meta" style="margin-bottom:6px">${esc(TYPES[t] || '')} · ${rep} répondant${rep > 1 ? 's' : ''}</div>${body}</section>`;
     }
 
     async function showResults(c) {
       const { data: r, error } = await sb.rpc('consultation_resultats', { p_id: c.id });
       if (error) { root.innerHTML = `<div class="box">${header(c, true)}<div class="msg msg-err">${esc(error.message)}</div></div>`; return; }
-      const classement = r.type_vote === 'classement';
-      const total = classement ? r.options.reduce((s, o) => s + (o.points || 0), 0) : r.options.reduce((s, o) => s + (o.voix || 0), 0);
-      const exprimes = r.votants - r.blancs;
-      const bars = r.options.map(o => {
-        const val = classement ? o.points : o.voix;
-        const pct = classement ? (total ? Math.round(100 * val / total) : 0) : (exprimes > 0 ? Math.round(100 * val / exprimes) : 0);
-        return `<div class="bar"><div class="t"><span>${esc(o.libelle)}</span><span>${classement ? val + ' pts (' + o.premier_choix + ' fois 1er)' : val + ' voix · ' + pct + ' %'}</span></div><div class="tr"><div class="fl" style="width:${pct}%"></div></div></div>`;
-      }).join('');
-      root.innerHTML = `<div class="box">${header(c, true)}
-        <div class="stats"><div><b>${r.votants}</b>votants</div><div><b>${r.taux} %</b>de participation (${r.votants} / ${r.inscrits})</div><div><b>${r.blancs}</b>bulletins blancs</div>
-        ${r.quorum_pct ? `<div><b>${r.quorum_atteint ? 'Atteint' : 'Non atteint'}</b>quorum de ${r.quorum_pct} %</div>` : ''}</div>
-        ${bars}
-        ${classement ? '<p class="empty">Classement établi par points : le premier choix d\'un bulletin rapporte autant de points qu\'il y a d\'options.</p>' : ''}</div>`;
+      const qs = (r.questions || []).slice().sort((a, b) => a.ordre - b.ordre);
+      root.innerHTML = `<div class="box">${header(c, true, qs.length)}
+        <div class="stats"><div><b>${Number(r.votants)}</b>votants</div><div><b>${Number(r.taux)} %</b>de participation (${Number(r.votants)} / ${Number(r.inscrits)})</div>
+        ${r.quorum_pct ? `<div><b>${r.quorum_atteint ? 'Atteint' : 'Non atteint'}</b>quorum de ${Number(r.quorum_pct)} %</div>` : ''}</div>
+        ${qs.map(resultQuestion).join('')}</div>`;
     }
 
     async function init() {
@@ -172,7 +279,9 @@
       const closed = c.statut === 'cloturee' || new Date(c.date_cloture).getTime() < Date.now();
       if (closed) return showResults(c);
 
-      const { data: opts } = await sb.from('consultation_options').select('id,libelle,description,ordre').eq('consultation_id', id).order('ordre');
+      const { data: qs } = await sb.from('consultation_questions').select('*').eq('consultation_id', id).order('ordre');
+      const { data: opts } = await sb.from('consultation_options').select('id,question_id,libelle,description,ordre').eq('consultation_id', id).order('ordre');
+      questions = (qs || []).map(q => Object.assign({}, q, { options: (opts || []).filter(o => o.question_id === q.id) }));
       const { data: { session } } = await sb.auth.getSession();
       let actif = false, aVote = false;
       if (session) {
@@ -183,46 +292,65 @@
           aVote = !!e;
         }
       }
-      const head = `<div class="box">${header(c, false)}`;
+      const head = `<div class="box">${header(c, false, questions.length)}`;
       if (!session) { root.innerHTML = head + '<div class="msg msg-info">Connectez-vous avec votre compte adhérent pour voter.</div><a class="btn btn-primary" href="connexion.html">Se connecter →</a></div>'; return; }
       if (!actif) { root.innerHTML = head + '<div class="msg msg-info">Le vote est réservé aux adhérents dont le compte est actif. Votre compte est en attente de validation ou suspendu.</div></div>'; return; }
       if (aVote) { root.innerHTML = head + '<div class="msg msg-ok">✓ Vous avez voté pour cette consultation. Les résultats seront publiés après la clôture.</div></div>'; return; }
+      if (!questions.length) { root.innerHTML = head + '<div class="msg msg-info">Ce questionnaire ne contient pas encore de question.</div></div>'; return; }
 
-      const t = c.type_vote;
-      let inputs;
-      if (t === 'classement') { ordre = opts.slice(); inputs = '<p class="empty" style="margin-bottom:10px">Classez toutes les options, de la préférée (1) à la moins préférée, avec les flèches.</p><div id="rank"></div>'; }
-      else inputs = opts.map(o => `<label class="opt"><input type="${t === 'choix_multiple' ? 'checkbox' : 'radio'}" name="choix" value="${esc(o.id)}"><span><b>${esc(o.libelle)}</b>${o.description ? '<small>' + esc(o.description) + '</small>' : ''}</span></label>`).join('');
-      root.innerHTML = head + modeNote(c) + `<form id="f">${inputs}
-        <label class="opt" style="margin-top:14px"><input type="checkbox" id="blanc"><span><b>Voter blanc</b><small>Je participe sans exprimer de choix.</small></span></label>
-        <div id="err" class="msg msg-err" style="display:none"></div>
-        <p style="margin-top:18px"><button class="btn-vote" type="submit">Valider mon vote</button></p>
-        <p class="empty">Un vote validé ne peut plus être modifié.</p></form></div>`;
-      if (t === 'classement') {
-        renderRanking();
-        document.getElementById('rank').addEventListener('click', ev => {
-          const b = ev.target.closest('button'); if (!b) return;
-          const i = +b.dataset.i, j = i + +b.dataset.d;
-          [ordre[i], ordre[j]] = [ordre[j], ordre[i]]; renderRanking();
-        });
-      }
-      document.getElementById('f').addEventListener('submit', async ev => {
+      root.innerHTML = head + modeNote(c) + '<div class="msg msg-info">Résultats disponibles après la clôture. Les questions marquées d\'une * sont obligatoires.</div>'
+        + `<form id="f" novalidate>${questions.map((q, i) => questionHtml(q, i, c)).join('')}
+        <div id="err" class="msg msg-err" style="display:none" role="alert"></div>
+        <p style="margin-top:18px"><button class="btn-vote" type="submit">Valider ma participation</button></p>
+        <p class="empty">Une participation validée ne peut plus être modifiée.</p></form></div>`;
+
+      questions.forEach(q => {
+        if (q.type_question === 'classement') { ranks[q.id] = q.options.slice(); renderRanking(q); }
+        if (q.type_question === 'texte') {
+          const ta = document.getElementById('ta-' + q.id), tc = document.getElementById('tc-' + q.id);
+          ta.addEventListener('input', () => { tc.textContent = ta.value.length + ' / ' + MAXTXT; });
+        }
+      });
+      const form = document.getElementById('f');
+      form.addEventListener('click', ev => {
+        const b = ev.target.closest('.rank button'); if (!b) return;
+        const q = questions.find(x => x.id === b.closest('fieldset').dataset.qid); if (!q) return;
+        const ordre = ranks[q.id], i = +b.dataset.i, j = i + +b.dataset.d;
+        if (j < 0 || j >= ordre.length) return;
+        [ordre[i], ordre[j]] = [ordre[j], ordre[i]]; renderRanking(q);
+        const nb = document.querySelector(`#rank-${q.id} button[data-i="${j}"][data-d="${b.dataset.d}"]`) || document.querySelector(`#rank-${q.id} button[data-i="${j}"]:not([disabled])`);
+        if (nb) nb.focus();
+      });
+      form.addEventListener('change', ev => {
+        const el = ev.target;
+        if (!el.name || el.type !== 'checkbox') return;
+        const q = questions.find(x => 'q_' + x.id === el.name); if (!q || q.type_question !== 'choix_multiple') return;
+        const n = document.querySelectorAll(`input[name="${el.name}"]:checked`).length;
+        if (q.max_choix && n > q.max_choix) { el.checked = false; return; }
+        const cnt = document.getElementById('cnt-' + q.id);
+        if (cnt) cnt.textContent = n + ' / ' + q.max_choix + ' sélectionnée(s)';
+      });
+      form.addEventListener('submit', async ev => {
         ev.preventDefault();
         const err = document.getElementById('err'); err.style.display = 'none';
-        const blanc = document.getElementById('blanc').checked;
-        let ballot;
-        if (blanc) ballot = { blanc: true };
-        else if (t === 'classement') ballot = { ordre: ordre.map(o => o.id) };
-        else {
-          const ch = [...document.querySelectorAll('input[name=choix]:checked')].map(i => i.value);
-          if (!ch.length) { err.textContent = 'Sélectionnez une option ou cochez « Voter blanc ».'; err.style.display = 'block'; return; }
-          if (t === 'choix_multiple' && c.max_choix && ch.length > c.max_choix) { err.textContent = 'Vous pouvez choisir ' + c.max_choix + ' option(s) au maximum.'; err.style.display = 'block'; return; }
-          ballot = { options: ch };
+        document.querySelectorAll('.qerr').forEach(e => { e.textContent = ''; });
+        document.querySelectorAll('fieldset.q').forEach(f => f.classList.remove('bad'));
+        const { answers, errors } = collect();
+        if (errors.length) {
+          errors.forEach(e => { document.getElementById('qe-' + e.qid).textContent = e.msg; document.getElementById('fs-' + e.qid).classList.add('bad'); });
+          const first = document.getElementById('fs-' + errors[0].qid);
+          first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const f = first.querySelector('input,textarea,button:not([disabled])'); if (f) f.focus({ preventScroll: true });
+          err.textContent = errors.length + ' question(s) à corriger avant de valider.'; err.style.display = 'block';
+          return;
         }
-        if (!confirm('Confirmer votre vote ? Il ne pourra plus être modifié.')) return;
-        const btn = ev.target.querySelector('button[type=submit]'); btn.disabled = true;
-        const { error } = await sb.rpc('voter', { p_consultation: id, p_ballot: ballot });
-        if (error) { err.textContent = error.message; err.style.display = 'block'; btn.disabled = false; return; }
-        root.innerHTML = head + '<div class="msg msg-ok">✓ Votre vote est enregistré. Merci ! Les résultats seront publiés après la clôture.</div></div>';
+        const modeTxt = c.mode === 'secret' ? 'secrète (aucun lien entre votre nom et vos réponses)' : 'nominative (vos réponses seront associées à votre nom)';
+        if (!confirm('Confirmer votre participation ?\n\nElle est définitive et ne pourra plus être modifiée.\nLa consultation est ' + modeTxt + '.')) return;
+        const btn = form.querySelector('button[type=submit]'); btn.disabled = true;
+        const { error } = await sb.rpc('voter', { p_consultation: id, p_ballot: { answers } });
+        if (error) { err.textContent = error.message; err.style.display = 'block'; btn.disabled = false; err.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        root.innerHTML = head + '<div class="msg msg-ok">✓ Votre participation est enregistrée. Merci ! Les résultats seront publiés après la clôture.</div></div>';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
     init();
