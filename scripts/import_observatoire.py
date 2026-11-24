@@ -87,15 +87,42 @@ REGION_NAMES = {
     "94":"Corse","01":"Guadeloupe","02":"Martinique","03":"Guyane","04":"La Réunion","06":"Mayotte",
 }
 
-# Population INSEE 2024 (estimations) — utilisée pour la densité médicale
-# Départements d'Île-de-France : population INSEE (estimation arrondie au millier,
-# à actualiser chaque année) utilisée pour la densité par département
+# Population de secours (utilisée seulement si l'API INSEE est injoignable)
+# Départements d'Île-de-France suivis pour la densité médicale
 IDF_DEPARTEMENTS = {
-    "75": ("Paris (75)", 2_113_000), "77": ("Seine-et-Marne (77)", 1_434_000),
-    "78": ("Yvelines (78)", 1_476_000), "91": ("Essonne (91)", 1_319_000),
-    "92": ("Hauts-de-Seine (92)", 1_637_000), "93": ("Seine-Saint-Denis (93)", 1_694_000),
-    "94": ("Val-de-Marne (94)", 1_423_000), "95": ("Val-d'Oise (95)", 1_262_000),
+    "75": "Paris (75)", "77": "Seine-et-Marne (77)", "78": "Yvelines (78)", "91": "Essonne (91)",
+    "92": "Hauts-de-Seine (92)", "93": "Seine-Saint-Denis (93)", "94": "Val-de-Marne (94)", "95": "Val-d'Oise (95)",
 }
+
+# Population officielle : estimations localisées de population de l'INSEE (au 1er janvier),
+# récupérées par l'API Melodi (publique, sans clé) à chaque import, donc toujours à jour.
+# Les valeurs de REGION_POPULATION ci-dessous ne servent que de secours si l'API est injoignable.
+INSEE_MELODI = "https://api.insee.fr/melodi/data/DS_ESTIMATION_POPULATION"
+
+def fetch_population_insee(kind, code):
+    """Retourne (population, année) la plus récente pour un département (kind='DEP') ou une région
+    (kind='REG'), ou None si l'API ne répond pas. Essaie les millésimes géographiques récents."""
+    for millesime in range(datetime.now().year + 1, datetime.now().year - 3, -1):
+        try:
+            r = requests.get(INSEE_MELODI, timeout=30, params={
+                "GEO": f"{millesime}-{kind}-{code}", "AGE": "_T", "SEX": "_T",
+                "EP_MEASURE": "POP_JAN_1ST", "maxResult": 200})
+            if r.status_code != 200:
+                continue
+            best = None
+            for o in r.json().get("observations", []):
+                d = o.get("dimensions", {})
+                if d.get("AGE") != "_T" or d.get("SEX") != "_T":
+                    continue
+                y = int(d["TIME_PERIOD"])
+                v = o["measures"]["OBS_VALUE_NIVEAU"]["value"]
+                if best is None or y > best[0]:
+                    best = (y, int(v))
+            if best:
+                return best[1], best[0]
+        except Exception as e:
+            log(f"   ⚠ INSEE {kind}-{code} : {e}")
+    return None
 
 REGION_POPULATION = {
     "FR": 68_402_000, "11": 12_317_279, "24": 2_563_598, "27": 2_782_050,
@@ -615,7 +642,13 @@ def compute(path):
         })
 
         # Densité médicale (médecins / 100k habitants) — référence INSEE
-        pop = REGION_POPULATION.get(region)
+        pop, annee_pop_reg = None, None
+        if region != "FR":
+            live = fetch_population_insee("REG", region)
+            if live:
+                pop, annee_pop_reg = live
+        if pop is None:
+            pop = REGION_POPULATION.get(region)   # secours si l'API INSEE ne répond pas
         if pop:
             densite = 100_000 * n / pop
             kpis.append({
@@ -624,7 +657,8 @@ def compute(path):
                 "label":        f"Densité médicale — {label_region}",
                 "tendance":     None,
                 "tendance_dir": "neutral",
-                "source":       f"RPPS / INSEE pop. {pop:,}".replace(",", " "),
+                "source":       (f"RPPS / INSEE (population au 1er janvier {annee_pop_reg} : {pop:,})".replace(",", " ")
+                                 if annee_pop_reg else f"RPPS / INSEE pop. {pop:,}".replace(",", " ")),
                 "annee":        ANNEE,
                 "region":       region,
             })
@@ -700,12 +734,18 @@ def compute(path):
                 "annee":      ANNEE,
                 "region":     region,
             })
-    # Densité médicale par département d'Île-de-France (médecins / 100k habitants)
+    # Densité médicale par département d'Île-de-France (médecins / 100k habitants),
+    # population officielle INSEE récupérée à l'instant (pas de valeur codée en dur)
     dens = []
-    for dep, (nom, pop) in IDF_DEPARTEMENTS.items():
+    annee_pop = None
+    for dep, nom in IDF_DEPARTEMENTS.items():
         n = len(medecins_par_dept_idf.get(dep, set()))
-        if n > 0 and pop:
+        res = fetch_population_insee("DEP", dep)
+        if n > 0 and res:
+            pop, annee_pop = res
             dens.append((nom, 100_000 * n / pop))
+        else:
+            log(f"   ⚠ densité {nom} non calculée (médecins={n}, population={'?' if not res else res[0]})")
     dens.sort(key=lambda x: -x[1])
     for rang, (nom, d) in enumerate(dens, start=1):
         series.append({
@@ -714,7 +754,7 @@ def compute(path):
             "valeur_num": int(round(d)),
             "valeur_fmt": f"{d:.0f} / 100k hab.",
             "rang":       rang,
-            "source":     "RPPS / INSEE (pop. arrondie)",
+            "source":     f"RPPS / INSEE (population au 1er janvier {annee_pop})",
             "annee":      ANNEE,
             "region":     "11",
         })
