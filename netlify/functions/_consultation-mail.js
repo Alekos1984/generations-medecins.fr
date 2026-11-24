@@ -7,25 +7,22 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const fmtDate = (d) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
 
 function buildHtml(c, kind, siteUrl) {
+  // Message volontairement sobre (texte, un seul lien, aucune image ni bouton) : les messageries le classent
+  // dans la boîte principale plutôt que dans l'onglet Promotions.
   const url = `${siteUrl}/vote.html?id=${encodeURIComponent(c.id)}`;
   const intro = kind === 'rappel'
-    ? `Rappel : la consultation ci-dessous se termine le <strong>${esc(fmtDate(c.date_cloture))}</strong> et vous n'avez pas encore voté.`
-    : `Une nouvelle consultation des adhérents est ouverte jusqu'au <strong>${esc(fmtDate(c.date_cloture))}</strong>.`;
+    ? `Un petit rappel : la consultation « ${esc(c.titre)} » se termine le ${esc(fmtDate(c.date_cloture))} et nous n'avons pas encore votre réponse.`
+    : `Le bureau de Générations Médecins souhaite recueillir votre avis sur « ${esc(c.titre)} ». La consultation est ouverte jusqu'au ${esc(fmtDate(c.date_cloture))}.`;
   const mode = c.mode === 'secret'
-    ? 'Le vote est <strong>secret</strong> : personne ne peut relier votre choix à votre nom.'
-    : 'Le vote est <strong>nominatif</strong> : votre choix sera associé à votre nom pour le bureau.';
-  return `<!DOCTYPE html><html><body style="margin:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif">
-<div style="max-width:560px;margin:0 auto;padding:28px 18px">
-  <div style="background:#fff;border-radius:16px;padding:30px 28px">
-    <p style="font-size:13px;color:#64748b;margin:0 0 6px">Générations Médecins Île-de-France</p>
-    <h1 style="font-size:20px;color:#152033;margin:0 0 16px">${esc(c.titre)}</h1>
-    <p style="font-size:14px;color:#152033;line-height:1.6">Bonjour {{prenom}},<br><br>${intro}<br><br>${mode}</p>
-    <div style="text-align:center;margin:26px 0">
-      <a href="${esc(url)}" style="display:inline-block;background:#1a4a80;color:#fff;padding:13px 26px;border-radius:999px;font-weight:700;font-size:15px;text-decoration:none">Voter →</a>
-    </div>
-    <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0">Message de fonctionnement du syndicat, adressé aux adhérents actifs. Les résultats seront publiés après la clôture, avec le taux de participation.</p>
-  </div>
-</div></body></html>`;
+    ? 'Votre réponse est secrète : personne ne peut la relier à votre nom.'
+    : 'Votre réponse sera associée à votre nom pour le bureau.';
+  return `<!DOCTYPE html><html><body style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a">
+<p>Bonjour {{prenom}},</p>
+<p>${intro}</p>
+<p>${mode}</p>
+<p>Pour répondre (2 minutes) : <a href="${esc(url)}">${esc(url)}</a></p>
+<p>Merci d'avance,<br>Le bureau de Générations Médecins Île-de-France</p>
+</body></html>`;
 }
 
 async function destinataires(consultationId, nonVotants) {
@@ -40,7 +37,8 @@ async function sendBatch(c, kind) {
   const siteUrl = process.env.URL || 'https://generations-medecins.fr';
   const dest = await destinataires(c.id, kind === 'rappel');
   const html = buildHtml(c, kind, siteUrl);
-  const subject = (kind === 'rappel' ? 'Rappel : ' : 'Consultation : ') + c.titre;
+  const subject = kind === 'rappel' ? 'Rappel : votre avis sur « ' + c.titre + ' »' : 'Votre avis sur « ' + c.titre + ' »';
+  let expediteur = process.env.CONSULTATION_SENDER_EMAIL || process.env.SENDER_EMAIL;
   let envoyes = 0;
   for (let i = 0; i < dest.length; i += 50) {
     const chunk = dest.slice(i, i + 50);
@@ -48,7 +46,8 @@ async function sendBatch(c, kind) {
       method: 'POST',
       headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sender: { name: process.env.SENDER_NAME || 'Générations Médecins', email: process.env.SENDER_EMAIL },
+        sender: { name: process.env.CONSULTATION_SENDER_NAME || process.env.SENDER_NAME || 'Générations Médecins', email: expediteur },
+        replyTo: { email: process.env.CONSULTATION_REPLY_TO || process.env.CONSULTATION_SENDER_EMAIL || process.env.SENDER_EMAIL },
         subject, htmlContent: html.replace(/\{\{prenom\}\}/g, ''),
         messageVersions: chunk.map(d => ({
           to: [{ email: d.email }],
@@ -56,13 +55,28 @@ async function sendBatch(c, kind) {
         })),
       }),
     });
-    if (res.ok) {
+    let r2 = res;
+    if (!res.ok && expediteur !== process.env.SENDER_EMAIL) {
+      // Adresse dédiée non validée chez Brevo : on retombe sur l'adresse habituelle plutôt que de ne rien envoyer
+      console.error('Brevo consultation : expéditeur', expediteur, 'refusé, repli sur', process.env.SENDER_EMAIL);
+      expediteur = process.env.SENDER_EMAIL;
+      r2 = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: process.env.SENDER_NAME || 'Générations Médecins', email: expediteur },
+          subject, htmlContent: html.replace(/\{\{prenom\}\}/g, ''),
+          messageVersions: chunk.map(d => ({ to: [{ email: d.email }], htmlContent: html.replace(/\{\{prenom\}\}/g, esc(d.prenom || '')) })),
+        }),
+      });
+    }
+    if (r2.ok) {
       envoyes += chunk.length;
-      let ref = ''; try { ref = JSON.stringify(await res.json()).slice(0, 200); } catch {}
+      let ref = ''; try { ref = JSON.stringify(await r2.json()).slice(0, 200); } catch {}
       console.log('Brevo consultation : accepté', chunk.length, 'message(s)', ref);
     } else {
-      let corps = ''; try { corps = (await res.text()).slice(0, 300); } catch {}
-      console.error('Brevo consultation :', res.status, corps);
+      let corps = ''; try { corps = (await r2.text()).slice(0, 300); } catch {}
+      console.error('Brevo consultation :', r2.status, corps);
     }
   }
   return { destinataires: dest.length, envoyes };
