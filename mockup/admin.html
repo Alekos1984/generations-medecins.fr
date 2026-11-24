@@ -3899,7 +3899,7 @@
       } else if (!closed) {
         btns.push(csBtn('view', c.id, 'Consulter', 'ghost', 'eye'));
         if (!c.annonce_envoyee) btns.push(csBtn('annonce', c.id, 'Annoncer par e-mail ' + csPill(csDestCount(c)), 'primary', 'send', 'Envoie l\'e-mail d\'annonce à ' + csDestCount(c) + ' adhérent(s)'));
-        btns.push(csBtn('remind', c.id, 'Rappel', 'secondary', 'bell', 'Relance par e-mail ceux qui n\'ont pas encore répondu'));
+        if (!c.rappel_envoye) btns.push(csBtn('remind', c.id, 'Rappel', 'secondary', 'bell', 'Relance par e-mail ceux qui n\'ont pas encore répondu (une seule fois)'));
         btns.push(csBtn('close', c.id, 'Clôturer', 'danger', 'stop'));
       } else {
         btns.push(csBtn('results', c.id, 'Résultats', 'primary', 'chart'));
