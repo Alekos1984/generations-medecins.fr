@@ -693,10 +693,7 @@
         const ref = genRef();
         lastRef = ref;
 
-        // 2. Génère le PDF (pour pièce jointe email)
-        const pdfBase64 = (email && wantsAttestation)
-          ? await buildAttestationPdf({ ref, specialite: $('f-specialite').value, cp }, true)
-          : null;
+        // 2. L'attestation envoyée par e-mail est générée côté serveur (aucune pièce jointe n'est acceptée du navigateur)
 
         // 3. Envoi au serveur (le RPPS n'est ni stocké ni journalisé côté serveur)
         const res = await fetch('/.netlify/functions/soumettre-greve', {
@@ -715,7 +712,6 @@
             contactOptIn: !!(email && contactOptIn),
             tel: $('f-tel').value.trim() || null,
             wantsAttestation: !!(email && wantsAttestation),
-            pdfBase64,
           }),
         });
 

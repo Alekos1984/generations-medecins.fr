@@ -1,3 +1,4 @@
+const { genererAttestation } = require('./_attestation-pdf');
 const { rateLimit, TOO_MANY } = require('./_security');
 /**
  * Netlify Function - Soumission d'une déclaration de grève
@@ -36,16 +37,6 @@ function pseudo(id, campagneId) {
 }
 
 // PDF : base64 valide, en-tête %PDF- et %%EOF dans les 1024 derniers octets
-function pdfValide(b64) {
-  if (typeof b64 !== 'string' || b64.length > 500000 || b64.length < 8) return false;
-  const clean = b64.replace(/^data:application\/pdf;base64,/, '');
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(clean) || clean.length % 4 !== 0) return false;
-  const buf = Buffer.from(clean, 'base64');
-  if (buf.length < 16) return false;
-  return buf.subarray(0, 5).toString('latin1') === '%PDF-'
-    && buf.subarray(Math.max(0, buf.length - 1024)).toString('latin1').includes('%%EOF');
-}
-
 function genRef() {
   const year = new Date().getFullYear();
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -74,7 +65,7 @@ exports.handler = async (event) => {
 
   const {
     campagneId, rpps, specialite, cp, modeExercice, motifs = [],
-    email, tel, wantsAttestation = false, estInterne = false, pdfBase64,
+    email, tel, wantsAttestation = false, estInterne = false,
     ref: clientRef, contactOptIn = false,
   } = body;
 
@@ -98,9 +89,6 @@ exports.handler = async (event) => {
   if (tooLong(specialite, 120) || (cp != null && !/^\d{2,5}$/.test(String(cp)))
       || !Array.isArray(motifs) || motifs.length > 20 || motifs.some(m => typeof m !== 'string' || m.length > 300)) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Données invalides' }) };
-  }
-  if (pdfBase64 != null && !pdfValide(pdfBase64)) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Pièce jointe invalide' }) };
   }
 
   // 1. Vérifie la campagne
@@ -150,7 +138,7 @@ exports.handler = async (event) => {
   // 3. Envoi de l'attestation (éphémère - email jamais persisté), uniquement pour une nouvelle déclaration
   let emailEnvoye = false;
   // Limite par destinataire (3 / 24 h), indépendante de l'IP ; échec ouvert si la base ne répond pas
-  const mailOk = inserted && wantsAttestation && email && pdfBase64
+  const mailOk = inserted && wantsAttestation && email
     ? await rateLimit({ headers: {} }, 'greve-mail', 3, 86400, crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex'))
     : false;
   if (mailOk && process.env.BREVO_API_KEY && process.env.SENDER_EMAIL) {
@@ -186,7 +174,7 @@ exports.handler = async (event) => {
         to:          [{ email }],
         subject:     `Votre attestation de grève - ${ref}`,
         htmlContent: html,
-        attachment:  [{ content: pdfBase64.replace(/^data:application\/pdf;base64,/, ''), name: `attestation-greve-${ref}.pdf` }],
+        attachment:  [{ content: genererAttestation({ titre: camp.titre, dateDebut: camp.date_debut, specialite: specClean, cp, ref, date: new Date() }).toString('base64'), name: `attestation-greve-${ref}.pdf` }],
       }),
     });
     emailEnvoye = brevoRes.ok;
