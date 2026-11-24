@@ -1,4 +1,4 @@
-name: Import Observatoire (DREES + RPPS)
+name: Import Observatoire (RPPS + INSEE)
 
 on:
   schedule:
@@ -29,32 +29,13 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
-      # DREES = source principale (pré-agrégée, ~Mo, donne la tendance N vs N-1).
-      # Tourne d'abord — si elle réussit, ses chiffres écrasent ceux de RPPS
-      # dans la suite (les deux écrivent dans les mêmes colonnes *_pending).
-      - name: Lancer l'import DREES
-        env:
-          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python scripts/import_drees.py
-        continue-on-error: true
-
-      # RPPS = source de secours (brut 700 Mo, recompte sans tendance).
-      # Si DREES a planté, on a au moins le compte brut.
+      # RPPS (effectifs, spécialités, âge, mode d'exercice) + population INSEE (API Melodi)
+      # pour la densité médicale. Les chiffres se mettent à jour tout seuls chaque mois.
       - name: Lancer l'import RPPS
         env:
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/import_observatoire.py
-        continue-on-error: true
-
-      # Sources externes (DREES délai rdv + ARS zonage médecins). Best-effort :
-      # tente plusieurs slugs candidats, log diagnostique dans l'admin.
-      - name: Lancer l'import sources externes
-        env:
-          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python scripts/import_sources_externes.py
         continue-on-error: true
 
       # Validation d'office : plus besoin de valider à la main chaque mois.
