@@ -202,7 +202,7 @@
     <!-- FORMULAIRE -->
     <div id="form-section">
       <h2 class="section-title">Déclarer ma participation</h2>
-      <p class="section-sub">Votre déclaration est anonymisée - seule une empreinte numérique de votre identifiant est conservée.</p>
+      <p class="section-sub">Votre déclaration est pseudonymisée - seule une empreinte de votre identifiant (calculée avec une clé secrète côté serveur) est conservée.</p>
 
       <div class="form-card">
         <!-- Identifiant professionnel -->
@@ -232,7 +232,7 @@
         <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Ne pas remplir <input type="text" id="f-website" tabindex="-1" autocomplete="off"></label></div>
         <!-- RGPD -->
         <div class="rgpd-box">
-          <strong>Vie privée :</strong> Votre identifiant est transformé en empreinte numérique irréversible (SHA-256) directement dans votre navigateur - il ne quitte jamais votre appareil. Seule cette empreinte est transmise. Votre email, s'il est fourni, sert à l'envoi de votre attestation ; il n'est conservé que si vous cochez la case de consentement dédiée.
+          <strong>Vie privée :</strong> Votre identifiant est transmis de façon chiffrée (TLS) puis transformé côté serveur en empreinte pseudonymisée (calculée avec une clé secrète) : l'identifiant lui-même n'est pas conservé. Seule cette empreinte est enregistrée. Votre email, s'il est fourni, sert à l'envoi de votre attestation ; il n'est conservé que si vous cochez la case de consentement dédiée.
         </div>
 
         <button class="btn-submit-org" id="btn-submit" onclick="submitDeclaration()">
@@ -389,14 +389,6 @@
       }
     }
 
-    // ── Hash identifiant côté client ─────────────────────────────────────────
-    async function hashId(id) {
-      if (!campagne) return null;
-      const data = new TextEncoder().encode(id.trim() + '|' + campagne.id);
-      const buf = await crypto.subtle.digest('SHA-256', data);
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-    }
-
     // ── Vérification identifiant ──────────────────────────────────────────────
     window.onIdInput = function() {
       const v = $('f-id').value.replace(/\D/g,'');
@@ -440,27 +432,23 @@
     // ── Soumission ────────────────────────────────────────────────────────────
     window.submitDeclaration = async function() {
       if (!campagne) { toast('Aucune campagne active', true); return; }
-      const id    = $('f-id').value.replace(/\D/g,'');
+      const id    = $('f-id').value.replace(/[^A-Za-z0-9-]/g,'');
       const email = $('f-email').value.trim();
       const cp    = $('f-cp').value.replace(/\D/g,'').slice(0,5);
 
-      if (id.length < 8) { toast('Renseignez votre identifiant professionnel', true); return; }
+      if (id.length < 4 || id.length > 40) { toast('Renseignez votre identifiant professionnel', true); return; }
 
       const btn = $('btn-submit');
       btn.disabled = true; btn.textContent = '⏳ Enregistrement…';
-
-      const idHash = await hashId(id);
-      const ref = 'ORG-' + Date.now().toString(36).toUpperCase();
 
       const body = {
         website:   ($('f-website')||{}).value || '',
         orgSlug:   ORG_SLUG,
         campaignId: campagne.id,
-        idHash,
+        id,
         cp,
         email:     email || null,
         contactOptIn: !!(email && $('f-contact-optin').checked),
-        ref,
         source:    'web'
       };
 
@@ -472,7 +460,7 @@
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Erreur serveur');
-        $('confirm-ref').textContent = 'Réf. ' + ref;
+        $('confirm-ref').textContent = json.ref ? 'Réf. ' + json.ref : 'Déclaration déjà enregistrée';
         $('form-section').style.display   = 'none';
         $('confirm-section').style.display = 'block';
       } catch (e) {

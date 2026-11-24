@@ -67,16 +67,42 @@ const TAGS_ALLOWED = [
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function stripHtmlEntities(str) {
-  return str
+// Ordre important : décoder les entités D'ABORD, retirer les balises ENSUITE
+// (sinon &lt;script&gt; décodé après coup réintroduirait des balises).
+function decodeEntities(str) {
+  return String(str ?? '')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return ''; } })
+    .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(parseInt(d, 10)); } catch { return ''; } })
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#\d+;/g, '')
+    .replace(/&amp;/g, '&');
+}
+
+function stripHtmlEntities(str) {
+  return decodeEntities(str)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[<>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Échappement HTML pour l'e-mail de synthèse
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Lien valide : URL http(s) sans guillemet, chevron ni espace, sinon null
+function safeLink(link) {
+  const l = String(link || '').trim();
+  if (!l || /["'<>\s`]/.test(l)) return null;
+  try {
+    const u = new URL(l);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    return l;
+  } catch { return null; }
 }
 
 // ── RSS parsing (minimal, no external deps) ─────────────────────────────────
@@ -116,7 +142,7 @@ function isRecent(pubDateStr) {
 // ── GPT-4o-mini classification ───────────────────────────────────────────────
 
 async function classifyArticle(article) {
-  const description = stripHtmlEntities((article.description || '').replace(/<[\s\S]*?>/g, ' ')).slice(0, 500);
+  const description = stripHtmlEntities(article.description || '').slice(0, 500);
 
   const prompt = `Tu es assistant éditorial pour le syndicat Générations Médecins IDF (syndicat de médecins libéraux).
 
@@ -235,42 +261,42 @@ async function sendAdminDigest(imported, stats) {
   const articleRows = imported.map(a => `
     <tr>
       <td style="padding:10px 12px;border-bottom:1px solid #e8edf2">
-        <strong>${a.titre}</strong><br>
-        <span style="font-size:13px;color:#555">${a.source} - ${new Date(a.publie_le).toLocaleDateString('fr-FR')}</span><br>
-        <span style="font-size:13px">${a.resume || ''}</span><br>
-        ${a.tags?.length ? `<span style="font-size:12px;color:#38a8b5">${a.tags.join(' · ')}</span>` : ''}
+        <strong>${esc(a.titre)}</strong><br>
+        <span style="font-size:13px;color:#555">${esc(a.source)} - ${esc(new Date(a.publie_le).toLocaleDateString('fr-FR'))}</span><br>
+        <span style="font-size:13px">${esc(a.resume || '')}</span><br>
+        ${a.tags?.length ? `<span style="font-size:12px;color:#38a8b5">${esc(a.tags.join(' · '))}</span>` : ''}
       </td>
     </tr>`).join('');
 
   const errorSection = stats.errors.length ? `
     <div style="background:#fff8f8;border:1px solid #fcc;border-radius:8px;padding:16px;margin-top:16px">
-      <strong style="color:#c0392b">⚠ Erreurs (${stats.errors.length})</strong>
+      <strong style="color:#c0392b">⚠ Erreurs (${esc(stats.errors.length)})</strong>
       <ul style="margin:8px 0 0;padding-left:20px;font-size:13px;color:#666">
-        ${stats.errors.map(e => `<li>${e}</li>`).join('')}
+        ${stats.errors.map(e => `<li>${esc(e)}</li>`).join('')}
       </ul>
     </div>` : '';
 
   const statsSection = `
     <div style="background:#f0f7ff;border:1px solid #c5d9f0;border-radius:8px;padding:16px;margin-top:16px;font-size:13px;color:#444">
       <strong>Bilan de la veille</strong><br>
-      ✅ ${imported.length} article${imported.length !== 1 ? 's' : ''} importé${imported.length !== 1 ? 's' : ''}
-      · ⏭ ${stats.skipped} ignorés
-      · 🌍 ${stats.skipped_regional} non-nationaux
-      · 🤖 ${stats.gpt_errors} erreurs GPT
-      · 📡 ${stats.feed_stats.length} flux testés<br><br>
+      ✅ ${esc(imported.length)} article${imported.length !== 1 ? 's' : ''} importé${imported.length !== 1 ? 's' : ''}
+      · ⏭ ${esc(stats.skipped)} ignorés
+      · 🌍 ${esc(stats.skipped_regional)} non-nationaux
+      · 🤖 ${esc(stats.gpt_errors)} erreurs GPT
+      · 📡 ${esc(stats.feed_stats.length)} flux testés<br><br>
       <strong>Flux par flux :</strong><br>
-      ${stats.feed_stats.map(f => `• ${f.nom} : ${f.status} - ${f.items} articles récupérés${f.error ? ' - ⚠ ' + f.error : ''}`).join('<br>')}
+      ${stats.feed_stats.map(f => `• ${esc(f.nom)} : ${esc(f.status)} - ${esc(f.items)} articles récupérés${f.error ? ' - ⚠ ' + esc(f.error) : ''}`).join('<br>')}
     </div>`;
 
   const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;margin:0;padding:0">
 <div style="max-width:680px;margin:0 auto">
   <div style="background:linear-gradient(135deg,#1a5c3e,#27956a,#38a8b5);padding:32px 40px;text-align:center">
     <span style="color:#fff;font-size:22px;font-weight:700">Veille du matin</span><br>
-    <span style="color:rgba(255,255,255,.8);font-size:14px">${dateStr}</span>
+    <span style="color:rgba(255,255,255,.8);font-size:14px">${esc(dateStr)}</span>
   </div>
   <div style="padding:24px 32px;background:#f8fafc">
     ${imported.length > 0 ? `
-    <p style="color:#333;margin:0 0 16px">${imported.length} article${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''} automatiquement.
+    <p style="color:#333;margin:0 0 16px">${esc(imported.length)} article${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''} automatiquement.
       <a href="${siteUrl}/mockup/admin.html" style="color:#2a6db8">Espace admin → Veille</a> pour rejeter les non pertinents.</p>
     <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e8edf2">
       ${articleRows}
@@ -355,22 +381,23 @@ async function runVeille() {
     console.log(`Feed ${feed.nom}: ${items.length} items récents`);
 
     for (const item of items.slice(0, 8)) {
-      if (!item.link || !item.title || !/^https?:\/\//i.test(item.link)) { results.skipped++; continue; }
+      item.link = safeLink(item.link);
+      if (!item.link || !item.title) { results.skipped++; continue; }
       if (await urlAlreadyExists(item.link)) { results.skipped++; continue; }
 
       // Si OpenAI non configuré, on importe sans classification
       if (!process.env.OPENAI_API_KEY) {
         console.warn('OPENAI_API_KEY non configuré - import sans classification GPT');
-        const rawTitle = item.title.replace(/<[^>]+>/g, '').trim();
+        const rawTitle = stripHtmlEntities(item.title);
         const dashIdx  = rawTitle.lastIndexOf(' - ');
         const titre    = (dashIdx > 30 ? rawTitle.slice(0, dashIdx) : rawTitle).slice(0, 250);
-        const source   = feed.nom;
+        const source   = stripHtmlEntities(feed.nom);
         const slug     = slugify(titre) + '-' + Date.now().toString(36);
         const row = {
           titre, slug, url: item.link, source,
           publie_le: item.pubDate ? new Date(item.pubDate).toISOString().slice(0, 10) : today,
-          resume: (item.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300),
-          contenu: (item.content || item.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+          resume: stripHtmlEntities(item.description || '').slice(0, 300),
+          contenu: stripHtmlEntities(item.content || item.description || ''),
           auteur: null, categorie: 'avenant', acces: 'public',
           publie: true, auto_import: true, veille_statut: 'publie', tags: [],
         };
@@ -394,13 +421,13 @@ async function runVeille() {
         continue;
       }
 
-      const rawTitle  = stripHtmlEntities(item.title.replace(/<[\s\S]*?>/g, ' '));
+      const rawTitle  = stripHtmlEntities(item.title);
       const dashIdx   = rawTitle.lastIndexOf(' - ');
       const titre     = (dashIdx > 30 ? rawTitle.slice(0, dashIdx) : rawTitle).slice(0, 250);
       const publisher = dashIdx > 30 ? rawTitle.slice(dashIdx + 3).trim() : '';
-      const source    = feed.nom === 'Google News' ? (publisher || 'Google News') : feed.nom;
+      const source    = stripHtmlEntities(feed.nom === 'Google News' ? (publisher || 'Google News') : feed.nom).slice(0, 120);
       const slug      = slugify(titre) + '-' + Date.now().toString(36);
-      const resume    = classification.resume || '';
+      const resume    = stripHtmlEntities(classification.resume || '');
 
       const row = {
         titre,

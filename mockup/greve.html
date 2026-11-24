@@ -222,7 +222,7 @@
     <!-- FORMULAIRE -->
     <div id="form-section">
       <h2 class="section-title">Déclarer ma participation</h2>
-      <p class="section-sub">Votre numéro RPPS est vérifié puis <strong>transformé en empreinte (SHA-256)</strong> dans votre navigateur : votre numéro lui-même n'est ni transmis ni stocké. Cette empreinte reste une donnée pseudonymisée, décrite dans notre <a href="politique-confidentialite.html">politique de confidentialité</a>.</p>
+      <p class="section-sub">Votre numéro RPPS est vérifié, puis transmis de façon chiffrée (TLS) et <strong>transformé côté serveur en empreinte pseudonymisée</strong> (calculée avec une clé secrète) : le numéro lui-même n'est pas conservé. Cette empreinte reste une donnée pseudonymisée, décrite dans notre <a href="politique-confidentialite.html">politique de confidentialité</a>.</p>
 
       <!-- Bannière pré-remplissage (non connecté) -->
       <div class="prefill-banner" id="prefill-banner">
@@ -251,7 +251,7 @@
           </div>
           <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end">
             <div class="field-hint" style="background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:.78rem;line-height:1.6;color:var(--muted)">
-              🔐 Votre RPPS est vérifié contre l'Annuaire Santé puis converti localement en empreinte anonyme (SHA-256). Seule cette empreinte est transmise (pseudonymisation) - votre numéro reste sur votre appareil.
+              🔐 Votre RPPS est vérifié contre l'Annuaire Santé puis transmis de façon chiffrée (TLS) puis converti côté serveur en empreinte pseudonymisée (calculée avec une clé secrète côté serveur). Seule cette empreinte est conservée ; votre numéro ne l'est pas.
             </div>
           </div>
         </div>
@@ -369,7 +369,7 @@
           <span class="rgpd-title">🔒 Protection de vos données</span>
           Le responsable de traitement est <strong>Générations Médecins</strong>. Nous n'utilisons ni cookies de traçage ni scripts tiers.<br>
           Nous collectons uniquement ce qui est nécessaire pour comptabiliser les déclarations et, si vous le choisissez, pour vous recontacter.<br><br>
-          <strong>Le compteur est basé sur une empreinte anonyme</strong> (<span class="rgpd-hash">SHA-256</span>) calculée <em>localement dans votre navigateur</em> à partir de votre numéro RPPS - impossible à inverser. Votre identité ne quitte pas votre appareil.<br><br>
+          <strong>Le compteur est basé sur une empreinte pseudonymisée</strong> (<span class="rgpd-hash">HMAC-SHA256</span>), calculée côté serveur avec une clé secrète à partir de votre numéro RPPS, qui n'est pas conservé.<br><br>
           Vos coordonnées (email/téléphone) sont <strong>optionnelles et stockées séparément du compteur</strong>. Votre email n'est conservé que si vous cochez la case dédiée (information sur les suites de la mobilisation) ; sinon il sert uniquement à l'envoi de l'attestation.<br>
           Vous pouvez corriger ou supprimer vos données en refaisant une déclaration : les nouvelles informations remplacent les précédentes. Contact RGPD : <a href="mailto:contact@generations-medecins.fr" style="color:#1a3a8a">contact@generations-medecins.fr</a>
         </div>
@@ -415,7 +415,7 @@
       <div style="position:relative;z-index:1;flex:1;min-width:240px">
         <div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Mobilisation interprofessionnelle</div>
         <h3 style="font-size:1.25rem;font-weight:900;color:#fff;margin-bottom:8px;letter-spacing:-.02em">Vous n'êtes pas médecin ?</h3>
-        <p style="font-size:.88rem;color:#94a3b8;line-height:1.6;margin:0">Pharmaciens, infirmiers, kinés - une plateforme de mobilisation existe aussi pour votre profession. Même principe, même anonymat, même attestation.</p>
+        <p style="font-size:.88rem;color:#94a3b8;line-height:1.6;margin:0">Pharmaciens, infirmiers, kinés - une plateforme de mobilisation existe aussi pour votre profession. Même principe, même pseudonymisation, même attestation.</p>
       </div>
       <div style="position:relative;z-index:1;flex-shrink:0;display:flex;flex-direction:column;gap:10px;align-items:flex-start">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -488,13 +488,6 @@
       let code = '';
       for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
       return `GM-GREVE-${new Date().getFullYear()}-${code}`;
-    }
-
-    // ── Hachage RPPS côté client (privacy-by-design) ─────────────────────────
-    async function hashRpps(rpps) {
-      const key = rpps.trim() + '|' + campagne.id;
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     window.scrollToForm = () => $('form-section').scrollIntoView({ behavior:'smooth' });
@@ -613,8 +606,11 @@
       const liens = campagne.liens || [];
       if (!liens.length) return;
       $('links-section').style.display = 'block';
-      $('links-row').innerHTML = liens.map(l =>
-        `<a class="link-chip" href="${esc(l.url)}" target="_blank" rel="noopener">📄 ${esc(l.label)}</a>`).join('');
+      $('links-row').innerHTML = liens.map(l => {
+        const u = String(l.url || '');
+        const href = /^https?:\/\//i.test(u) ? ` href="${esc(u)}"` : '';
+        return `<a class="link-chip"${href} target="_blank" rel="noopener noreferrer">📄 ${esc(l.label)}</a>`;
+      }).join('');
     }
 
     // ── Pills mode exercice ───────────────────────────────────────────────────
@@ -660,7 +656,7 @@
         const data = await res.json();
         if (data.total > 0 || (data.entry && data.entry.length)) {
           rppsVerified = true;
-          st.textContent = '✓ RPPS vérifié - empreinte calculée localement';
+          st.textContent = '✓ RPPS vérifié';
           st.className = 'rpps-status ok';
         } else {
           rppsVerified = false;
@@ -693,9 +689,7 @@
       btn.disabled = true; btn.textContent = '⏳ Enregistrement…';
 
       try {
-        // 1. Hash RPPS localement - l'identité ne quitte pas le navigateur
-        const rppsHash = interne ? null : await hashRpps(rpps);
-
+        // 1. Le RPPS part en TLS ; l'empreinte pseudonymisée est calculée côté serveur
         const ref = genRef();
         lastRef = ref;
 
@@ -704,14 +698,14 @@
           ? await buildAttestationPdf({ ref, specialite: $('f-specialite').value, cp }, true)
           : null;
 
-        // 3. Envoi au serveur (le RPPS brut ne part JAMAIS)
+        // 3. Envoi au serveur (le RPPS n'est ni stocké ni journalisé côté serveur)
         const res = await fetch('/.netlify/functions/soumettre-greve', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
             website: ($('f-website')||{}).value || '',
             campagneId: campagne.id,
             ref,
-            rppsHash,
+            rpps: interne ? null : String(rpps).trim(),
             estInterne: interne,
             specialite: $('f-specialite').value || null,
             cp: cp || null,
@@ -728,10 +722,10 @@
         const out = await res.json();
         if (!res.ok) { toast(out.error || 'Erreur', true); btn.disabled=false; btn.textContent='✊ Je déclare ma participation'; return; }
 
-        lastRef = out.ref || ref;
+        lastRef = out.ref || null;
         $('form-section').style.display = 'none';
         $('confirm-section').style.display = 'block';
-        $('confirm-ref').textContent = out.ref;
+        $('confirm-ref').textContent = out.ref || 'Déclaration déjà enregistrée';
 
         let msg = 'Vous faites désormais partie du mouvement.';
         if (email && wantsAttestation) {

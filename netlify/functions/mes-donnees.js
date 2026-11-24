@@ -17,6 +17,9 @@ async function rest(path) {
   return r.ok ? r.json() : [];
 }
 
+// Filtre PostgREST insensible à la casse, avec échappement des jokers LIKE (_ % \\) de l'adresse
+const ilikeEmail = (email) => `ilike.${encodeURIComponent(String(email).replace(/[\\%_*]/g, c => (c === '*' ? '' : '\\' + c)))}`;
+
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -39,6 +42,7 @@ exports.handler = async (event) => {
 
   const uid = encodeURIComponent(user.id);
   const membre = (await rest(`membres?user_id=eq.${uid}&select=*&limit=1`))[0] || null;
+  const email = String(user.email || membre?.email || '').trim().toLowerCase();
   const mid = membre ? encodeURIComponent(membre.id) : null;
 
   if (body.action === 'export') {
@@ -52,6 +56,10 @@ exports.handler = async (event) => {
       signatures_mobilisation: mid ? await rest(`signatures_mobilisation?membre_id=eq.${mid}&select=*`) : [],
       petites_annonces:        mid ? await rest(`petites_annonces?membre_id=eq.${mid}&select=*`) : [],
       organisations:           await rest(`org_membres?user_id=eq.${uid}&select=org_id,role,accepted_at,created_at`),
+      emargements_consultations: mid ? await rest(`consultation_emargements?membre_id=eq.${mid}&select=*`) : [],
+      sos_juridique:           mid ? await rest(`sos_juridique?membre_id=eq.${mid}&select=*`) : [],
+      contacts_mobilisation:   email ? await rest(`greve_contacts?email=${ilikeEmail(email)}&select=campagne_id,email,consent_at,consent_version,created_at`) : [],
+      declarations_mobilisation: email ? await rest(`greve_declarations?email=${ilikeEmail(email)}&select=ref,campagne_id,specialite,cp,mode_exercice,motifs,email,tel,consentement_info,created_at`) : [],
     };
     return json(200, headers, data);
   }
@@ -77,7 +85,32 @@ exports.handler = async (event) => {
       } catch (e) { console.error('Suppression fichiers :', e.message); }
     }
 
-    // 2. Suppression du compte : cascade sur le profil et toutes les données rattachées
+    // 2. Données rattachées à l'adresse e-mail (hors cascade sur le compte). Un échec est journalisé
+    //    mais ne bloque pas l'effacement du compte.
+    if (email) {
+      // a) Contact Brevo (404 = déjà absent)
+      if (process.env.BREVO_API_KEY) {
+        try {
+          const br = await fetch(`https://api.brevo.com/v3/contacts/${encodeURIComponent(email)}`, {
+            method: 'DELETE', headers: { 'api-key': process.env.BREVO_API_KEY },
+          });
+          if (!br.ok && br.status !== 404) console.error('Suppression contact Brevo :', br.status);
+        } catch (e) { console.error('Suppression contact Brevo :', e.message); }
+      } else { console.error('Suppression contact Brevo : BREVO_API_KEY absente'); }
+      // b) Contacts de mobilisation (consentement) ; c) déclarations de mobilisation anonymisées (e-mail et téléphone effacés)
+      //    d) invitations d'organisation en attente à cette adresse
+      const ops = [
+        ['greve_contacts', fetch(`${SB()}/rest/v1/greve_contacts?email=${ilikeEmail(email)}`, { method: 'DELETE', headers: { ...srv(), Prefer: 'return=minimal' } })],
+        ['greve_declarations', fetch(`${SB()}/rest/v1/greve_declarations?email=${ilikeEmail(email)}`, { method: 'PATCH', headers: { ...srv(), Prefer: 'return=minimal' }, body: JSON.stringify({ email: null, tel: null }) })],
+        ['org_membres', fetch(`${SB()}/rest/v1/org_membres?user_id=is.null&email=${ilikeEmail(email)}`, { method: 'DELETE', headers: { ...srv(), Prefer: 'return=minimal' } })],
+      ];
+      for (const [nom, p] of ops) {
+        try { const r = await p; if (!r.ok) console.error(`Nettoyage ${nom} :`, r.status); }
+        catch (e) { console.error(`Nettoyage ${nom} :`, e.message); }
+      }
+    }
+
+    // 3. Suppression du compte : cascade sur le profil et toutes les données rattachées
     const dr = await fetch(`${SB()}/auth/v1/admin/users/${uid}`, { method: 'DELETE', headers: srv() });
     if (!dr.ok) { console.error('Suppression compte :', dr.status); return json(502, headers, { error: 'Suppression impossible, contactez le bureau.' }); }
     return json(200, headers, { ok: true });

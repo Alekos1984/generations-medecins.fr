@@ -101,6 +101,8 @@ async function matchOne(membre) {
            strategy: 'plusieurs_homonymes' };
 }
 
+const { rateLimit, TOO_MANY } = require('./_security');
+
 exports.handler = async (event) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -112,8 +114,12 @@ exports.handler = async (event) => {
 
   const token = (event.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   const auth = await requireAdmin(token);
-  if (!auth.ok) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Accès refusé', detail: auth.why }) };
+  if (!auth.ok) {
+    console.error('verifier-rpps : accès refusé :', auth.why);
+    return { statusCode: 403, headers, body: JSON.stringify({ error: 'Acces refuse' }) };
+  }
   const user = auth.user;
+  if (!(await rateLimit(event, 'verifier-rpps', 60, 3600, user.id))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
 
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch {}
@@ -126,8 +132,7 @@ exports.handler = async (event) => {
   const total = parseInt(contentRange.split('/')[1] || '0', 10);
   if (!total) {
     return { statusCode: 400, headers, body: JSON.stringify({
-      error: 'Index RPPS vide',
-      detail: 'La table rpps_medecins ne contient aucune ligne. Lance un import depuis l\'admin observatoire (🚀 Lancer un import) - ça indexe les ~545 000 médecins en fin de run.',
+      error: 'Index RPPS vide : lancez d\'abord un import depuis l\'admin observatoire.',
     })};
   }
 
@@ -138,7 +143,8 @@ exports.handler = async (event) => {
   }
   const mRes = await fetch(url, { headers: srv() });
   if (!mRes.ok) {
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lecture membres', detail: (await mRes.text()).slice(0,200) }) };
+    console.error('verifier-rpps : lecture membres HTTP', mRes.status, (await mRes.text().catch(() => '')).slice(0, 200));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
   const membres = await mRes.json();
 

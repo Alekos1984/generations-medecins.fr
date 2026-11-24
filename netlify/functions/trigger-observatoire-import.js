@@ -18,6 +18,8 @@
  *   GH_DISPATCH_REF       (ex: "claude/mockup-vitrine")
  */
 
+const { rateLimit, TOO_MANY } = require('./_security');
+
 async function verifyAdmin(token) {
   if (!token) return null;
   const userRes = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
@@ -31,7 +33,7 @@ async function verifyAdmin(token) {
     { headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, apikey: process.env.SUPABASE_SERVICE_ROLE_KEY } }
   );
   const admins = await adminRes.json();
-  return admins?.[0] ? user : null;
+  return admins?.[0]?.role === 'super_admin' ? user : null;
 }
 
 exports.handler = async (event) => {
@@ -46,7 +48,9 @@ exports.handler = async (event) => {
 
   const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
   const user = await verifyAdmin(token);
-  if (!user) return { statusCode: 403, headers, body: '{"error":"Accès réservé aux admins"}' };
+  if (!user) return { statusCode: 403, headers, body: '{"error":"Accès réservé aux super-admins"}' };
+
+  if (!(await rateLimit(event, 'trigger-observatoire', 5, 3600, user.id))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
 
   const PAT      = process.env.GH_DISPATCH_TOKEN;
   const owner    = process.env.GH_DISPATCH_OWNER    || 'Alekos1984';
@@ -56,7 +60,7 @@ exports.handler = async (event) => {
 
   if (!PAT) {
     return { statusCode: 500, headers, body: JSON.stringify({
-      error: 'GH_DISPATCH_TOKEN non configuré côté serveur. Définis-le dans les variables d\'environnement Netlify.',
+      error: 'Erreur serveur',
     })};
   }
 
@@ -79,9 +83,8 @@ exports.handler = async (event) => {
     })};
   }
 
-  const errText = await ghRes.text();
+  console.error('trigger-observatoire-import : GitHub HTTP', ghRes.status, (await ghRes.text().catch(() => '')).slice(0, 400));
   return { statusCode: 502, headers, body: JSON.stringify({
-    error: `GitHub a répondu ${ghRes.status}`,
-    detail: errText.slice(0, 400),
+    error: 'Erreur lors du déclenchement de l\'import',
   })};
 };

@@ -6,21 +6,22 @@ const { rateLimit, TOO_MANY } = require('./_security');
 const SB   = process.env.SUPABASE_URL;
 const ANON = process.env.SUPABASE_ANON_KEY;
 
+// Renvoie l'identifiant vérifié de l'utilisateur (ou null)
 async function isAuthenticated(token) {
-  if (!token || !SB || !ANON) return false;
+  if (!token || !SB || !ANON) return null;
   const res = await fetch(`${SB}/auth/v1/user`, {
     headers: { Authorization: `Bearer ${token}`, apikey: ANON },
   });
-  if (!res.ok) return false;
+  if (!res.ok) return null;
   const user = await res.json();
-  if (!user?.id) return false;
+  if (!user?.id) return null;
   // Réservé aux adhérents actifs et aux admins (vérifié avec le jeton de l'utilisateur, sous RLS)
   const h = { Authorization: `Bearer ${token}`, apikey: ANON, 'Content-Type': 'application/json' };
   for (const fn of ['is_membre_actif', 'is_admin']) {
     const r = await fetch(`${SB}/rest/v1/rpc/${fn}`, { method: 'POST', headers: h, body: '{}' });
-    if (r.ok && (await r.json()) === true) return true;
+    if (r.ok && (await r.json()) === true) return user.id;
   }
-  return false;
+  return null;
 }
 
 const PROMPTS = {
@@ -57,14 +58,15 @@ exports.handler = async (event) => {
   }
 
   const token = (event.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  if (!(await isAuthenticated(token))) {
+  const userId = await isAuthenticated(token);
+  if (!userId) {
     return { statusCode: 403, body: JSON.stringify({ error: 'Authentification requise' }) };
   }
-  if (!(await rateLimit(event, 'rt', 60, 3600, token.slice(-16)))) return TOO_MANY;
+  if (!(await rateLimit(event, 'rt', 60, 3600, userId))) return TOO_MANY;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'OPENAI_API_KEY non configurée' }) };
+    return { statusCode: 500, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   let body;
@@ -101,14 +103,14 @@ exports.handler = async (event) => {
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      return { statusCode: 502, body: JSON.stringify({ error: 'OpenAI error: ' + err }) };
+      console.error('reformuler-texte : OpenAI HTTP', response.status, (await response.text().catch(() => '')).slice(0, 300));
+      return { statusCode: 502, body: JSON.stringify({ error: 'Service de reformulation indisponible' }) };
     }
 
     const data = await response.json();
     const reformule = data.choices?.[0]?.message?.content?.trim();
     if (!reformule) {
-      return { statusCode: 502, body: JSON.stringify({ error: 'Réponse OpenAI vide' }) };
+      return { statusCode: 502, body: JSON.stringify({ error: 'Service de reformulation indisponible' }) };
     }
 
     return {
@@ -117,6 +119,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ reformule }),
     };
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+    console.error('reformuler-texte :', e.message);
+    return { statusCode: 500, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 };

@@ -1,3 +1,4 @@
+const { isSchedulerCall } = require('./_security');
 /**
  * Netlify Scheduled Function - rappel de conservation des données (tous les 3 ans)
  * Chaque lundi : les adhérents dont les données sont conservées depuis 3 ans (ou depuis le dernier rappel)
@@ -9,7 +10,8 @@ const SRK = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
 const srv = () => ({ apikey: SRK(), Authorization: `Bearer ${SRK()}`, 'Content-Type': 'application/json' });
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  if (!isSchedulerCall(event)) return { statusCode: 403, body: 'Acces refuse' };
   if (!SB() || !SRK() || !process.env.BREVO_API_KEY || !process.env.SENDER_EMAIL) return { statusCode: 500 };
   const site = process.env.URL || 'https://generations-medecins.fr';
   const r = await fetch(`${SB()}/rest/v1/rpc/membres_conservation_a_rappeler`, { method: 'POST', headers: srv(), body: JSON.stringify({ p_limit: 200 }) });

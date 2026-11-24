@@ -39,7 +39,7 @@ exports.handler = async (event) => {
   if (!(await rateLimit(event, 'verif', 40, 3600))) return { ...TOO_MANY, headers: { ...headers, 'Retry-After': '600' } };
 
   if (!SB || !SSK) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Configuration Supabase manquante' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Service momentanément indisponible' }) };
   }
 
   // ── Parse body ────────────────────────────────────────────────────────────
@@ -75,8 +75,8 @@ exports.handler = async (event) => {
   );
 
   if (!orgRes.ok) {
-    const errText = await orgRes.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur Supabase' }) };
+    console.error('verifier-participation: organisations', orgRes.status);
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service momentanément indisponible' }) };
   }
 
   const orgs = await orgRes.json();
@@ -93,8 +93,8 @@ exports.handler = async (event) => {
   );
 
   if (!declRes.ok) {
-    const errText = await declRes.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lors de la vérification' }) };
+    console.error('verifier-participation: declarations', declRes.status);
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service momentanément indisponible' }) };
   }
 
   const declarations = await declRes.json();

@@ -62,9 +62,10 @@ exports.handler = async (event) => {
     }),
   });
 
-  const campaign = await createRes.json();
+  const campaign = await createRes.json().catch(() => ({}));
   if (!createRes.ok || !campaign.id) {
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur création campagne Brevo', detail: campaign }) };
+    console.error('Brevo create error:', createRes.status, JSON.stringify(campaign).slice(0, 500));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lors de la création de la campagne' }) };
   }
 
   const sendRes = await fetch(`https://api.brevo.com/v3/emailCampaigns/${campaign.id}/sendNow`, {
@@ -74,7 +75,8 @@ exports.handler = async (event) => {
 
   if (!sendRes.ok) {
     const err = await sendRes.json().catch(() => ({}));
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur envoi campagne Brevo', detail: err }) };
+    console.error('Brevo send error:', sendRes.status, JSON.stringify(err).slice(0, 500));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lors de l\'envoi de la campagne' }) };
   }
 
   return { statusCode: 200, headers, body: JSON.stringify({ ok: true, campaignId: campaign.id }) };

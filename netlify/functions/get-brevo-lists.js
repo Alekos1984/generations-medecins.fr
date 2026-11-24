@@ -37,8 +37,11 @@ exports.handler = async (event) => {
   const res = await fetch('https://api.brevo.com/v3/contacts/lists?limit=50', {
     headers: { 'api-key': process.env.BREVO_API_KEY },
   });
-  const data = await res.json();
-  if (!res.ok) return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur Brevo', detail: data }) };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('get-brevo-lists : Brevo HTTP', res.status, JSON.stringify(data).slice(0, 300));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur lors de la récupération des listes' }) };
+  }
 
   return {
     statusCode: 200,

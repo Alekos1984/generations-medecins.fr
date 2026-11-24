@@ -59,10 +59,10 @@ exports.handler = async (event) => {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'OPENAI_API_KEY non configurée' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
   if (!SSK) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'SUPABASE_SERVICE_ROLE_KEY non configurée' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   let body;
@@ -104,17 +104,18 @@ exports.handler = async (event) => {
     });
 
     if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur OpenAI', detail: errText.slice(0, 200) }) };
+      console.error('reformuler-question : OpenAI HTTP', aiRes.status, (await aiRes.text().catch(() => '')).slice(0, 200));
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service de reformulation indisponible' }) };
     }
 
     const aiData = await aiRes.json();
     question_reformulee = aiData.choices?.[0]?.message?.content?.trim();
     if (!question_reformulee) {
-      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Réponse OpenAI vide' }) };
+      return { statusCode: 502, headers, body: JSON.stringify({ error: 'Service de reformulation indisponible' }) };
     }
   } catch (e) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur lors de la reformulation', detail: e.message }) };
+    console.error('reformuler-question :', e.message);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   // Mise à jour de la ligne dans Supabase (service role, bypass RLS)
@@ -128,8 +129,8 @@ exports.handler = async (event) => {
   );
 
   if (!upd.ok) {
-    const t = await upd.text();
-    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur mise à jour Supabase', detail: t.slice(0, 200) }) };
+    console.error('reformuler-question : mise à jour HTTP', upd.status, (await upd.text().catch(() => '')).slice(0, 200));
+    return { statusCode: 502, headers, body: JSON.stringify({ error: 'Erreur serveur' }) };
   }
 
   return {

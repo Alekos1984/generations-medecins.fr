@@ -69,22 +69,93 @@ async function uniqueSlug(base) {
 
 const dns = require('dns').promises;
 const net = require('net');
+const https = require('https');
+const { rateLimit, TOO_MANY } = require('./_security');
 
-function isPrivateIp(ip) {
-  if (net.isIPv4(ip)) {
-    const [a, b] = ip.split('.').map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
-      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
-  }
-  const v = ip.toLowerCase();
-  return v === '::1' || v === '::' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80') || v.startsWith('::ffff:');
+function isPrivateV4(ip) {
+  const [a, b, c] = ip.split('.').map(Number);
+  return a === 0 || a === 10 || a === 127
+    || (a === 100 && b >= 64 && b <= 127)
+    || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 0 && (c === 0 || c === 2))
+    || (a === 192 && b === 168)
+    || (a === 198 && (b === 18 || b === 19))
+    || (a === 198 && b === 51 && c === 100)
+    || (a === 203 && b === 0 && c === 113)
+    || a >= 224;
 }
 
-async function assertPublicUrl(u) {
+// Développe une adresse IPv6 en 8 groupes de 16 bits (null si illisible)
+function expandV6(ip) {
+  let v = ip.toLowerCase().split('%')[0];
+  const m = v.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (m) {
+    const p = m[2].split('.').map(Number);
+    v = m[1] + ((p[0] << 8) | p[1]).toString(16) + ':' + ((p[2] << 8) | p[3]).toString(16);
+  }
+  const halves = v.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null;
+  const groups = [...head, ...Array(fill).fill('0'), ...tail].map(g => parseInt(g, 16));
+  return groups.length === 8 && groups.every(g => Number.isInteger(g) && g >= 0 && g <= 0xffff) ? groups : null;
+}
+
+function isPrivateIp(ip) {
+  if (net.isIPv4(ip)) return isPrivateV4(ip);
+  if (!net.isIPv6(ip)) return true; // format inconnu : refusé par prudence
+  const g = expandV6(ip);
+  if (!g) return true;
+  if (g.every(x => x === 0)) return true;                               // ::
+  if (g.slice(0, 7).every(x => x === 0) && g[7] === 1) return true;    // ::1
+  if ((g[0] & 0xfe00) === 0xfc00) return true;                          // fc00::/7
+  if ((g[0] & 0xffc0) === 0xfe80) return true;                          // fe80::/10
+  if ((g[0] & 0xffc0) === 0xfec0) return true;                          // fec0::/10
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every(x => x === 0)) return true; // 64:ff9b::/96
+  if (g.slice(0, 5).every(x => x === 0) && g[5] === 0xffff) {           // ::ffff:a.b.c.d (IPv4-mappé)
+    return isPrivateV4(`${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`);
+  }
+  if (g.slice(0, 6).every(x => x === 0)) return true;                   // ::a.b.c.d (IPv4-compatible, obsolète)
+  return false;
+}
+
+// Résout UNE fois le nom d'hôte, valide toutes les adresses et renvoie celle qui servira à la connexion.
+async function resolvePublic(u) {
   if (u.protocol !== 'https:') throw new Error('seuls les liens https sont acceptés');
   if (u.port && u.port !== '443') throw new Error('port non autorisé');
-  const addrs = await dns.lookup(u.hostname, { all: true });
+  const host = u.hostname.replace(/^\[|\]$/g, '');
+  const addrs = net.isIP(host) ? [{ address: host, family: net.isIP(host) }] : await dns.lookup(host, { all: true });
   if (!addrs.length || addrs.some(a => isPrivateIp(a.address))) throw new Error('adresse non autorisée');
+  return addrs[0];
+}
+
+// Requête GET https dont la connexion est forcée vers l'adresse déjà validée (anti DNS rebinding) :
+// le nom d'hôte reste utilisé pour l'en-tête Host et le SNI/certificat, mais aucune seconde résolution DNS n'a lieu.
+function pinnedGet(u, addr, headers) {
+  return new Promise((resolve, reject) => {
+    const host = u.hostname.replace(/^\[|\]$/g, '');
+    const req = https.request({
+      host, port: 443, path: u.pathname + u.search, method: 'GET', headers: { ...headers, Host: u.host },
+      servername: net.isIP(host) ? undefined : host,
+      lookup: (_h, opts, cb) => (opts && opts.all ? cb(null, [{ address: addr.address, family: addr.family }]) : cb(null, addr.address, addr.family)),
+      timeout: 12000,
+    }, (res) => {
+      const chunks = []; let size = 0;
+      res.on('data', (c) => {
+        size += c.length;
+        if (size > 3 * 1024 * 1024) { req.destroy(new Error('page trop volumineuse')); return; }
+        chunks.push(c);
+      });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, buf: Buffer.concat(chunks) }));
+      res.on('error', reject);
+    });
+    req.on('timeout', () => req.destroy(new Error('délai dépassé')));
+    req.on('error', reject);
+    req.end();
+  });
 }
 
 function htmlToText(html) {
@@ -112,21 +183,16 @@ async function fetchLinkText(rawUrl) {
   try { u = new URL(rawUrl); } catch { throw new Error('lien invalide'); }
   let current = u;
   for (let hop = 0; hop < 4; hop++) {
-    await assertPublicUrl(current);
-    const res = await fetch(current, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(12000),
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GM-ArticleBot/1.0)', Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'fr,en;q=0.8' },
-    });
-    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
-      current = new URL(res.headers.get('location'), current);
+    const addr = await resolvePublic(current);
+    const res = await pinnedGet(current, addr, { 'User-Agent': 'Mozilla/5.0 (compatible; GM-ArticleBot/1.0)', Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'fr,en;q=0.8' });
+    if (res.status >= 300 && res.status < 400 && res.headers.location) {
+      current = new URL(res.headers.location, current);
       continue;
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const type = res.headers.get('content-type') || '';
+    if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
+    const type = res.headers['content-type'] || '';
     if (!/text\/html|text\/plain|xml/.test(type)) throw new Error('contenu non textuel');
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 3 * 1024 * 1024) throw new Error('page trop volumineuse');
+    const buf = res.buf;
     const { title, text } = htmlToText(buf.toString('utf-8'));
     if (/authwall|sign in|join linkedin|se connecter/i.test(text.slice(0, 600)) && text.length < 800) throw new Error('page protégée par une connexion');
     if (text.length < 200) throw new Error('texte introuvable sur la page');
@@ -303,6 +369,7 @@ exports.handler = async (event) => {
   const token = (event.headers.authorization || '').replace('Bearer ', '').trim();
   const user = await verifyAdmin(token);
   if (!user) return { statusCode: 403, body: JSON.stringify({ error: 'Accès réservé aux administrateurs' }) };
+  if (!(await rateLimit(event, 'generer-article', 20, 3600, user.id))) return TOO_MANY;
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalide' }) }; }
