@@ -19,18 +19,23 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # Empreinte du serveur : secret DEPLOY_KNOWN_HOSTS (sortie de `ssh-keyscan <hote>`).
+          # Sans ce secret, le deploiement est refuse plutot que d'accepter n'importe quel serveur.
+          if [ -z "$DEPLOY_KNOWN_HOSTS" ]; then echo "Secret DEPLOY_KNOWN_HOSTS manquant : deploiement refuse"; exit 1; fi
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           cat >> ~/.ssh/config <<EOF
           Host deploy
             HostName ${DEPLOY_HOST}
             User git
             IdentityFile ~/.ssh/deploy_key
             IdentitiesOnly yes
-            StrictHostKeyChecking no
+            StrictHostKeyChecking yes
           EOF
 
       - name: Add deploy remote
