@@ -136,17 +136,17 @@
   (function () {
     const sb = supabase.createClient('https://faegpfkhlkkwmtaichin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZWdwZmtobGtrd210YWljaGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwOTEyODQsImV4cCI6MjA5NTY2NzI4NH0.pHJjb5RIuhRPRi1shnKvScnpLk5Wd8wOiDrmG2143xo');
     const esc = escHtml;
-    const TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement' };
+    const nbQ = c => { const n = c.consultation_questions && c.consultation_questions[0] ? c.consultation_questions[0].count : 0; return n ? 'Questionnaire (' + n + ' question' + (n > 1 ? 's' : '') + ')' : 'Questionnaire'; };
     const fmt = d => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
     const card = (c, closed) => `<a class="card" href="vote.html?id=${encodeURIComponent(c.id)}">
         <div class="meta"><span class="pill ${closed ? 'pill-closed' : 'pill-open'}">${closed ? 'Close' : '● Vote ouvert'}</span>
           <span class="pill ${c.mode === 'secret' ? 'pill-secret' : 'pill-nom'}">${c.mode === 'secret' ? '🔒 Vote secret' : '👤 Vote nominatif'}</span>
-          <span>${esc(TYPES[c.type_vote] || '')}</span></div>
+          <span>${esc(nbQ(c))}</span></div>
         <h3>${esc(c.titre)}</h3>
         ${c.description ? `<p>${esc(c.description.length > 180 ? c.description.slice(0, 180) + '…' : c.description)}</p>` : ''}
         <div class="meta">${closed ? 'Clôturée le ' : 'Se termine le '}${esc(fmt(c.date_cloture))} · ${closed ? 'Voir les résultats →' : 'Participer →'}</div></a>`;
     (async () => {
-      const { data, error } = await sb.from('consultations').select('id,titre,description,type_vote,mode,statut,date_cloture')
+      const { data, error } = await sb.from('consultations').select('id,titre,description,mode,statut,date_cloture,consultation_questions(count)')
         .in('statut', ['ouverte', 'cloturee']).order('date_cloture', { ascending: false });
       const open = document.getElementById('list-open'), closed = document.getElementById('list-closed');
       if (error) { open.innerHTML = closed.innerHTML = '<div class="empty">Impossible de charger les consultations.</div>'; return; }

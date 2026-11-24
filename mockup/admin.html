@@ -894,7 +894,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Consultation</th><th>Scrutin</th><th>Statut</th><th>Clôture</th><th>Participation</th><th></th></tr></thead>
+            <thead><tr><th>Consultation</th><th>Questionnaire</th><th>Statut</th><th>Clôture</th><th>Participation</th><th></th></tr></thead>
             <tbody id="cs-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Chargement…</td></tr></tbody>
           </table>
         </div>
@@ -1600,28 +1600,31 @@
     </div>
   </div>
 
-  <!-- Consultation : édition -->
+  <!-- Consultation : édition (questionnaire) -->
   <div class="modal-overlay" id="cs-modal-overlay">
-    <div class="modal" style="min-width:560px;max-width:680px;width:92vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <div class="modal" style="min-width:560px;max-width:760px;width:92vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
       <h3 id="cs-modal-title" style="margin-bottom:14px">Nouvelle consultation</h3>
       <input type="hidden" id="cs-id">
       <div class="form-grid">
-        <div class="form-group full"><label>Question / titre</label><input id="cs-titre" type="text" maxlength="200" placeholder="Ex : Position sur le projet de loi…"></div>
+        <div class="form-group full"><label>Titre de la consultation</label><input id="cs-titre" type="text" maxlength="200" placeholder="Ex : Position sur le projet de loi…"></div>
         <div class="form-group full"><label>Description (contexte, enjeux)</label><textarea id="cs-description" rows="4" maxlength="4000"></textarea></div>
-        <div class="form-group"><label>Type de scrutin</label>
-          <select id="cs-type"><option value="choix_unique">Choix unique</option><option value="choix_multiple">Choix multiple</option><option value="classement">Classement des options</option></select></div>
+        <div class="form-group"><label>Catégorie (optionnel)</label><input id="cs-categorie" type="text" maxlength="80" placeholder="Ex : Conventionnel"></div>
         <div class="form-group"><label>Modalité</label>
           <select id="cs-mode"><option value="secret">Vote secret</option><option value="nominatif">Vote nominatif</option></select></div>
-        <div class="form-group" id="cs-max-wrap"><label>Nombre maximal de choix</label><input id="cs-max" type="number" min="1" placeholder="Illimité"></div>
+        <div class="form-group full"><div id="cs-mode-note" style="font-size:.8rem;color:var(--muted)"></div></div>
         <div class="form-group"><label>Quorum (% de participation, optionnel)</label><input id="cs-quorum" type="number" min="1" max="100" placeholder="Aucun"></div>
-        <div class="form-group full"><label>Options (une par ligne, au moins deux)</label><textarea id="cs-options" rows="5" placeholder="Pour&#10;Contre&#10;Pour, avec réserves"></textarea></div>
         <div class="form-group"><label>Date et heure de clôture</label><input id="cs-cloture" type="datetime-local"></div>
-        <div class="form-group"><label>Résultats visibles par</label>
+        <div class="form-group full"><label>Résultats visibles par</label>
           <select id="cs-visibilite"><option value="public">Tout le monde (après clôture)</option><option value="adherents">Adhérents actifs seulement</option></select></div>
       </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+        <h4 style="margin:0">Questions <span id="cs-q-count" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h4>
+        <button type="button" class="btn-action" id="cs-add-q">+ Ajouter une question</button>
+      </div>
+      <div id="cs-questions"></div>
       <div id="cs-note" style="font-size:.8rem;color:var(--muted);margin-top:10px"></div>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="btn-cancel" id="cs-cancel">Annuler</button>
+        <button class="btn-cancel" id="cs-cancel">Fermer</button>
         <button class="btn-primary-sm" id="cs-save">Enregistrer le brouillon</button>
       </div>
     </div>
@@ -3580,32 +3583,38 @@
   };
 
 
-  // ── Consultations des adhérents ──────────────────────────────
-  const CS_TYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement' };
+  // ── Consultations des adhérents (questionnaires) ─────────────
+  const CS_QTYPES = { choix_unique: 'Choix unique', choix_multiple: 'Choix multiple', classement: 'Classement', oui_non: 'Oui / Non / Abstention', echelle: 'Échelle de notation', texte: 'Réponse libre' };
+  const CS_WITH_OPTS = ['choix_unique', 'choix_multiple', 'classement'];
   let csCache = [];
+  let csQs = [];
+  let csReadOnly = false;
+  const csE = v => esc(v == null ? '' : String(v));
   const csOpen = id => document.getElementById(id).classList.add('open');
   const csClose = id => document.getElementById(id).classList.remove('open');
   const csFmt = d => d ? new Date(d).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
   const csClosed = c => c.statut === 'cloturee' || (c.statut === 'ouverte' && c.date_cloture && new Date(c.date_cloture) < new Date());
   const csToLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+  const csCount = c => { const x = c.consultation_questions; return Array.isArray(x) && x[0] && typeof x[0].count === 'number' ? x[0].count : 0; };
 
   async function loadConsultationsAdmin() {
     const tbody = document.getElementById('cs-tbody');
-    const { data, error } = await sb.from('consultations').select('*').order('created_at', { ascending: false });
-    if (error) { tbody.innerHTML = `<tr><td colspan="6" style="color:#c0392b;padding:20px">Erreur : ${esc(error.message)}</td></tr>`; return; }
+    const { data, error } = await sb.from('consultations').select('*, consultation_questions(count)').order('created_at', { ascending: false });
+    if (error) { tbody.innerHTML = `<tr><td colspan="6" style="color:#c0392b;padding:20px">Erreur : ${csE(error.message)}</td></tr>`; return; }
     csCache = data || [];
     if (!csCache.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Aucune consultation. Créez la première.</td></tr>'; return; }
     tbody.innerHTML = csCache.map(c => {
       const closed = csClosed(c);
       const st = c.statut === 'brouillon' ? '<span style="color:#92400e;font-weight:700">Brouillon</span>' : closed ? '<span style="color:var(--muted);font-weight:700">Close</span>' : '<span style="color:#2d7a1a;font-weight:700">● Ouverte</span>';
       const btns = [];
-      if (c.statut === 'brouillon') btns.push(`<button class="btn-action" data-cs="edit" data-id="${esc(c.id)}">Modifier</button><button class="btn-action" data-cs="open" data-id="${esc(c.id)}">Ouvrir et annoncer</button><button class="btn-action btn-supprimer" data-cs="del" data-id="${esc(c.id)}">Supprimer</button>`);
-      else if (!closed) btns.push(`<button class="btn-action" data-cs="remind" data-id="${esc(c.id)}">Envoyer un rappel</button><button class="btn-action" data-cs="close" data-id="${esc(c.id)}">Clôturer</button>`);
-      else btns.push(`<button class="btn-action" data-cs="results" data-id="${esc(c.id)}">Résultats</button>`);
-      return `<tr><td style="font-weight:700;max-width:280px">${esc(c.titre)}</td>
-        <td style="font-size:.82rem">${esc(CS_TYPES[c.type_vote])}<br><span style="color:var(--muted)">${c.mode === 'secret' ? '🔒 secret' : '👤 nominatif'}</span></td>
-        <td>${st}</td><td style="font-size:.82rem">${esc(csFmt(c.date_cloture))}</td>
-        <td id="cs-part-${esc(c.id)}" style="font-size:.82rem;color:var(--muted)">${c.statut === 'brouillon' ? '-' : '…'}</td>
+      if (c.statut === 'brouillon') btns.push(`<button class="btn-action" data-cs="edit" data-id="${csE(c.id)}">Modifier</button><button class="btn-action" data-cs="open" data-id="${csE(c.id)}">Ouvrir et annoncer</button><button class="btn-action btn-supprimer" data-cs="del" data-id="${csE(c.id)}">Supprimer</button>`);
+      else if (!closed) btns.push(`<button class="btn-action" data-cs="view" data-id="${csE(c.id)}">Consulter</button><button class="btn-action" data-cs="remind" data-id="${csE(c.id)}">Envoyer un rappel</button><button class="btn-action" data-cs="close" data-id="${csE(c.id)}">Clôturer</button>`);
+      else btns.push(`<button class="btn-action" data-cs="results" data-id="${csE(c.id)}">Résultats</button>`);
+      const n = csCount(c);
+      return `<tr><td style="font-weight:700;max-width:280px">${csE(c.titre)}</td>
+        <td style="font-size:.82rem">${n} question${n > 1 ? 's' : ''}<br><span style="color:var(--muted)">${c.mode === 'secret' ? '🔒 secret' : '👤 nominatif'}</span></td>
+        <td>${st}</td><td style="font-size:.82rem">${csE(csFmt(c.date_cloture))}</td>
+        <td id="cs-part-${csE(c.id)}" style="font-size:.82rem;color:var(--muted)">${c.statut === 'brouillon' ? '-' : '…'}</td>
         <td style="white-space:nowrap">${btns.join(' ')}</td></tr>`;
     }).join('');
     for (const c of csCache.filter(x => x.statut !== 'brouillon')) {
@@ -3616,62 +3625,194 @@
     }
   }
 
-  function csSyncType() {
-    document.getElementById('cs-max-wrap').style.display = document.getElementById('cs-type').value === 'choix_multiple' ? '' : 'none';
+  // ----- Constructeur de questionnaire -----
+  const csNewQ = () => ({ intitule: '', aide: '', type: 'choix_unique', obligatoire: true, max_choix: '', echelle_min: 1, echelle_max: 5, label_min: '', label_max: '', options: [{ libelle: '', description: '' }, { libelle: '', description: '' }] });
+
+  function csModeNote() {
+    const m = document.getElementById('cs-mode').value;
+    document.getElementById('cs-mode-note').textContent = m === 'secret'
+      ? 'Vote secret : les réponses sont anonymisées, personne ne peut savoir qui a répondu quoi. Seule la participation (qui a voté) est enregistrée.'
+      : 'Vote nominatif : les réponses sont liées à l\'identité des adhérents et exportables nominativement après la clôture. Les adhérents en sont informés avant de voter.';
   }
 
-  async function csEdit(id) {
+  function csRenderQs() {
+    const ro = csReadOnly ? ' disabled' : '';
+    const box = document.getElementById('cs-questions');
+    box.innerHTML = csQs.map((q, i) => {
+      const typeOpts = Object.keys(CS_QTYPES).map(k => `<option value="${k}"${q.type === k ? ' selected' : ''}>${csE(CS_QTYPES[k])}</option>`).join('');
+      let extra = '';
+      if (CS_WITH_OPTS.includes(q.type)) {
+        extra = `<div style="margin-top:10px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">OPTIONS (au moins 2)</label>
+          ${q.options.map((o, j) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+            <input type="text" maxlength="300" data-f="opt" data-qi="${i}" data-oi="${j}" value="${csE(o.libelle)}" placeholder="Option ${j + 1}" style="flex:1"${ro}>
+            <button type="button" class="btn-action" data-act="opt-del" data-qi="${i}" data-oi="${j}" title="Retirer l'option"${ro}>✕</button></div>`).join('')}
+          ${csReadOnly ? '' : `<button type="button" class="btn-action" style="margin-top:8px" data-act="opt-add" data-qi="${i}">+ Ajouter une option</button>`}</div>`;
+        if (q.type === 'choix_multiple') extra += `<div style="margin-top:10px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Nombre maximal de choix</label><input type="number" min="1" data-f="max_choix" data-qi="${i}" value="${csE(q.max_choix)}" placeholder="Illimité" style="width:140px"${ro}></div>`;
+      } else if (q.type === 'echelle') {
+        extra = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <div><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Minimum (0 ou plus)</label><br><input type="number" min="0" max="9" data-f="echelle_min" data-qi="${i}" value="${csE(q.echelle_min)}" style="width:110px"${ro}></div>
+          <div><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Maximum (10 au plus)</label><br><input type="number" min="1" max="10" data-f="echelle_max" data-qi="${i}" value="${csE(q.echelle_max)}" style="width:110px"${ro}></div>
+          <div style="flex:1;min-width:140px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Libellé du minimum (optionnel)</label><br><input type="text" maxlength="80" data-f="label_min" data-qi="${i}" value="${csE(q.label_min)}" placeholder="Ex : Pas du tout" style="width:100%"${ro}></div>
+          <div style="flex:1;min-width:140px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Libellé du maximum (optionnel)</label><br><input type="text" maxlength="80" data-f="label_max" data-qi="${i}" value="${csE(q.label_max)}" placeholder="Ex : Tout à fait" style="width:100%"${ro}></div></div>`;
+      }
+      return `<div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <b>Question ${i + 1}</b>
+          ${csReadOnly ? '' : `<span style="white-space:nowrap">
+            <button type="button" class="btn-action" data-act="q-up" data-qi="${i}"${i === 0 ? ' disabled' : ''} title="Monter">↑</button>
+            <button type="button" class="btn-action" data-act="q-down" data-qi="${i}"${i === csQs.length - 1 ? ' disabled' : ''} title="Descendre">↓</button>
+            <button type="button" class="btn-action btn-supprimer" data-act="q-del" data-qi="${i}" title="Supprimer la question">Supprimer</button></span>`}
+        </div>
+        <input type="text" maxlength="500" data-f="intitule" data-qi="${i}" value="${csE(q.intitule)}" placeholder="Intitulé de la question" style="width:100%"${ro}>
+        <input type="text" maxlength="1000" data-f="aide" data-qi="${i}" value="${csE(q.aide)}" placeholder="Aide ou précision (optionnel)" style="width:100%;margin-top:6px"${ro}>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px">
+          <select data-f="type" data-qi="${i}"${ro}>${typeOpts}</select>
+          <label style="display:flex;gap:6px;align-items:center;font-size:.85rem"><input type="checkbox" data-f="obligatoire" data-qi="${i}"${q.obligatoire ? ' checked' : ''}${ro}> Réponse obligatoire</label>
+        </div>${extra}</div>`;
+    }).join('') || '<div style="color:var(--muted);font-size:.85rem;margin-top:10px">Aucune question.</div>';
+    document.getElementById('cs-add-q').style.display = csReadOnly || csQs.length >= 30 ? 'none' : '';
+    document.getElementById('cs-q-count').textContent = csQs.length + ' / 30';
+  }
+
+  function csQsClick(ev) {
+    const b = ev.target.closest('button[data-act]'); if (!b || csReadOnly) return;
+    const i = +b.dataset.qi, j = +b.dataset.oi, a = b.dataset.act;
+    if (a === 'q-del') { if (!confirm('Supprimer cette question ?')) return; csQs.splice(i, 1); }
+    else if (a === 'q-up' && i > 0) [csQs[i - 1], csQs[i]] = [csQs[i], csQs[i - 1]];
+    else if (a === 'q-down' && i < csQs.length - 1) [csQs[i + 1], csQs[i]] = [csQs[i], csQs[i + 1]];
+    else if (a === 'opt-add') csQs[i].options.push({ libelle: '', description: '' });
+    else if (a === 'opt-del') csQs[i].options.splice(j, 1);
+    csRenderQs();
+  }
+
+  function csQsInput(ev) {
+    const t = ev.target, f = t.dataset.f; if (!f || csReadOnly) return;
+    const q = csQs[+t.dataset.qi]; if (!q) return;
+    if (f === 'opt') q.options[+t.dataset.oi].libelle = t.value;
+    else if (f === 'obligatoire') q.obligatoire = t.checked;
+    else if (f === 'type') { q.type = t.value; csRenderQs(); }
+    else q[f] = t.value;
+  }
+
+  async function csEdit(id, readOnly) {
     const c = id ? csCache.find(x => x.id === id) : null;
-    let opts = [];
-    if (c) { const { data } = await sb.from('consultation_options').select('libelle').eq('consultation_id', id).order('ordre'); opts = (data || []).map(o => o.libelle); }
+    csReadOnly = !!readOnly || (c && c.statut !== 'brouillon');
+    csQs = [];
+    if (c) {
+      const [qr, or] = await Promise.all([
+        sb.from('consultation_questions').select('*').eq('consultation_id', id).order('ordre'),
+        sb.from('consultation_options').select('question_id,libelle,description,ordre').eq('consultation_id', id).order('ordre'),
+      ]);
+      if (qr.error || or.error) { toast('Erreur : ' + (qr.error || or.error).message, 'error'); return; }
+      csQs = (qr.data || []).map(q => ({
+        id: q.id, intitule: q.intitule || '', aide: q.aide || '', type: q.type_question, obligatoire: q.obligatoire !== false,
+        max_choix: q.max_choix || '', echelle_min: q.echelle_min ?? 1, echelle_max: q.echelle_max ?? 5,
+        label_min: q.echelle_label_min || '', label_max: q.echelle_label_max || '',
+        options: (or.data || []).filter(o => o.question_id === q.id).map(o => ({ libelle: o.libelle, description: o.description || '' })),
+      }));
+    } else csQs = [csNewQ()];
+    csQs.forEach(q => { if (CS_WITH_OPTS.includes(q.type) && !q.options.length) q.options = [{ libelle: '', description: '' }, { libelle: '', description: '' }]; });
     document.getElementById('cs-id').value = c ? c.id : '';
     document.getElementById('cs-titre').value = c ? c.titre : '';
     document.getElementById('cs-description').value = c ? (c.description || '') : '';
-    document.getElementById('cs-type').value = c ? c.type_vote : 'choix_unique';
+    document.getElementById('cs-categorie').value = c ? (c.categorie || '') : '';
     document.getElementById('cs-mode').value = c ? c.mode : 'secret';
-    document.getElementById('cs-max').value = c && c.max_choix ? c.max_choix : '';
     document.getElementById('cs-quorum').value = c && c.quorum_pct ? c.quorum_pct : '';
-    document.getElementById('cs-options').value = opts.join('\n');
     document.getElementById('cs-cloture').value = c ? csToLocalInput(c.date_cloture) : '';
     document.getElementById('cs-visibilite').value = c ? c.resultats_visibilite : 'public';
-    document.getElementById('cs-modal-title').textContent = c ? 'Modifier la consultation' : 'Nouvelle consultation';
-    document.getElementById('cs-note').textContent = 'Une fois ouverte, la consultation ne peut plus être modifiée (règles, options, modalité).';
-    csSyncType();
+    document.getElementById('cs-modal-title').textContent = csReadOnly ? 'Consultation (lecture seule)' : (c ? 'Modifier la consultation' : 'Nouvelle consultation');
+    document.getElementById('cs-note').textContent = csReadOnly ? 'Cette consultation est ouverte : le questionnaire ne peut plus être modifié.' : 'Une fois ouverte, la consultation ne peut plus être modifiée (règles, questions, options, modalité).';
+    ['cs-titre', 'cs-description', 'cs-categorie', 'cs-mode', 'cs-quorum', 'cs-cloture', 'cs-visibilite'].forEach(k => { document.getElementById(k).disabled = csReadOnly; });
+    document.getElementById('cs-save').style.display = csReadOnly ? 'none' : '';
+    csModeNote();
+    csRenderQs();
     csOpen('cs-modal-overlay');
   }
 
-  async function csSave() {
-    const id = document.getElementById('cs-id').value;
-    const options = document.getElementById('cs-options').value.split('\n').map(x => x.trim()).filter(Boolean);
+  function csValidate() {
     const titre = document.getElementById('cs-titre').value.trim();
+    if (titre.length < 3) return 'Indiquez le titre de la consultation (3 caractères minimum).';
+    const quorum = document.getElementById('cs-quorum').value.trim();
+    if (quorum !== '' && !(/^\d+$/.test(quorum) && +quorum >= 1 && +quorum <= 100)) return 'Le quorum doit être un entier entre 1 et 100.';
+    if (!csQs.length) return 'Ajoutez au moins une question.';
+    if (csQs.length > 30) return 'Un questionnaire compte 30 questions au maximum.';
+    for (let i = 0; i < csQs.length; i++) {
+      const q = csQs[i], n = 'Question ' + (i + 1) + ' : ';
+      if (q.intitule.trim().length < 3) return n + 'l\'intitulé est obligatoire (3 caractères minimum).';
+      if (CS_WITH_OPTS.includes(q.type)) {
+        const libs = q.options.map(o => o.libelle.trim());
+        if (libs.some(l => !l)) return n + 'une option est vide (renseignez-la ou retirez-la).';
+        if (libs.length < 2) return n + 'au moins deux options sont nécessaires.';
+        if (new Set(libs.map(l => l.toLowerCase())).size !== libs.length) return n + 'deux options ont le même libellé.';
+        if (q.type === 'choix_multiple' && String(q.max_choix).trim() !== '') {
+          const m = +q.max_choix;
+          if (!Number.isInteger(m) || m < 1) return n + 'le nombre maximal de choix doit être un entier positif.';
+          if (m > libs.length) return n + 'le nombre maximal de choix dépasse le nombre d\'options.';
+        }
+      }
+      if (q.type === 'echelle') {
+        const mn = Number(q.echelle_min), mx = Number(q.echelle_max);
+        if (String(q.echelle_min).trim() === '' || !Number.isInteger(mn) || mn < 0) return n + 'le minimum de l\'échelle doit être un entier supérieur ou égal à 0.';
+        if (String(q.echelle_max).trim() === '' || !Number.isInteger(mx) || mx > 10) return n + 'le maximum de l\'échelle doit être un entier inférieur ou égal à 10.';
+        if (mx <= mn) return n + 'le maximum de l\'échelle doit être supérieur au minimum.';
+      }
+    }
+    return null;
+  }
+
+  async function csSave() {
+    if (csReadOnly) return;
+    const err = csValidate();
+    if (err) { toast(err, 'error'); return; }
+    const id = document.getElementById('cs-id').value;
     const cloture = document.getElementById('cs-cloture').value;
-    if (titre.length < 3) { toast('Indiquez la question', 'error'); return; }
-    if (options.length < 2) { toast('Au moins deux options', 'error'); return; }
-    const type = document.getElementById('cs-type').value;
     const payload = {
-      titre, description: document.getElementById('cs-description').value.trim() || null,
-      type_vote: type, mode: document.getElementById('cs-mode').value,
-      max_choix: type === 'choix_multiple' ? (parseInt(document.getElementById('cs-max').value, 10) || null) : null,
+      titre: document.getElementById('cs-titre').value.trim(),
+      description: document.getElementById('cs-description').value.trim() || null,
+      categorie: document.getElementById('cs-categorie').value.trim() || null,
+      mode: document.getElementById('cs-mode').value,
+      type_vote: null, max_choix: null,
       quorum_pct: parseInt(document.getElementById('cs-quorum').value, 10) || null,
       resultats_visibilite: document.getElementById('cs-visibilite').value,
       date_cloture: cloture ? new Date(cloture).toISOString() : null,
     };
-    let cid = id, error;
-    if (id) ({ error } = await sb.from('consultations').update(payload).eq('id', id));
-    else {
-      const { data: { session } } = await sb.auth.getSession();
-      const r = await sb.from('consultations').insert({ ...payload, created_by: session.user.id }).select('id').single();
-      error = r.error; cid = r.data && r.data.id;
-    }
-    if (!error) {
-      const del = await sb.from('consultation_options').delete().eq('consultation_id', cid);
-      error = del.error;
-      if (!error) ({ error } = await sb.from('consultation_options').insert(options.map((libelle, i) => ({ consultation_id: cid, libelle, ordre: i }))));
-    }
-    if (error) { toast('Erreur : ' + error.message, 'error'); return; }
-    toast('Brouillon enregistré ✓', 'success');
-    csClose('cs-modal-overlay');
-    loadConsultationsAdmin();
+    const btn = document.getElementById('cs-save'); btn.disabled = true;
+    try {
+      let cid = id, error;
+      if (id) ({ error } = await sb.from('consultations').update(payload).eq('id', id));
+      else {
+        const { data: { session } } = await sb.auth.getSession();
+        const r = await sb.from('consultations').insert({ ...payload, created_by: session.user.id }).select('id').single();
+        error = r.error; cid = r.data && r.data.id;
+      }
+      if (!error) ({ error } = await sb.from('consultation_questions').delete().eq('consultation_id', cid));
+      if (!error) {
+        const rows = csQs.map((q, i) => {
+          const ech = q.type === 'echelle';
+          return {
+            consultation_id: cid, ordre: i, intitule: q.intitule.trim(), aide: q.aide.trim() || null, type_question: q.type,
+            max_choix: q.type === 'choix_multiple' && String(q.max_choix).trim() !== '' ? +q.max_choix : null,
+            obligatoire: !!q.obligatoire,
+            echelle_min: ech ? +q.echelle_min : 1, echelle_max: ech ? +q.echelle_max : 5,
+            echelle_label_min: ech ? (q.label_min.trim() || null) : null, echelle_label_max: ech ? (q.label_max.trim() || null) : null,
+          };
+        });
+        const ins = await sb.from('consultation_questions').insert(rows).select('id,ordre');
+        error = ins.error;
+        if (!error) {
+          const optRows = [];
+          csQs.forEach((q, i) => {
+            if (!CS_WITH_OPTS.includes(q.type)) return;
+            q.options.forEach((o, j) => optRows.push({ consultation_id: cid, question_id: (ins.data.find(x => x.ordre === i) || {}).id, libelle: o.libelle.trim(), description: o.description.trim() || null, ordre: j }));
+          });
+          if (optRows.length) ({ error } = await sb.from('consultation_options').insert(optRows));
+        }
+      }
+      if (error) { toast('Erreur : ' + error.message, 'error'); return; }
+      toast('Brouillon enregistré ✓', 'success');
+      csClose('cs-modal-overlay');
+      loadConsultationsAdmin();
+    } finally { btn.disabled = false; }
   }
 
   async function csNotify(id, action) {
@@ -3686,6 +3827,34 @@
     return out;
   }
 
+  // ----- Résultats -----
+  const csPct = (n, d) => d > 0 ? Math.round(n * 1000 / d) / 10 : 0;
+  const csBar = (label, txt, pct) => `<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:.85rem"><span>${csE(label)}</span><b style="white-space:nowrap">${csE(txt)}</b></div><div style="background:var(--line);border-radius:6px;height:8px;margin-top:3px"><div style="width:${Math.max(0, Math.min(100, pct))}%;height:8px;border-radius:6px;background:var(--primary,#1a5fb4)"></div></div></div>`;
+
+  function csRenderQResult(q) {
+    const rep = q.repondants || 0;
+    let inner = '';
+    if (q.type === 'classement') {
+      inner = `<table style="width:100%"><thead><tr><th style="text-align:left">Option</th><th style="text-align:right">Points</th><th style="text-align:right">1er choix</th></tr></thead><tbody>${(q.options || []).map(o => `<tr><td>${csE(o.libelle)}</td><td style="text-align:right;font-weight:700">${csE(o.points)} pts</td><td style="text-align:right">${csE(o.premier_choix)}</td></tr>`).join('')}</tbody></table>`;
+    } else if (q.type === 'choix_unique' || q.type === 'choix_multiple') {
+      inner = (q.options || []).map(o => csBar(o.libelle, `${o.voix} voix (${csPct(o.voix, rep)} %)`, csPct(o.voix, rep))).join('');
+    } else if (q.type === 'oui_non') {
+      const r = q.reponses || {}, tot = (r.oui || 0) + (r.non || 0) + (r.abstention || 0);
+      inner = [['Oui', r.oui || 0], ['Non', r.non || 0], ['Abstention', r.abstention || 0]].map(([l, n]) => csBar(l, `${n} (${csPct(n, tot)} %)`, csPct(n, tot))).join('');
+    } else if (q.type === 'echelle') {
+      const e = q.echelle || q, rp = e.repartition || {}, mn = e.echelle_min, mx = e.echelle_max;
+      const tot = Object.values(rp).reduce((s, v) => s + (+v || 0), 0);
+      let lines = '';
+      for (let k = mn; k <= mx; k++) { const n = +rp[String(k)] || 0; lines += csBar(String(k), `${n} (${csPct(n, tot)} %)`, csPct(n, tot)); }
+      inner = `<div style="font-size:.9rem;margin-bottom:6px">Moyenne : <b>${e.moyenne == null ? '-' : csE(e.moyenne)}</b> (échelle de ${csE(mn)} à ${csE(mx)})</div>${lines}`;
+    } else if (q.type === 'texte') {
+      inner = `<button class="btn-action" data-cs-txt="${csE(q.id)}">Afficher les réponses</button><div id="cs-txt-${csE(q.id)}"></div>`;
+    }
+    return `<div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;margin-top:12px">
+      <div style="font-weight:700;margin-bottom:2px">${csE(q.ordre != null ? (+q.ordre + 1) + '. ' : '')}${csE(q.intitule)}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">${csE(CS_QTYPES[q.type] || q.type)} · ${rep} répondant(s)${q.obligatoire ? '' : ' · facultative'}</div>${inner}</div>`;
+  }
+
   async function csResults(id) {
     const c = csCache.find(x => x.id === id);
     const body = document.getElementById('cs-res-body');
@@ -3693,41 +3862,82 @@
     body.innerHTML = 'Chargement…';
     csOpen('cs-res-overlay');
     const { data: r, error } = await sb.rpc('consultation_resultats', { p_id: id });
-    if (error) { body.innerHTML = `<div style="color:#c0392b">${esc(error.message)}</div>`; return; }
-    const classement = r.type_vote === 'classement';
-    const rows = r.options.map(o => `<tr><td>${esc(o.libelle)}</td><td style="text-align:right;font-weight:700">${classement ? o.points + ' pts (1er : ' + o.premier_choix + ')' : o.voix + ' voix'}</td></tr>`).join('');
+    if (error) { body.innerHTML = `<div style="color:#c0392b">${csE(error.message)}</div>`; return; }
+    const qs = r.questions || [];
     const { data: audit } = await sb.from('consultation_audit').select('action,created_at').eq('consultation_id', id).order('created_at');
-    body.innerHTML = `<p style="font-size:.9rem;margin-bottom:10px"><b>${r.votants}</b> votant(s) sur <b>${r.inscrits}</b> (${r.taux} %) · ${r.blancs} blanc(s)${r.quorum_pct ? ' · quorum ' + r.quorum_pct + ' % : ' + (r.quorum_atteint ? 'atteint' : 'non atteint') : ''}</p>
-      <table style="width:100%"><tbody>${rows}</tbody></table>
+    body.innerHTML = `<p style="font-size:.9rem;margin-bottom:6px"><b>${csE(r.votants)}</b> votant(s) sur <b>${csE(r.inscrits)}</b> (${csE(r.taux)} %) · ${r.mode === 'secret' ? '🔒 vote secret' : '👤 vote nominatif'}${r.quorum_pct ? ' · quorum ' + csE(r.quorum_pct) + ' % : ' + (r.quorum_atteint ? 'atteint' : 'non atteint') : ''}</p>
+      ${qs.map(csRenderQResult).join('')}
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-action" id="cs-exp-res">⬇ Export CSV des résultats</button>
         ${r.mode === 'nominatif' ? '<button class="btn-action" id="cs-exp-nom">⬇ Export CSV nominatif</button>' : ''}
       </div>
-      <div style="margin-top:14px;font-size:.78rem;color:var(--muted)"><b>Journal :</b> ${(audit || []).map(a => esc(a.action) + ' (' + esc(csFmt(a.created_at)) + ')').join(' → ') || '-'}</div>`;
-    const dl = (name, lines) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click(); };
+      <div style="margin-top:14px;font-size:.78rem;color:var(--muted)"><b>Journal :</b> ${(audit || []).map(a => csE(a.action) + ' (' + csE(csFmt(a.created_at)) + ')').join(' → ') || '-'}</div>`;
+    body.onclick = async ev => {
+      const b = ev.target.closest('button[data-cs-txt]'); if (!b) return;
+      const qid = b.dataset.csTxt, zone = document.getElementById('cs-txt-' + qid);
+      b.disabled = true; zone.innerHTML = '<div style="margin-top:8px;color:var(--muted)">Chargement…</div>';
+      const { data: t, error: e } = await sb.rpc('consultation_reponses_texte', { p_question: qid });
+      b.disabled = false;
+      if (e) { zone.innerHTML = `<div style="color:#c0392b;margin-top:8px">${csE(e.message)}</div>`; return; }
+      const list = Array.isArray(t) ? t : [];
+      zone.innerHTML = `<div style="font-size:.78rem;color:var(--muted);margin:8px 0">${r.mode === 'secret' ? 'Vote secret : les réponses sont affichées dans un ordre aléatoire et ne sont pas liées aux adhérents.' : 'Les réponses sont affichées dans un ordre aléatoire.'} ${list.length} réponse(s).</div>
+        <div style="max-height:240px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:8px">${list.map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:.88rem;white-space:pre-wrap">${csE(s)}</div>`).join('') || '<div style="color:var(--muted)">Aucune réponse.</div>'}</div>`;
+    };
+    const dl = (name, lines) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click(); };
     const q = csvCell;
-    document.getElementById('cs-exp-res').onclick = () => dl('consultation-resultats.csv',
-      ['option,' + (classement ? 'points,premier_choix' : 'voix')].concat(r.options.map(o => [q(o.libelle), classement ? o.points : o.voix, classement ? o.premier_choix : ''].filter(v => v !== '' || classement).join(','))));
+    document.getElementById('cs-exp-res').onclick = async () => {
+      const lines = ['question,type,option,voix,points,premier_choix,repondants'];
+      for (const x of qs) {
+        const base = [q(x.ordre != null ? +x.ordre + 1 : ''), q(x.intitule), q(CS_QTYPES[x.type] || x.type)];
+        const rep = x.repondants || 0;
+        if (x.type === 'classement') (x.options || []).forEach(o => lines.push([...base.slice(0, 2), q(CS_QTYPES[x.type]), q(o.libelle), '', q(o.points), q(o.premier_choix), q(rep)].join(',')));
+        else if (x.type === 'choix_unique' || x.type === 'choix_multiple') (x.options || []).forEach(o => lines.push([...base.slice(0, 2), q(CS_QTYPES[x.type]), q(o.libelle), q(o.voix), '', '', q(rep)].join(',')));
+        else if (x.type === 'oui_non') ['oui', 'non', 'abstention'].forEach(k => lines.push([...base.slice(0, 2), q(CS_QTYPES[x.type]), q(k), q((x.reponses || {})[k] || 0), '', '', q(rep)].join(',')));
+        else if (x.type === 'echelle') {
+          const e = x.echelle || x, rp = e.repartition || {};
+          for (let k = e.echelle_min; k <= e.echelle_max; k++) lines.push([...base.slice(0, 2), q(CS_QTYPES[x.type]), q(k), q(rp[String(k)] || 0), '', '', q(rep)].join(','));
+          lines.push([...base.slice(0, 2), q(CS_QTYPES[x.type]), q('moyenne'), q(e.moyenne == null ? '' : e.moyenne), '', '', q(rep)].join(','));
+        } else lines.push([...base.slice(0, 2), q(CS_QTYPES[x.type]), '', '', '', '', q(rep)].join(','));
+      }
+      dl('consultation-resultats.csv', lines);
+    };
     const nom = document.getElementById('cs-exp-nom');
     if (nom) nom.onclick = async () => {
-      const { data: v, error: e } = await sb.rpc('consultation_votes_nominatifs', { p_id: id });
-      if (e) { toast('Erreur : ' + e.message, 'error'); return; }
-      const lib = Object.fromEntries(r.options.map(o => [o.id, o.libelle]));
-      dl('consultation-votes-nominatifs.csv', ['numero,prenom,nom,bulletin'].concat((v || []).map(x => [q(x.numero), q(x.prenom), q(x.nom),
-        q(x.ballot.blanc ? 'blanc' : (x.ballot.ordre || x.ballot.options || []).map(i => lib[i] || i).join(' > '))].join(','))));
+      const [vr, or] = await Promise.all([
+        sb.rpc('consultation_votes_nominatifs', { p_id: id }),
+        sb.from('consultation_options').select('id,libelle').eq('consultation_id', id),
+      ]);
+      if (vr.error || or.error) { toast('Erreur : ' + (vr.error || or.error).message, 'error'); return; }
+      const lib = Object.fromEntries((or.data || []).map(o => [o.id, o.libelle]));
+      const fmt = v => {
+        if (v == null || v === '') return '';
+        if (Array.isArray(v)) return v.map(i => lib[i] || i).join(' | ');
+        return lib[v] || String(v);
+      };
+      const head = ['numero', 'prenom', 'nom'].map(q).concat(qs.map(x => q((+x.ordre + 1) + '. ' + x.intitule)));
+      const out = [head.join(',')].concat((vr.data || []).map(x => {
+        const a = (x.ballot && x.ballot.answers) || {};
+        return [q(x.numero), q(x.prenom), q(x.nom)].concat(qs.map(k => q(fmt(a[k.id])))).join(',');
+      }));
+      dl('consultation-votes-nominatifs.csv', out);
     };
   }
 
   document.getElementById('cs-new-btn').addEventListener('click', () => csEdit(null));
   document.getElementById('cs-cancel').addEventListener('click', () => csClose('cs-modal-overlay'));
   document.getElementById('cs-save').addEventListener('click', csSave);
-  document.getElementById('cs-type').addEventListener('change', csSyncType);
+  document.getElementById('cs-mode').addEventListener('change', csModeNote);
+  document.getElementById('cs-add-q').addEventListener('click', () => { if (csQs.length < 30) { csQs.push(csNewQ()); csRenderQs(); } });
+  document.getElementById('cs-questions').addEventListener('click', csQsClick);
+  document.getElementById('cs-questions').addEventListener('input', csQsInput);
+  document.getElementById('cs-questions').addEventListener('change', csQsInput);
   document.getElementById('cs-res-close').addEventListener('click', () => csClose('cs-res-overlay'));
   document.getElementById('cs-tbody').addEventListener('click', async ev => {
     const b = ev.target.closest('button[data-cs]'); if (!b) return;
     const id = b.dataset.id, a = b.dataset.cs;
     try {
       if (a === 'edit') return csEdit(id);
+      if (a === 'view') return csEdit(id, true);
       if (a === 'results') return csResults(id);
       if (a === 'del') {
         if (!confirm('Supprimer ce brouillon ?')) return;
@@ -3735,9 +3945,9 @@
         if (error) throw error; toast('Brouillon supprimé'); return loadConsultationsAdmin();
       }
       if (a === 'open') {
-        if (!confirm('Ouvrir la consultation et envoyer l\'annonce par e-mail à tous les adhérents actifs ?\n\nAprès ouverture, les règles et les options ne pourront plus être modifiées.')) return;
+        if (!confirm('Ouvrir la consultation et envoyer l\'annonce par e-mail à tous les adhérents actifs ?\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
         const { error } = await sb.rpc('ouvrir_consultation', { p_id: id });
-        if (error) throw error;
+        if (error) { toast('Ouverture impossible : ' + error.message, 'error'); alert('La consultation ne peut pas être ouverte :\n\n' + error.message); return; }
         try { const out = await csNotify(id, 'annonce'); toast(`Consultation ouverte, annonce envoyée à ${out.envoyes} adhérent(s) ✓`, 'success'); }
         catch (e) { toast('Consultation ouverte, mais l\'annonce n\'a pas pu être envoyée : ' + e.message, 'error'); }
         return loadConsultationsAdmin();
