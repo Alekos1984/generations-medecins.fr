@@ -385,6 +385,147 @@
     .hist-badge { flex-shrink:0; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:3px 10px; border-radius:999px; }
     .hist-badge.open { background:#dcfce7; color:#15803d; }
     .hist-badge.closed { background:#f1f5f9; color:#64748b; }
+
+    /* ── Éditeur de consultation (page complète) ───────────────────────── */
+    .main:has(#section-consultation-editeur.active) { overflow: visible; }
+    .ce-top { margin-bottom: 20px; }
+    .ce-back { background: none; border: none; color: var(--blue); font-family: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; padding: 4px 0; margin-bottom: 8px; }
+    .ce-back:hover { text-decoration: underline; }
+    .ce-titlebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .ce-pill { font-size: .72rem; font-weight: 800; padding: 4px 12px; border-radius: 20px; background: #fef3c7; color: #92400e; }
+    .ce-pill.open { background: #dcfce7; color: #166534; }
+    .ce-pill.closed { background: var(--line); color: var(--muted); }
+    .ce-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; align-items: start; }
+    .ce-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+    .ce-card { background: #fff; border: 1.5px solid var(--line); border-radius: var(--r); padding: 22px 24px; }
+    .ce-h { font-size: 1rem; font-weight: 800; color: var(--blue-dark); margin: 0 0 16px; display: flex; align-items: center; gap: 10px; }
+    .ce-hn { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: rgba(42,109,184,.1); color: var(--blue); font-size: .8rem; align-items: center; justify-content: center; }
+    .ce-count { font-size: .8rem; font-weight: 600; color: var(--muted); }
+    .ce-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+    .ce-field:last-child { margin-bottom: 0; }
+    .ce-field > label, .ce-qlabel { font-size: .82rem; font-weight: 700; color: var(--ink); }
+    .ce-help { font-size: .78rem; color: var(--muted); }
+    .ce-in { font-family: inherit; }
+    input.ce-in[type=text], input.ce-in[type=number], input.ce-in[type=search], input.ce-in[type=datetime-local], textarea.ce-in, select.ce-in {
+      padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 10px; font-size: .92rem; color: var(--ink); background: #fff; width: 100%; font-family: inherit;
+    }
+    .ce-w-auto { width: auto !important; max-width: 100%; }
+    textarea.ce-in { resize: vertical; min-height: 96px; }
+    .ce-in:focus, .ce-qin:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(42,109,184,.15); }
+    .ce-in:disabled, .ce-qin:disabled { background: var(--surface); color: var(--muted); cursor: not-allowed; }
+    .ce-qin { padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 10px; font-size: .92rem; color: var(--ink); width: 100%; font-family: inherit; background: #fff; }
+    .ce-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ce-opt { position: relative; cursor: pointer; display: block; }
+    .ce-opt input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; cursor: pointer; margin: 0; }
+    .ce-opt-in { display: flex; flex-direction: column; gap: 4px; border: 1.5px solid var(--line); border-radius: 12px; padding: 14px 16px; height: 100%; transition: all .15s; }
+    .ce-opt-in b { font-size: .92rem; color: var(--ink); }
+    .ce-opt-in small { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+    .ce-opt:hover .ce-opt-in { border-color: #b9cde6; }
+    .ce-opt input:checked + .ce-opt-in { border-color: var(--blue); background: rgba(42,109,184,.06); box-shadow: 0 0 0 3px rgba(42,109,184,.12); }
+    .ce-opt input:focus-visible + .ce-opt-in { box-shadow: 0 0 0 3px rgba(42,109,184,.3); }
+    .ce-opt input:disabled { cursor: not-allowed; }
+    .ce-opt input:disabled + .ce-opt-in { opacity: .75; }
+    .ce-callout { font-size: .8rem; color: var(--blue-dark); background: rgba(42,109,184,.07); border-radius: 10px; padding: 10px 14px; line-height: 1.5; }
+    .ce-seg { display: inline-flex; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 3px; gap: 2px; flex-wrap: wrap; align-self: flex-start; }
+    .ce-seg label { position: relative; cursor: pointer; }
+    .ce-seg input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+    .ce-seg span { display: block; padding: 8px 16px; border-radius: 9px; font-size: .84rem; font-weight: 600; color: var(--muted); }
+    .ce-seg input:checked + span { background: #fff; color: var(--blue-dark); font-weight: 800; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .ce-seg input:focus-visible + span { box-shadow: 0 0 0 3px rgba(42,109,184,.3); }
+    .ce-seg input:disabled { cursor: not-allowed; }
+    .ce-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ce-preset { padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--line); background: #fff; font-size: .78rem; font-weight: 700; color: var(--blue); cursor: pointer; }
+    .ce-preset:hover:not(:disabled) { border-color: var(--blue); background: rgba(42,109,184,.06); }
+    .ce-preset:disabled { opacity: .5; cursor: not-allowed; }
+    .ce-quorum { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .ce-suffix { position: relative; width: 140px; }
+    .ce-suffix input { padding-right: 34px !important; }
+    .ce-suffix span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 700; font-size: .9rem; }
+    .ce-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: .85rem; font-weight: 600; }
+    .ce-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .ce-sw { width: 40px; height: 22px; border-radius: 11px; background: #cbd5e1; position: relative; transition: background .15s; flex-shrink: 0; }
+    .ce-sw::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+    .ce-switch input:checked + .ce-sw { background: var(--blue); }
+    .ce-switch input:checked + .ce-sw::after { transform: translateX(18px); }
+    .ce-switch input:focus-visible + .ce-sw { box-shadow: 0 0 0 3px rgba(42,109,184,.3); }
+    .ce-switch input:disabled + .ce-sw { opacity: .5; }
+    .ce-sel { margin-top: 16px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+    .ce-sel-count { font-weight: 800; font-size: .92rem; color: var(--blue-dark); }
+    .ce-sel-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ce-chip-m { display: inline-block; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 3px 10px; font-size: .78rem; }
+    .ce-ro-table { width: 100%; font-size: .82rem; margin-top: 8px; border-collapse: collapse; }
+    .ce-ro-table td, .ce-ro-table th { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+    .ce-q { border: 1.5px solid var(--line); border-radius: 12px; margin-bottom: 14px; background: #fff; }
+    .ce-q-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
+    .ce-q-toggle { display: flex; align-items: center; gap: 10px; background: none; border: none; font-family: inherit; cursor: pointer; flex: 1; min-width: 0; text-align: left; padding: 2px; }
+    .ce-q-num { width: 28px; height: 28px; border-radius: 50%; background: var(--grad); color: #fff; font-weight: 800; font-size: .8rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ce-q-ttl { font-weight: 700; font-size: .92rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ce-q-type { font-size: .72rem; color: var(--muted); background: var(--surface); border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+    .ce-q-caret { color: var(--muted); font-size: .8rem; transition: transform .15s; }
+    .ce-q.collapsed .ce-q-caret { transform: rotate(-90deg); }
+    .ce-q-tools { display: flex; gap: 4px; flex-shrink: 0; }
+    .ce-ib { width: 32px; height: 32px; border: 1.5px solid var(--line); background: #fff; border-radius: 8px; cursor: pointer; font-size: .9rem; color: var(--ink); font-family: inherit; }
+    .ce-ib:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
+    .ce-ib.danger:hover:not(:disabled) { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+    .ce-ib:disabled { opacity: .35; cursor: not-allowed; }
+    .ce-q-body { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+    .ce-q.collapsed .ce-q-body { display: none; }
+    .ce-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ce-chipbtn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-family: inherit; font-size: .8rem; font-weight: 700; color: var(--ink); cursor: pointer; }
+    .ce-chipbtn i { font-style: normal; font-size: 1rem; color: var(--blue); }
+    .ce-chipbtn:hover:not(:disabled) { border-color: #b9cde6; }
+    .ce-chipbtn[aria-pressed=true] { border-color: var(--blue); background: rgba(42,109,184,.08); color: var(--blue-dark); box-shadow: 0 0 0 3px rgba(42,109,184,.12); }
+    .ce-chipbtn:disabled { cursor: not-allowed; opacity: .7; }
+    .ce-optrow { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .ce-optn { width: 24px; text-align: center; color: var(--muted); font-size: .8rem; font-weight: 700; flex-shrink: 0; }
+    .ce-row2 { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .ce-row2 > div { flex: 1; min-width: 130px; }
+    .ce-row2 label { font-size: .78rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+    .ce-prev { font-size: .78rem; color: var(--muted); background: var(--surface); border-radius: 8px; padding: 8px 12px; }
+    .ce-addq { position: sticky; bottom: 84px; display: flex; align-items: center; gap: 12px; background: linear-gradient(to top, #fff 70%, rgba(255,255,255,0)); padding: 10px 0 2px; z-index: 5; }
+    .ce-empty { color: var(--muted); font-size: .85rem; padding: 10px 0; }
+    .ce-side { position: sticky; top: 16px; }
+    .ce-sum dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; font-size: .84rem; }
+    .ce-sum dt { color: var(--muted); font-weight: 600; }
+    .ce-sum dd { font-weight: 800; color: var(--ink); text-align: right; overflow-wrap: anywhere; }
+    .ce-bar { position: sticky; bottom: 0; z-index: 20; margin: 24px -32px -32px; padding: 14px 32px; background: rgba(255,255,255,.96); backdrop-filter: blur(6px); border-top: 1.5px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .ce-bar-note { font-size: .78rem; color: var(--muted); flex: 1; min-width: 200px; }
+    .ce-bar-btns { display: flex; gap: 10px; }
+    .ce-save { padding: 11px 22px; font-size: .88rem; }
+    .ce-save:disabled { opacity: .6; cursor: wait; }
+    .ce-pk { max-width: 1180px; width: 96vw; max-height: 92vh; display: flex; flex-direction: column; padding: 22px 24px; }
+    .ce-pk-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+    .ce-pk-msg { font-size: .8rem; color: #92400e; }
+    .ce-pk-tools { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .ce-pk-tools input.ce-in, .ce-pk-tools select.ce-in { padding: 9px 12px !important; font-size: .85rem !important; }
+    .ce-pk-tools2 { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: .84rem; }
+    .ce-pk-sp { flex: 1; }
+    .ce-pk-chk { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; cursor: pointer; }
+    .ce-pk-count { font-weight: 800; color: var(--blue-dark); }
+    .ce-pk-tablewrap { flex: 1; min-height: 200px; overflow: auto; border: 1.5px solid var(--line); border-radius: 10px; }
+    .ce-pk-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .ce-pk-table th { position: sticky; top: 0; background: var(--surface); padding: 10px 12px; text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); white-space: nowrap; z-index: 1; border-bottom: 1.5px solid var(--line); }
+    .ce-pk-table th[data-sort] { cursor: pointer; user-select: none; }
+    .ce-pk-table th[data-sort]:hover { color: var(--blue); }
+    .ce-pk-table td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    .ce-pk-table tbody tr { cursor: pointer; }
+    .ce-pk-table tbody tr:hover { background: var(--surface); }
+    .ce-pk-table tbody tr.sel { background: rgba(42,109,184,.07); }
+    .ce-pk-mail { color: var(--muted); font-size: .74rem; }
+    .ce-pk-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; font-size: .82rem; flex-wrap: wrap; }
+    @media (max-width: 960px) {
+      .ce-layout { grid-template-columns: 1fr; }
+      .ce-side { position: static; order: -1; }
+      .ce-pk-tools { grid-template-columns: 1fr 1fr; }
+      .ce-pk-tools input[type=search] { grid-column: 1 / -1; }
+    }
+    @media (max-width: 640px) {
+      .ce-opts { grid-template-columns: 1fr; }
+      .ce-card { padding: 18px 16px; }
+      .ce-bar { margin: 20px -16px -16px; padding: 12px 16px; }
+      .ce-q-type { display: none; }
+      .ce-pk { padding: 16px 12px; }
+    }
   </style>
 </head>
 <body style="visibility:hidden">
@@ -897,6 +1038,102 @@
             <thead><tr><th>Consultation</th><th>Questionnaire</th><th>Statut</th><th>Clôture</th><th>Participation</th><th></th></tr></thead>
             <tbody id="cs-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px">Chargement…</td></tr></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Section: Éditeur de consultation (page complète) -->
+      <div id="section-consultation-editeur" class="section-panel">
+        <div class="ce-top">
+          <button type="button" class="ce-back" id="ce-back">← Retour aux consultations</button>
+          <div class="ce-titlebar">
+            <h1 class="main-title" id="ce-title">Nouvelle consultation</h1>
+            <span class="ce-pill" id="ce-pill">Nouveau brouillon</span>
+          </div>
+        </div>
+        <input type="hidden" id="cs-id">
+        <div class="ce-layout">
+          <div class="ce-main">
+
+            <section class="ce-card">
+              <h2 class="ce-h"><span class="ce-hn">1</span>Informations générales</h2>
+              <div class="ce-field"><label for="cs-titre">Titre de la consultation</label>
+                <input class="ce-in" id="cs-titre" type="text" maxlength="200" placeholder="Ex : Position sur le projet de loi de financement">
+                <div class="ce-help">Le titre que verront les adhérents (3 caractères minimum).</div></div>
+              <div class="ce-field"><label for="cs-description">Description</label>
+                <textarea class="ce-in" id="cs-description" rows="4" maxlength="4000" placeholder="Contexte, enjeux, ce que vous attendez des adhérents"></textarea>
+                <div class="ce-help">Optionnelle. Présentez le contexte avant les questions.</div></div>
+              <div class="ce-field"><label for="cs-categorie">Catégorie</label>
+                <input class="ce-in" id="cs-categorie" type="text" maxlength="80" placeholder="Ex : Conventionnel">
+                <div class="ce-help">Optionnelle. Sert à classer les consultations.</div></div>
+            </section>
+
+            <section class="ce-card">
+              <h2 class="ce-h"><span class="ce-hn">2</span>Destinataires</h2>
+              <div class="ce-opts">
+                <label class="ce-opt"><input type="radio" name="cs-audience" value="tous" class="ce-in" checked><span class="ce-opt-in"><b>Tous les adhérents actifs</b><small>Chaque adhérent actif voit la consultation et reçoit les e-mails.</small></span></label>
+                <label class="ce-opt"><input type="radio" name="cs-audience" value="selection" class="ce-in"><span class="ce-opt-in"><b>Sélection d'adhérents</b><small>Mode test ou consultation ciblée : seuls les adhérents choisis la voient.</small></span></label>
+              </div>
+              <div id="cs-sel-zone" style="display:none" class="ce-sel">
+                <div id="cs-sel-count" class="ce-sel-count"></div>
+                <div id="cs-sel-chips" class="ce-sel-chips"></div>
+                <div id="cs-sel-edit"><button type="button" class="btn-primary-sm" id="cs-sel-pick">Choisir les adhérents</button></div>
+                <div class="ce-help">Idéal pour tester sur votre propre téléphone avant d'ouvrir à tous.</div>
+              </div>
+            </section>
+
+            <section class="ce-card">
+              <div class="ce-h-row">
+                <h2 class="ce-h"><span class="ce-hn">3</span>Questions <span class="ce-count" id="cs-q-count">0 / 30</span></h2>
+              </div>
+              <div id="cs-questions"></div>
+              <div class="ce-addq" id="cs-addq-wrap"><button type="button" class="btn-primary-sm" id="cs-add-q">+ Ajouter une question</button><span class="ce-count" id="cs-q-count2"></span></div>
+            </section>
+
+            <section class="ce-card">
+              <h2 class="ce-h"><span class="ce-hn">4</span>Paramètres de vote</h2>
+              <div class="ce-field"><label>Modalité du vote</label>
+                <div class="ce-opts">
+                  <label class="ce-opt"><input type="radio" name="cs-mode" value="secret" class="ce-in" checked><span class="ce-opt-in"><b>🔒 Vote secret</b><small>Réponses anonymisées. Seule la participation est enregistrée.</small></span></label>
+                  <label class="ce-opt"><input type="radio" name="cs-mode" value="nominatif" class="ce-in"><span class="ce-opt-in"><b>👤 Vote nominatif</b><small>Réponses liées à l'identité, exportables après la clôture.</small></span></label>
+                </div>
+                <div id="cs-mode-note" class="ce-callout"></div></div>
+              <div class="ce-field"><label>Résultats visibles par</label>
+                <div class="ce-seg" role="radiogroup">
+                  <label><input type="radio" name="cs-visibilite" value="public" class="ce-in" checked><span>Tout le monde (après clôture)</span></label>
+                  <label><input type="radio" name="cs-visibilite" value="adherents" class="ce-in"><span>Adhérents actifs seulement</span></label>
+                </div></div>
+              <div class="ce-field"><label for="cs-cloture">Date et heure de clôture</label>
+                <input class="ce-in ce-w-auto" id="cs-cloture" type="datetime-local">
+                <div class="ce-presets">
+                  <button type="button" class="ce-preset ce-in" data-days="3">Dans 3 jours</button>
+                  <button type="button" class="ce-preset ce-in" data-days="7">Dans 1 semaine</button>
+                  <button type="button" class="ce-preset ce-in" data-days="14">Dans 2 semaines</button>
+                  <button type="button" class="ce-preset ce-in" data-days="0">Effacer</button>
+                </div>
+                <div class="ce-help">Sans date, la consultation reste ouverte jusqu'à clôture manuelle.</div></div>
+              <div class="ce-field"><label for="cs-quorum">Quorum</label>
+                <div class="ce-quorum">
+                  <div class="ce-suffix"><input class="ce-in" id="cs-quorum" type="number" min="1" max="100" placeholder="Ex : 20"><span>%</span></div>
+                  <label class="ce-switch"><input type="checkbox" id="cs-quorum-none" class="ce-in" checked><span class="ce-sw"></span><span>Aucun quorum</span></label>
+                </div>
+                <div class="ce-help">Part minimale d'adhérents devant participer pour que le résultat soit considéré comme valide.</div></div>
+            </section>
+          </div>
+
+          <aside class="ce-side">
+            <div class="ce-card ce-sum">
+              <h2 class="ce-h">Résumé</h2>
+              <dl id="cs-summary"></dl>
+            </div>
+          </aside>
+        </div>
+
+        <div class="ce-bar">
+          <div class="ce-bar-note" id="cs-note"></div>
+          <div class="ce-bar-btns">
+            <button type="button" class="btn-cancel" id="cs-cancel">Annuler</button>
+            <button type="button" class="btn-primary-sm ce-save" id="cs-save">Enregistrer le brouillon</button>
+          </div>
         </div>
       </div>
 
@@ -1600,50 +1837,39 @@
     </div>
   </div>
 
-  <!-- Consultation : édition (questionnaire) -->
-  <div class="modal-overlay" id="cs-modal-overlay">
-    <div class="modal" style="min-width:560px;max-width:760px;width:92vw;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
-      <h3 id="cs-modal-title" style="margin-bottom:14px">Nouvelle consultation</h3>
-      <input type="hidden" id="cs-id">
-      <div class="form-grid">
-        <div class="form-group full"><label>Titre de la consultation</label><input id="cs-titre" type="text" maxlength="200" placeholder="Ex : Position sur le projet de loi…"></div>
-        <div class="form-group full"><label>Description (contexte, enjeux)</label><textarea id="cs-description" rows="4" maxlength="4000"></textarea></div>
-        <div class="form-group"><label>Catégorie (optionnel)</label><input id="cs-categorie" type="text" maxlength="80" placeholder="Ex : Conventionnel"></div>
-        <div class="form-group"><label>Modalité</label>
-          <select id="cs-mode"><option value="secret">Vote secret</option><option value="nominatif">Vote nominatif</option></select></div>
-        <div class="form-group full"><div id="cs-mode-note" style="font-size:.8rem;color:var(--muted)"></div></div>
-        <div class="form-group"><label>Quorum (% de participation, optionnel)</label><input id="cs-quorum" type="number" min="1" max="100" placeholder="Aucun"></div>
-        <div class="form-group"><label>Date et heure de clôture</label><input id="cs-cloture" type="datetime-local"></div>
-        <div class="form-group full"><label>Résultats visibles par</label>
-          <select id="cs-visibilite"><option value="public">Tout le monde (après clôture)</option><option value="adherents">Adhérents actifs seulement</option></select></div>
+  <!-- Consultation : choix des adhérents destinataires -->
+  <div class="modal-overlay" id="cs-pk-overlay">
+    <div class="modal ce-pk" onclick="event.stopPropagation()">
+      <div class="ce-pk-head"><h3 style="margin:0">Choisir les adhérents</h3><div id="cs-pk-msg" class="ce-pk-msg"></div></div>
+      <div class="ce-pk-tools">
+        <input id="cs-pk-q" class="ce-in" type="search" placeholder="Rechercher : nom, prénom, e-mail, n° adhérent" autocomplete="off" maxlength="80">
+        <select id="cs-pk-spe" class="ce-in" aria-label="Spécialité"></select>
+        <select id="cs-pk-sec" class="ce-in" aria-label="Secteur"></select>
+        <select id="cs-pk-dep" class="ce-in" aria-label="Département"></select>
+        <select id="cs-pk-mod" class="ce-in" aria-label="Mode d'exercice"></select>
       </div>
-      <div style="margin-top:18px">
-        <h4 style="margin:0 0 8px">Destinataires</h4>
-        <label style="display:block;font-size:.9rem;margin-bottom:4px"><input type="radio" name="cs-audience" value="tous" checked> Tous les adhérents actifs</label>
-        <label style="display:block;font-size:.9rem;margin-bottom:6px"><input type="radio" name="cs-audience" value="selection"> Sélection d'adhérents (mode test ou consultation ciblée)</label>
-        <div id="cs-sel-zone" style="display:none;border:1px solid var(--line);border-radius:8px;padding:10px">
-          <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Seuls les adhérents sélectionnés verront cette consultation et recevront les e-mails. Idéal pour tester sur votre propre téléphone avant d'ouvrir à tous.</div>
-          <div id="cs-sel-edit">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <input id="cs-sel-q" type="text" maxlength="80" placeholder="Rechercher (nom, prénom, e-mail, n° adhérent)" autocomplete="off" style="flex:1;min-width:180px">
-              <button type="button" class="btn-action" id="cs-sel-me">M'ajouter moi</button>
-            </div>
-            <div id="cs-sel-msg" style="font-size:.8rem;color:#92400e;margin-top:6px"></div>
-            <div id="cs-sel-res" style="margin-top:4px"></div>
-          </div>
-          <div id="cs-sel-count" style="font-weight:700;font-size:.85rem;margin-top:8px"></div>
-          <div id="cs-sel-chips" style="margin-top:4px"></div>
-        </div>
+      <div class="ce-pk-tools2">
+        <label class="ce-pk-chk"><input type="checkbox" id="cs-pk-all2"> Tout sélectionner (résultats filtrés)</label>
+        <label class="ce-switch"><input type="checkbox" id="cs-pk-only"><span class="ce-sw"></span><span>Sélection uniquement</span></label>
+        <span id="cs-pk-count" class="ce-pk-count"></span>
+        <span class="ce-pk-sp"></span>
+        <button type="button" class="btn-action" id="cs-pk-none">Tout désélectionner</button>
+        <button type="button" class="btn-action" id="cs-pk-me">M'ajouter moi</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
-        <h4 style="margin:0">Questions<span id="cs-q-count" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h4>
-        <button type="button" class="btn-action" id="cs-add-q">+ Ajouter une question</button>
+      <div class="ce-pk-tablewrap">
+        <table class="ce-pk-table">
+          <thead><tr>
+            <th style="width:36px"><input type="checkbox" id="cs-pk-all" aria-label="Tout sélectionner (résultats filtrés)"></th>
+            <th data-sort="nom">Nom</th><th data-sort="prenom">Prénom</th><th data-sort="numero_adherent">N° adhérent</th>
+            <th data-sort="specialite">Spécialité</th><th data-sort="dep">Dép.</th><th data-sort="created_at">Adhésion</th>
+          </tr></thead>
+          <tbody id="cs-pk-tbody"></tbody>
+        </table>
       </div>
-      <div id="cs-questions"></div>
-      <div id="cs-note" style="font-size:.8rem;color:var(--muted);margin-top:10px"></div>
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="btn-cancel" id="cs-cancel">Fermer</button>
-        <button class="btn-primary-sm" id="cs-save">Enregistrer le brouillon</button>
+      <div class="ce-pk-pager" id="cs-pk-pager"></div>
+      <div class="modal-actions" style="margin-top:12px">
+        <button type="button" class="btn-cancel" id="cs-pk-cancel">Annuler</button>
+        <button type="button" class="btn-primary-sm" id="cs-pk-ok">Valider la sélection</button>
       </div>
     </div>
   </div>
@@ -3647,139 +3873,307 @@
     }
   }
 
-  // ----- Constructeur de questionnaire -----
+  // ----- Éditeur plein écran de questionnaire -----
+  const CS_CHIPS = { choix_unique: ['◉', 'Choix unique'], choix_multiple: ['☑', 'Choix multiple'], classement: ['⇅', 'Classement'], oui_non: ['±', 'Oui / Non'], echelle: ['★', 'Échelle'], texte: ['✎', 'Texte libre'] };
+  const CS_MODE_NOTES = {
+    secret: 'Vote secret : les réponses sont anonymisées, personne ne peut savoir qui a répondu quoi. Seule la participation (qui a voté) est enregistrée.',
+    nominatif: 'Vote nominatif : les réponses sont liées à l\'identité des adhérents et exportables nominativement après la clôture. Les adhérents en sont informés avant de voter.',
+  };
+  let csDirty = false;
   const csNewQ = () => ({ intitule: '', aide: '', type: 'choix_unique', obligatoire: true, max_choix: '', echelle_min: 1, echelle_max: 5, label_min: '', label_max: '', options: [{ libelle: '', description: '' }, { libelle: '', description: '' }] });
+  const csMark = () => { if (!csReadOnly) csDirty = true; };
+  const csGetR = n => { const r = document.querySelector('input[name="' + n + '"]:checked'); return r ? r.value : ''; };
+  const csSetR = (n, v) => document.querySelectorAll('input[name="' + n + '"]').forEach(r => { r.checked = r.value === v; });
+  const csMode = () => csGetR('cs-mode') === 'nominatif' ? 'nominatif' : 'secret';
+  const csVis = () => csGetR('cs-visibilite') === 'adherents' ? 'adherents' : 'public';
+  const csQuorumRaw = () => document.getElementById('cs-quorum-none').checked ? '' : document.getElementById('cs-quorum').value.trim();
+  const csEditorActive = () => document.getElementById('section-consultation-editeur').classList.contains('active');
+  const csPlural = (n, s, p) => n + ' ' + (n > 1 ? (p || s + 's') : s);
 
-  function csModeNote() {
-    const m = document.getElementById('cs-mode').value;
-    document.getElementById('cs-mode-note').textContent = m === 'secret'
-      ? 'Vote secret : les réponses sont anonymisées, personne ne peut savoir qui a répondu quoi. Seule la participation (qui a voté) est enregistrée.'
-      : 'Vote nominatif : les réponses sont liées à l\'identité des adhérents et exportables nominativement après la clôture. Les adhérents en sont informés avant de voter.';
+  function csModeNote() { document.getElementById('cs-mode-note').textContent = CS_MODE_NOTES[csMode()]; }
+
+  function csQuorumSync() {
+    const none = document.getElementById('cs-quorum-none').checked;
+    const inp = document.getElementById('cs-quorum');
+    if (none) inp.value = '';
+    inp.disabled = csReadOnly || none;
   }
+
+  function csRenderSummary() {
+    const nOpt = csQs.reduce((s, q) => s + (CS_WITH_OPTS.includes(q.type) ? q.options.length : 0), 0);
+    const cl = document.getElementById('cs-cloture').value;
+    const qr = csQuorumRaw();
+    const aud = csAudience() === 'selection' ? csPlural(csSel.length, 'adhérent') + ' ciblé' + (csSel.length > 1 ? 's' : '') : 'Tous les actifs';
+    const rows = [
+      ['Questions', String(csQs.length)],
+      ['Options', String(nOpt)],
+      ['Destinataires', aud],
+      ['Mode', csMode() === 'secret' ? '🔒 Secret' : '👤 Nominatif'],
+      ['Quorum', qr ? qr + ' %' : 'Aucun'],
+      ['Clôture', cl ? csFmt(cl) : 'Non définie'],
+    ];
+    document.getElementById('cs-summary').innerHTML = rows.map(r => `<dt>${csE(r[0])}</dt><dd>${csE(r[1])}</dd>`).join('');
+  }
+
+  const csPrev = q => {
+    const t = q.type, opt = q.obligatoire ? '' : ' (facultative)';
+    if (CS_WITH_OPTS.includes(t)) {
+      const n = q.options.filter(o => o.libelle.trim()).length;
+      if (t === 'choix_unique') return 'Aperçu : l\'adhérent choisit 1 option parmi ' + n + '.' + opt;
+      if (t === 'choix_multiple') return 'Aperçu : l\'adhérent coche ' + (String(q.max_choix).trim() ? 'jusqu\'à ' + q.max_choix : 'une ou plusieurs') + ' options parmi ' + n + '.' + opt;
+      return 'Aperçu : l\'adhérent classe les ' + n + ' options par ordre de préférence.' + opt;
+    }
+    if (t === 'oui_non') return 'Aperçu : l\'adhérent répond Oui, Non ou Abstention.' + opt;
+    if (t === 'echelle') return 'Aperçu : l\'adhérent note de ' + q.echelle_min + ' à ' + q.echelle_max + (q.label_min || q.label_max ? ' (' + (q.label_min || '') + ' ... ' + (q.label_max || '') + ')' : '') + '.' + opt;
+    return 'Aperçu : l\'adhérent saisit une réponse libre.' + opt;
+  };
 
   function csRenderQs() {
     const ro = csReadOnly ? ' disabled' : '';
     const box = document.getElementById('cs-questions');
     box.innerHTML = csQs.map((q, i) => {
-      const typeOpts = Object.keys(CS_QTYPES).map(k => `<option value="${k}"${q.type === k ? ' selected' : ''}>${csE(CS_QTYPES[k])}</option>`).join('');
+      const chips = Object.keys(CS_CHIPS).map(k => `<button type="button" class="ce-chipbtn" data-act="q-type" data-type="${k}" data-qi="${i}" aria-pressed="${q.type === k}"${ro}><i>${csE(CS_CHIPS[k][0])}</i>${csE(CS_CHIPS[k][1])}</button>`).join('');
       let extra = '';
       if (CS_WITH_OPTS.includes(q.type)) {
-        extra = `<div style="margin-top:10px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">OPTIONS (au moins 2)</label>
-          ${q.options.map((o, j) => `<div style="display:flex;gap:6px;margin-top:6px;align-items:center">
-            <input type="text" maxlength="300" data-f="opt" data-qi="${i}" data-oi="${j}" value="${csE(o.libelle)}" placeholder="Option ${j + 1}" style="flex:1"${ro}>
-            <button type="button" class="btn-action" data-act="opt-del" data-qi="${i}" data-oi="${j}" title="Retirer l'option"${ro}>✕</button></div>`).join('')}
-          ${csReadOnly ? '' : `<button type="button" class="btn-action" style="margin-top:8px" data-act="opt-add" data-qi="${i}">+ Ajouter une option</button>`}</div>`;
-        if (q.type === 'choix_multiple') extra += `<div style="margin-top:10px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Nombre maximal de choix</label><input type="number" min="1" data-f="max_choix" data-qi="${i}" value="${csE(q.max_choix)}" placeholder="Illimité" style="width:140px"${ro}></div>`;
+        extra = `<div><div class="ce-qlabel">Options (au moins 2)</div>
+          ${q.options.map((o, j) => `<div class="ce-optrow"><span class="ce-optn">${j + 1}</span>
+            <input type="text" class="ce-qin" maxlength="300" data-f="opt" data-qi="${i}" data-oi="${j}" value="${csE(o.libelle)}" placeholder="Option ${j + 1}"${ro}>
+            <button type="button" class="ce-ib danger" data-act="opt-del" data-qi="${i}" data-oi="${j}" title="Retirer l'option" aria-label="Retirer l'option ${j + 1}"${ro}>✕</button></div>`).join('')}
+          ${csReadOnly ? '' : `<button type="button" class="btn-action" style="margin-top:10px" data-act="opt-add" data-qi="${i}">+ Ajouter une option</button><span class="ce-help" style="margin-left:8px">Entrée ajoute l'option suivante</span>`}</div>`;
+        if (q.type === 'choix_multiple') extra += `<div class="ce-row2"><div style="max-width:200px"><label>Nombre maximal de choix</label><input type="number" class="ce-qin" min="1" data-f="max_choix" data-qi="${i}" value="${csE(q.max_choix)}" placeholder="Illimité"${ro}></div></div>`;
       } else if (q.type === 'echelle') {
-        extra = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-          <div><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Minimum (0 ou plus)</label><br><input type="number" min="0" max="9" data-f="echelle_min" data-qi="${i}" value="${csE(q.echelle_min)}" style="width:110px"${ro}></div>
-          <div><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Maximum (10 au plus)</label><br><input type="number" min="1" max="10" data-f="echelle_max" data-qi="${i}" value="${csE(q.echelle_max)}" style="width:110px"${ro}></div>
-          <div style="flex:1;min-width:140px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Libellé du minimum (optionnel)</label><br><input type="text" maxlength="80" data-f="label_min" data-qi="${i}" value="${csE(q.label_min)}" placeholder="Ex : Pas du tout" style="width:100%"${ro}></div>
-          <div style="flex:1;min-width:140px"><label style="font-size:.78rem;font-weight:700;color:var(--muted)">Libellé du maximum (optionnel)</label><br><input type="text" maxlength="80" data-f="label_max" data-qi="${i}" value="${csE(q.label_max)}" placeholder="Ex : Tout à fait" style="width:100%"${ro}></div></div>`;
+        extra = `<div class="ce-row2">
+          <div><label>Minimum (0 ou plus)</label><input type="number" class="ce-qin" min="0" max="9" data-f="echelle_min" data-qi="${i}" value="${csE(q.echelle_min)}"${ro}></div>
+          <div><label>Maximum (10 au plus)</label><input type="number" class="ce-qin" min="1" max="10" data-f="echelle_max" data-qi="${i}" value="${csE(q.echelle_max)}"${ro}></div>
+          <div><label>Libellé du minimum (optionnel)</label><input type="text" class="ce-qin" maxlength="80" data-f="label_min" data-qi="${i}" value="${csE(q.label_min)}" placeholder="Ex : Pas du tout"${ro}></div>
+          <div><label>Libellé du maximum (optionnel)</label><input type="text" class="ce-qin" maxlength="80" data-f="label_max" data-qi="${i}" value="${csE(q.label_max)}" placeholder="Ex : Tout à fait"${ro}></div></div>`;
       }
-      return `<div style="border:1.5px solid var(--line);border-radius:10px;padding:12px;margin-top:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
-          <b>Question ${i + 1}</b>
-          ${csReadOnly ? '' : `<span style="white-space:nowrap">
-            <button type="button" class="btn-action" data-act="q-up" data-qi="${i}"${i === 0 ? ' disabled' : ''} title="Monter">↑</button>
-            <button type="button" class="btn-action" data-act="q-down" data-qi="${i}"${i === csQs.length - 1 ? ' disabled' : ''} title="Descendre">↓</button>
-            <button type="button" class="btn-action btn-supprimer" data-act="q-del" data-qi="${i}" title="Supprimer la question">Supprimer</button></span>`}
+      return `<div class="ce-q${q._open === false ? ' collapsed' : ''}">
+        <div class="ce-q-head">
+          <button type="button" class="ce-q-toggle" data-act="q-toggle" data-qi="${i}" aria-expanded="${q._open !== false}"><span class="ce-q-num">${i + 1}</span><span class="ce-q-ttl" data-qtitle="${i}">${csE(q.intitule.trim() || 'Question sans intitulé')}</span><span class="ce-q-type">${csE(CS_QTYPES[q.type])}</span><span class="ce-q-caret">▼</span></button>
+          ${csReadOnly ? '' : `<span class="ce-q-tools">
+            <button type="button" class="ce-ib" data-act="q-up" data-qi="${i}"${i === 0 ? ' disabled' : ''} title="Monter" aria-label="Monter la question">↑</button>
+            <button type="button" class="ce-ib" data-act="q-down" data-qi="${i}"${i === csQs.length - 1 ? ' disabled' : ''} title="Descendre" aria-label="Descendre la question">↓</button>
+            <button type="button" class="ce-ib" data-act="q-dup" data-qi="${i}"${csQs.length >= 30 ? ' disabled' : ''} title="Dupliquer" aria-label="Dupliquer la question">⧉</button>
+            <button type="button" class="ce-ib danger" data-act="q-del" data-qi="${i}" title="Supprimer la question" aria-label="Supprimer la question">🗑</button></span>`}
         </div>
-        <input type="text" maxlength="500" data-f="intitule" data-qi="${i}" value="${csE(q.intitule)}" placeholder="Intitulé de la question" style="width:100%"${ro}>
-        <input type="text" maxlength="1000" data-f="aide" data-qi="${i}" value="${csE(q.aide)}" placeholder="Aide ou précision (optionnel)" style="width:100%;margin-top:6px"${ro}>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px">
-          <select data-f="type" data-qi="${i}"${ro}>${typeOpts}</select>
-          <label style="display:flex;gap:6px;align-items:center;font-size:.85rem"><input type="checkbox" data-f="obligatoire" data-qi="${i}"${q.obligatoire ? ' checked' : ''}${ro}> Réponse obligatoire</label>
-        </div>${extra}</div>`;
-    }).join('') || '<div style="color:var(--muted);font-size:.85rem;margin-top:10px">Aucune question.</div>';
-    document.getElementById('cs-add-q').style.display = csReadOnly || csQs.length >= 30 ? 'none' : '';
+        <div class="ce-q-body">
+          <div class="ce-field" style="margin:0"><label>Intitulé de la question</label><input type="text" class="ce-qin" maxlength="500" data-f="intitule" data-qi="${i}" value="${csE(q.intitule)}" placeholder="Ex : Soutenez-vous cette mesure ?"${ro}></div>
+          <div class="ce-field" style="margin:0"><label>Aide ou précision</label><input type="text" class="ce-qin" maxlength="1000" data-f="aide" data-qi="${i}" value="${csE(q.aide)}" placeholder="Optionnel, affiché sous la question"${ro}></div>
+          <div><div class="ce-qlabel" style="margin-bottom:8px">Type de réponse</div><div class="ce-chips" role="group">${chips}</div></div>
+          ${extra}
+          <label class="ce-switch"><input type="checkbox" data-f="obligatoire" data-qi="${i}"${q.obligatoire ? ' checked' : ''}${ro}><span class="ce-sw"></span><span>Réponse obligatoire</span></label>
+          <div class="ce-prev" data-prev="${i}">${csE(csPrev(q))}</div>
+        </div></div>`;
+    }).join('') || '<div class="ce-empty">Aucune question.</div>';
+    document.getElementById('cs-addq-wrap').style.display = csReadOnly || csQs.length >= 30 ? 'none' : '';
     document.getElementById('cs-q-count').textContent = csQs.length + ' / 30';
+    document.getElementById('cs-q-count2').textContent = csQs.length + ' / 30';
+    csRenderSummary();
   }
 
   function csQsClick(ev) {
-    const b = ev.target.closest('button[data-act]'); if (!b || csReadOnly) return;
+    const b = ev.target.closest('button[data-act]'); if (!b) return;
     const i = +b.dataset.qi, j = +b.dataset.oi, a = b.dataset.act;
+    if (a === 'q-toggle') { csQs[i]._open = csQs[i]._open === false; csRenderQs(); return; }
+    if (csReadOnly) return;
+    let focus = null;
     if (a === 'q-del') { if (!confirm('Supprimer cette question ?')) return; csQs.splice(i, 1); }
     else if (a === 'q-up' && i > 0) [csQs[i - 1], csQs[i]] = [csQs[i], csQs[i - 1]];
     else if (a === 'q-down' && i < csQs.length - 1) [csQs[i + 1], csQs[i]] = [csQs[i], csQs[i + 1]];
-    else if (a === 'opt-add') csQs[i].options.push({ libelle: '', description: '' });
+    else if (a === 'q-dup') { if (csQs.length >= 30) return; const c = JSON.parse(JSON.stringify(csQs[i])); delete c.id; c._open = true; csQs.splice(i + 1, 0, c); }
+    else if (a === 'q-type') { const q = csQs[i]; q.type = b.dataset.type; if (CS_WITH_OPTS.includes(q.type) && !q.options.length) q.options = [{ libelle: '', description: '' }, { libelle: '', description: '' }]; }
+    else if (a === 'opt-add') { csQs[i].options.push({ libelle: '', description: '' }); focus = [i, csQs[i].options.length - 1]; }
     else if (a === 'opt-del') csQs[i].options.splice(j, 1);
+    csMark();
     csRenderQs();
+    if (focus) { const el = document.querySelector(`#cs-questions input[data-f="opt"][data-qi="${focus[0]}"][data-oi="${focus[1]}"]`); if (el) el.focus(); }
   }
 
   function csQsInput(ev) {
     const t = ev.target, f = t.dataset.f; if (!f || csReadOnly) return;
-    const q = csQs[+t.dataset.qi]; if (!q) return;
+    const i = +t.dataset.qi, q = csQs[i]; if (!q) return;
     if (f === 'opt') q.options[+t.dataset.oi].libelle = t.value;
     else if (f === 'obligatoire') q.obligatoire = t.checked;
-    else if (f === 'type') { q.type = t.value; csRenderQs(); }
     else q[f] = t.value;
+    const p = document.querySelector(`#cs-questions [data-prev="${i}"]`); if (p) p.textContent = csPrev(q);
+    if (f === 'intitule') { const h = document.querySelector(`#cs-questions [data-qtitle="${i}"]`); if (h) h.textContent = q.intitule.trim() || 'Question sans intitulé'; }
+    csRenderSummary();
+  }
+
+  function csQsKey(ev) {
+    const t = ev.target;
+    if (ev.key !== 'Enter' || t.dataset.f !== 'opt' || csReadOnly) return;
+    ev.preventDefault();
+    const i = +t.dataset.qi, j = +t.dataset.oi;
+    csQs[i].options.splice(j + 1, 0, { libelle: '', description: '' });
+    csMark();
+    csRenderQs();
+    const el = document.querySelector(`#cs-questions input[data-f="opt"][data-qi="${i}"][data-oi="${j + 1}"]`); if (el) el.focus();
   }
 
   // ----- Destinataires (ciblage) -----
-  const csAudience = () => { const r = document.querySelector('input[name="cs-audience"]:checked'); return r && r.value === 'selection' ? 'selection' : 'tous'; };
+  const csAudience = () => csGetR('cs-audience') === 'selection' ? 'selection' : 'tous';
   const csLabel = m => [m.prenom, m.nom].filter(Boolean).join(' ') + (m.numero_adherent ? ' (n° ' + m.numero_adherent + ')' : '');
+  const csToSel = m => ({ id: m.id, prenom: m.prenom || '', nom: m.nom || '', numero_adherent: m.numero_adherent || '', email: m.email || '', statut: m.statut || 'actif' });
 
   function csRenderAud() {
     const sel = csAudience() === 'selection';
     document.getElementById('cs-sel-zone').style.display = sel ? '' : 'none';
     document.getElementById('cs-sel-edit').style.display = sel && !csReadOnly ? '' : 'none';
     const n = csSel.length;
-    document.getElementById('cs-sel-count').textContent = n + ' adhérent' + (n > 1 ? 's' : '') + ' sélectionné' + (n > 1 ? 's' : '');
+    document.getElementById('cs-sel-count').textContent = csPlural(n, 'adhérent') + ' sélectionné' + (n > 1 ? 's' : '');
     const chips = document.getElementById('cs-sel-chips');
     if (csReadOnly) {
-      chips.innerHTML = n ? `<details><summary style="cursor:pointer;font-size:.85rem">Voir les destinataires (${n})</summary><div style="margin-top:6px;font-size:.85rem;line-height:1.6">${csSel.map(m => csE(csLabel(m))).join('<br>')}</div></details>` : '';
+      chips.innerHTML = n ? `<details style="width:100%"><summary style="cursor:pointer;font-size:.85rem">Voir les destinataires (${n})</summary><table class="ce-ro-table"><thead><tr><th>Nom</th><th>N° adhérent</th><th>E-mail</th></tr></thead><tbody>${csSel.map(m => `<tr><td>${csE([m.prenom, m.nom].filter(Boolean).join(' '))}</td><td>${csE(m.numero_adherent)}</td><td>${csE(m.email)}</td></tr>`).join('')}</tbody></table></details>` : '';
     } else {
-      chips.innerHTML = csSel.map(m => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--line);border-radius:14px;padding:4px 6px 4px 10px;font-size:.82rem;margin:3px 4px 3px 0">${csE(csLabel(m))}<button type="button" data-rm="${csE(m.id)}" aria-label="Retirer" style="border:0;background:transparent;cursor:pointer;font-size:1rem;line-height:1;padding:0 4px">×</button></span>`).join('');
+      const first = csSel.slice(0, 5);
+      chips.innerHTML = first.map(m => `<span class="ce-chip-m">${csE([m.prenom, m.nom].filter(Boolean).join(' ') || m.email)}</span>`).join('') + (n > 5 ? `<span class="ce-chip-m">+ ${n - 5} autre${n - 5 > 1 ? 's' : ''}</span>` : '');
     }
-    csRenderRes();
-  }
-
-  function csRenderRes() {
-    const box = document.getElementById('cs-sel-res');
-    const list = csResults_.filter(m => !csSel.some(s => s.id === m.id));
-    box.innerHTML = list.map(m => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.85rem"><span style="min-width:0;overflow-wrap:anywhere">${csE(csLabel(m))}<br><span style="color:var(--muted);font-size:.78rem">${csE(m.email)}</span></span><button type="button" class="btn-action" data-add="${csE(m.id)}">Ajouter</button></div>`).join('');
-  }
-
-  function csAddSel(m) {
-    if (csSel.some(s => s.id === m.id)) return;
-    csSel.push({ id: m.id, prenom: m.prenom || '', nom: m.nom || '', numero_adherent: m.numero_adherent || '', email: m.email || '', statut: m.statut || '' });
-    csRenderAud();
-  }
-
-  async function csSearch() {
-    const msg = document.getElementById('cs-sel-msg');
-    const raw = document.getElementById('cs-sel-q').value.replace(/[,()%]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (raw.length < 2) { csResults_ = []; msg.textContent = raw.length ? 'Saisissez au moins 2 caractères.' : ''; csRenderRes(); return; }
-    const q = '"%' + raw.replace(/[\\"]/g, '') + '%"';
-    const { data, error } = await sb.from('membres').select('id,prenom,nom,email,numero_adherent,statut')
-      .eq('statut', 'actif')
-      .or(`nom.ilike.${q},prenom.ilike.${q},email.ilike.${q},numero_adherent.ilike.${q}`)
-      .order('nom').limit(15);
-    if (document.getElementById('cs-sel-q').value.replace(/[,()%]/g, ' ').replace(/\s+/g, ' ').trim() !== raw) return;
-    if (error) { msg.textContent = 'Erreur de recherche : ' + error.message; return; }
-    csResults_ = data || [];
-    msg.textContent = csResults_.length ? '' : 'Aucun adhérent actif trouvé.';
-    csRenderRes();
-  }
-
-  async function csAddMe() {
-    const msg = document.getElementById('cs-sel-msg');
-    const { data: { session } } = await sb.auth.getSession();
-    const { data, error } = await sb.from('membres').select('id,prenom,nom,email,numero_adherent,statut').eq('user_id', session.user.id).limit(1);
-    if (error) { msg.textContent = 'Erreur : ' + error.message; return; }
-    const m = data && data[0];
-    if (!m || m.statut !== 'actif') { msg.textContent = 'Votre compte n\'a pas de profil adhérent actif : vous ne pouvez pas vous ajouter comme destinataire de test. Recherchez plutôt un adhérent ci-dessus.'; return; }
-    msg.textContent = '';
-    csAddSel(m);
+    csRenderSummary();
   }
 
   const csSelCount = c => { const x = c && c.consultation_participants; return Array.isArray(x) && x[0] && typeof x[0].count === 'number' ? x[0].count : 0; };
   const csAudTxt = c => c && c.audience === 'selection' ? 'aux ' + csSelCount(c) + ' adhérents sélectionnés' : 'à tous les adhérents actifs';
 
+  // ----- Sélecteur d'adhérents (grande fenêtre) -----
+  const CS_PK_COLS = 'id,prenom,nom,email,numero_adherent,specialite,secteur,code_postal,mode_exercice,est_interne,created_at';
+  const CS_MODES_EX = { liberal_seul: 'Libéral seul', liberal_groupe: 'Libéral en groupe', salarie: 'Salarié', mixte: 'Mixte', remplacant: 'Remplaçant', interne: 'Interne' };
+  const csNorm = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const csDep = m => { const c = String(m.code_postal || '').trim(); return /^\d{2}/.test(c) ? c.slice(0, 2) : ''; };
+  let csMembers = null;
+  let csPkData = [], csPkIdx = new Map(), csPkSel = new Set();
+  let csPk = { q: '', spe: '', sec: '', dep: '', mod: '', only: false, sort: 'nom', dir: 1, page: 1 };
+  const CS_PK_PAGE = 50;
+
+  async function csLoadMembers() {
+    const out = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from('membres').select(CS_PK_COLS).eq('statut', 'actif').order('id').range(from, from + 999);
+      if (error) throw error;
+      out.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    return out;
+  }
+
+  function csPkPrep(m) { m._s = csNorm([m.nom, m.prenom, m.email, m.numero_adherent].join(' ')); m._dep = csDep(m); return m; }
+
+  function csPkFilters() {
+    const uniq = f => [...new Set(csPkData.map(f).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'fr', { numeric: true }));
+    const fill = (id, label, vals, lab) => {
+      const el = document.getElementById(id), cur = el.value;
+      el.innerHTML = `<option value="">${csE(label)}</option>` + vals.map(v => `<option value="${csE(v)}">${csE(lab ? lab(v) : v)}</option>`).join('');
+      el.value = vals.includes(cur) ? cur : '';
+    };
+    fill('cs-pk-spe', 'Toutes spécialités', uniq(m => m.specialite));
+    fill('cs-pk-sec', 'Tous secteurs', uniq(m => m.secteur));
+    fill('cs-pk-dep', 'Tous départements', uniq(m => m._dep));
+    fill('cs-pk-mod', 'Tous modes d\'exercice', uniq(m => m.mode_exercice), v => CS_MODES_EX[v] || v);
+  }
+
+  function csPkFiltered() {
+    const f = csPk, terms = csNorm(f.q).split(/\s+/).filter(Boolean);
+    const list = csPkData.filter(m => (!f.spe || m.specialite === f.spe) && (!f.sec || m.secteur === f.sec) && (!f.dep || m._dep === f.dep) && (!f.mod || m.mode_exercice === f.mod)
+      && (!f.only || csPkSel.has(m.id)) && terms.every(t => m._s.includes(t)));
+    const key = m => f.sort === 'dep' ? m._dep : m[f.sort];
+    list.sort((a, b) => {
+      const x = key(a), y = key(b), ex = x == null || x === '', ey = y == null || y === '';
+      if (ex || ey) return ex && ey ? 0 : ex ? 1 : -1;
+      return f.dir * String(x).localeCompare(String(y), 'fr', { numeric: true, sensitivity: 'base' });
+    });
+    return list;
+  }
+
+  function csPkRender() {
+    const list = csPkFiltered(), f = csPk;
+    const pages = Math.max(1, Math.ceil(list.length / CS_PK_PAGE));
+    if (f.page > pages) f.page = pages;
+    if (f.page < 1) f.page = 1;
+    const slice = list.slice((f.page - 1) * CS_PK_PAGE, f.page * CS_PK_PAGE);
+    document.getElementById('cs-pk-tbody').innerHTML = slice.map(m => `<tr data-id="${csE(m.id)}" class="${csPkSel.has(m.id) ? 'sel' : ''}">
+      <td><input type="checkbox" data-id="${csE(m.id)}"${csPkSel.has(m.id) ? ' checked' : ''} aria-label="Sélectionner ${csE(m.prenom)} ${csE(m.nom)}"></td>
+      <td><b>${csE(m.nom)}</b><div class="ce-pk-mail">${csE(m.email)}</div></td><td>${csE(m.prenom)}</td><td>${csE(m.numero_adherent)}</td>
+      <td>${csE(m.specialite)}${m.est_interne ? ' <span class="ce-chip-m">Interne</span>' : ''}</td><td>${csE(m._dep)}</td><td>${csE(m.created_at ? new Date(m.created_at).toLocaleDateString('fr-FR') : '')}</td></tr>`).join('')
+      || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:28px">Aucun adhérent ne correspond.</td></tr>';
+    document.querySelectorAll('#cs-pk-overlay th[data-sort]').forEach(th => {
+      const lab = th.dataset.label || (th.dataset.label = th.textContent);
+      th.textContent = lab + (f.sort === th.dataset.sort ? (f.dir === 1 ? ' ▲' : ' ▼') : '');
+    });
+    const nSel = list.filter(m => csPkSel.has(m.id)).length;
+    ['cs-pk-all', 'cs-pk-all2'].forEach(id => { const c = document.getElementById(id); c.checked = list.length > 0 && nSel === list.length; c.indeterminate = nSel > 0 && nSel < list.length; });
+    document.getElementById('cs-pk-count').textContent = `${csPkSel.size} sélectionné${csPkSel.size > 1 ? 's' : ''} sur ${csPkData.length} adhérents (${list.length} affichés)`;
+    document.getElementById('cs-pk-pager').innerHTML = `<button type="button" class="btn-action" data-pg="first"${f.page <= 1 ? ' disabled' : ''}>«</button><button type="button" class="btn-action" data-pg="prev"${f.page <= 1 ? ' disabled' : ''}>‹ Précédent</button><span>Page ${f.page} / ${pages}</span><button type="button" class="btn-action" data-pg="next"${f.page >= pages ? ' disabled' : ''}>Suivant ›</button><button type="button" class="btn-action" data-pg="last"${f.page >= pages ? ' disabled' : ''}>»</button>`;
+  }
+
+  async function csPickOpen() {
+    if (csReadOnly) return;
+    csPkSel = new Set(csSel.map(m => m.id));
+    csPk = { q: '', spe: '', sec: '', dep: '', mod: '', only: false, sort: 'nom', dir: 1, page: 1 };
+    document.getElementById('cs-pk-q').value = '';
+    document.getElementById('cs-pk-only').checked = false;
+    const msg = document.getElementById('cs-pk-msg'); msg.textContent = 'Chargement des adhérents actifs…';
+    document.getElementById('cs-pk-tbody').innerHTML = '';
+    csOpen('cs-pk-overlay');
+    if (!csMembers) {
+      try { csMembers = await csLoadMembers(); }
+      catch (e) { msg.textContent = 'Erreur de chargement : ' + (e.message || e); return; }
+      csMembers.forEach(csPkPrep);
+    }
+    csPkData = csMembers.slice();
+    csPkIdx = new Map(csPkData.map(m => [m.id, m]));
+    csSel.forEach(s => { if (!csPkIdx.has(s.id)) { const m = csPkPrep({ ...s }); csPkData.push(m); csPkIdx.set(m.id, m); } });
+    msg.textContent = '';
+    csPkFilters();
+    csPkRender();
+  }
+
+  function csPkToggleAll() {
+    const list = csPkFiltered();
+    const all = list.length > 0 && list.every(m => csPkSel.has(m.id));
+    list.forEach(m => all ? csPkSel.delete(m.id) : csPkSel.add(m.id));
+    csPkRender();
+  }
+
+  async function csPkAddMe() {
+    const msg = document.getElementById('cs-pk-msg');
+    const { data: { session } } = await sb.auth.getSession();
+    const { data, error } = await sb.from('membres').select(CS_PK_COLS + ',statut').eq('user_id', session.user.id).limit(1);
+    if (error) { msg.textContent = 'Erreur : ' + error.message; return; }
+    const m = data && data[0];
+    if (!m || m.statut !== 'actif') { msg.textContent = 'Votre compte n\'a pas de profil adhérent actif : vous ne pouvez pas vous ajouter comme destinataire de test.'; return; }
+    msg.textContent = '';
+    if (!csPkIdx.has(m.id)) { csPkPrep(m); csPkData.push(m); csPkIdx.set(m.id, m); csPkFilters(); }
+    csPkSel.add(m.id);
+    csPkRender();
+  }
+
+  function csPkValidate() {
+    csSel = [...csPkSel].map(id => csPkIdx.get(id)).filter(Boolean).map(csToSel);
+    csMark();
+    csClose('cs-pk-overlay');
+    csRenderAud();
+  }
+
+  // ----- Ouverture / fermeture de l'éditeur -----
+  function csShowEditor() {
+    document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById('section-consultation-editeur').classList.add('active');
+    document.getElementById('nav-consultations-admin').classList.add('active');
+    window.scrollTo(0, 0);
+    const m = document.querySelector('.main'); if (m && m.scrollTo) m.scrollTo(0, 0);
+  }
+
+  function csLeave() {
+    if (csDirty && !csReadOnly && !confirm('Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?')) return;
+    csDirty = false;
+    window.showSection('consultations-admin');
+  }
+
   async function csEdit(id, readOnly) {
     const c = id ? csCache.find(x => x.id === id) : null;
-    csReadOnly = !!readOnly || (c && c.statut !== 'brouillon');
+    csReadOnly = !!readOnly || !!(c && c.statut !== 'brouillon');
     csQs = [];
     if (c) {
       const [qr, or] = await Promise.all([
@@ -3799,35 +4193,40 @@
     document.getElementById('cs-titre').value = c ? c.titre : '';
     document.getElementById('cs-description').value = c ? (c.description || '') : '';
     document.getElementById('cs-categorie').value = c ? (c.categorie || '') : '';
-    document.getElementById('cs-mode').value = c ? c.mode : 'secret';
+    csSetR('cs-mode', c ? c.mode : 'secret');
+    csSetR('cs-visibilite', c ? c.resultats_visibilite : 'public');
     document.getElementById('cs-quorum').value = c && c.quorum_pct ? c.quorum_pct : '';
+    document.getElementById('cs-quorum-none').checked = !(c && c.quorum_pct);
     document.getElementById('cs-cloture').value = c ? csToLocalInput(c.date_cloture) : '';
-    document.getElementById('cs-visibilite').value = c ? c.resultats_visibilite : 'public';
-    document.getElementById('cs-modal-title').textContent = csReadOnly ? 'Consultation (lecture seule)' : (c ? 'Modifier la consultation' : 'Nouvelle consultation');
+    document.getElementById('ce-title').textContent = csReadOnly ? 'Consultation (lecture seule)' : (c ? 'Modifier la consultation' : 'Nouvelle consultation');
+    const pill = document.getElementById('ce-pill');
+    pill.className = 'ce-pill' + (c && c.statut !== 'brouillon' ? (csClosed(c) ? ' closed' : ' open') : '');
+    pill.textContent = !c ? 'Nouveau brouillon' : c.statut === 'brouillon' ? 'Brouillon' : csClosed(c) ? 'Close' : 'Ouverte';
     document.getElementById('cs-note').textContent = csReadOnly ? 'Cette consultation est ouverte : le questionnaire ne peut plus être modifié.' : 'Une fois ouverte, la consultation ne peut plus être modifiée (règles, questions, options, modalité).';
-    ['cs-titre', 'cs-description', 'cs-categorie', 'cs-mode', 'cs-quorum', 'cs-cloture', 'cs-visibilite'].forEach(k => { document.getElementById(k).disabled = csReadOnly; });
+    document.querySelectorAll('#section-consultation-editeur .ce-in').forEach(el => { el.disabled = csReadOnly; });
     document.getElementById('cs-save').style.display = csReadOnly ? 'none' : '';
+    document.getElementById('cs-cancel').textContent = csReadOnly ? 'Fermer' : 'Annuler';
     csSel = [];
+    csMembers = null;
     const aud = c && c.audience === 'selection' ? 'selection' : 'tous';
-    document.querySelectorAll('input[name="cs-audience"]').forEach(r => { r.checked = r.value === aud; r.disabled = csReadOnly; });
-    document.getElementById('cs-sel-q').value = '';
-    csResults_ = [];
-    document.getElementById('cs-sel-msg').textContent = '';
+    csSetR('cs-audience', aud);
     if (c && aud === 'selection') {
       const pr = await sb.from('consultation_participants').select('membre_id, membres(prenom,nom,numero_adherent,email,statut)').eq('consultation_id', id);
       if (pr.error) { toast('Erreur : ' + pr.error.message, 'error'); return; }
       csSel = (pr.data || []).map(p => { const m = p.membres || {}; return { id: p.membre_id, prenom: m.prenom || '', nom: m.nom || '', numero_adherent: m.numero_adherent || '', email: m.email || '', statut: m.statut || '' }; });
     }
+    csQuorumSync();
     csModeNote();
     csRenderAud();
     csRenderQs();
-    csOpen('cs-modal-overlay');
+    csDirty = false;
+    csShowEditor();
   }
 
   function csValidate() {
     const titre = document.getElementById('cs-titre').value.trim();
     if (titre.length < 3) return 'Indiquez le titre de la consultation (3 caractères minimum).';
-    const quorum = document.getElementById('cs-quorum').value.trim();
+    const quorum = csQuorumRaw();
     if (quorum !== '' && !(/^\d+$/.test(quorum) && +quorum >= 1 && +quorum <= 100)) return 'Le quorum doit être un entier entre 1 et 100.';
     if (csAudience() === 'selection' && !csSel.length) return 'Sélectionnez au moins un adhérent destinataire (ou choisissez « Tous les adhérents actifs »).';
     if (!csQs.length) return 'Ajoutez au moins une question.';
@@ -3866,11 +4265,11 @@
       titre: document.getElementById('cs-titre').value.trim(),
       description: document.getElementById('cs-description').value.trim() || null,
       categorie: document.getElementById('cs-categorie').value.trim() || null,
-      mode: document.getElementById('cs-mode').value,
+      mode: csMode(),
       audience: csAudience(),
       type_vote: null, max_choix: null,
-      quorum_pct: parseInt(document.getElementById('cs-quorum').value, 10) || null,
-      resultats_visibilite: document.getElementById('cs-visibilite').value,
+      quorum_pct: parseInt(csQuorumRaw(), 10) || null,
+      resultats_visibilite: csVis(),
       date_cloture: cloture ? new Date(cloture).toISOString() : null,
     };
     const btn = document.getElementById('cs-save'); btn.disabled = true;
@@ -3911,8 +4310,8 @@
       }
       if (error) { toast('Erreur : ' + error.message, 'error'); return; }
       toast('Brouillon enregistré ✓', 'success');
-      csClose('cs-modal-overlay');
-      loadConsultationsAdmin();
+      csDirty = false;
+      window.showSection('consultations-admin');
     } finally { btn.disabled = false; }
   }
 
@@ -4025,29 +4424,70 @@
   }
 
   document.getElementById('cs-new-btn').addEventListener('click', () => csEdit(null));
-  document.getElementById('cs-cancel').addEventListener('click', () => csClose('cs-modal-overlay'));
+  document.getElementById('cs-cancel').addEventListener('click', csLeave);
+  document.getElementById('ce-back').addEventListener('click', csLeave);
   document.getElementById('cs-save').addEventListener('click', csSave);
-  document.getElementById('cs-mode').addEventListener('change', csModeNote);
-  document.querySelectorAll('input[name="cs-audience"]').forEach(r => r.addEventListener('change', csRenderAud));
-  document.getElementById('cs-sel-q').addEventListener('input', () => {
-    clearTimeout(csSearchT);
-    csSearchT = setTimeout(csSearch, 300);
+  const csSecEd = document.getElementById('section-consultation-editeur');
+  csSecEd.addEventListener('input', () => { csMark(); csRenderSummary(); });
+  csSecEd.addEventListener('change', ev => {
+    csMark();
+    const n = ev.target.name;
+    if (n === 'cs-mode') csModeNote();
+    if (n === 'cs-audience') csRenderAud();
+    if (ev.target.id === 'cs-quorum-none') csQuorumSync();
+    csRenderSummary();
   });
-  document.getElementById('cs-sel-me').addEventListener('click', csAddMe);
-  document.getElementById('cs-sel-res').addEventListener('click', ev => {
-    const b = ev.target.closest('button[data-add]'); if (!b) return;
-    const m = csResults_.find(x => x.id === b.dataset.add);
-    if (m) csAddSel(m);
+  document.getElementById('cs-quorum').addEventListener('input', () => { document.getElementById('cs-quorum-none').checked = false; });
+  csSecEd.addEventListener('click', ev => {
+    const p = ev.target.closest('.ce-preset'); if (!p || csReadOnly) return;
+    const d = +p.dataset.days;
+    document.getElementById('cs-cloture').value = d ? csToLocalInput(new Date(Date.now() + d * 86400000)) : '';
+    csMark(); csRenderSummary();
   });
-  document.getElementById('cs-sel-chips').addEventListener('click', ev => {
-    const b = ev.target.closest('button[data-rm]'); if (!b || csReadOnly) return;
-    csSel = csSel.filter(x => x.id !== b.dataset.rm);
-    csRenderAud();
-  });
-  document.getElementById('cs-add-q').addEventListener('click', () => { if (csQs.length < 30) { csQs.push(csNewQ()); csRenderQs(); } });
+  document.getElementById('cs-sel-pick').addEventListener('click', csPickOpen);
+  document.getElementById('cs-add-q').addEventListener('click', () => { if (csQs.length < 30) { csQs.push(csNewQ()); csMark(); csRenderQs(); const el = document.querySelector(`#cs-questions input[data-f="intitule"][data-qi="${csQs.length - 1}"]`); if (el) el.focus(); } });
   document.getElementById('cs-questions').addEventListener('click', csQsClick);
   document.getElementById('cs-questions').addEventListener('input', csQsInput);
   document.getElementById('cs-questions').addEventListener('change', csQsInput);
+  document.getElementById('cs-questions').addEventListener('keydown', csQsKey);
+  // sélecteur d'adhérents
+  const csPkOn = (id, ev, fn) => document.getElementById(id).addEventListener(ev, fn);
+  csPkOn('cs-pk-q', 'input', e => { csPk.q = e.target.value; csPk.page = 1; csPkRender(); });
+  [['cs-pk-spe', 'spe'], ['cs-pk-sec', 'sec'], ['cs-pk-dep', 'dep'], ['cs-pk-mod', 'mod']].forEach(([id, k]) => csPkOn(id, 'change', e => { csPk[k] = e.target.value; csPk.page = 1; csPkRender(); }));
+  csPkOn('cs-pk-only', 'change', e => { csPk.only = e.target.checked; csPk.page = 1; csPkRender(); });
+  csPkOn('cs-pk-all', 'change', csPkToggleAll);
+  csPkOn('cs-pk-all2', 'change', csPkToggleAll);
+  csPkOn('cs-pk-none', 'click', () => { csPkSel.clear(); csPkRender(); });
+  csPkOn('cs-pk-me', 'click', csPkAddMe);
+  csPkOn('cs-pk-cancel', 'click', () => csClose('cs-pk-overlay'));
+  csPkOn('cs-pk-ok', 'click', csPkValidate);
+  csPkOn('cs-pk-tbody', 'click', ev => {
+    const tr = ev.target.closest('tr[data-id]'); if (!tr) return;
+    const id = tr.dataset.id;
+    if (csPkSel.has(id)) csPkSel.delete(id); else csPkSel.add(id);
+    csPkRender();
+  });
+  document.querySelector('#cs-pk-overlay thead').addEventListener('click', ev => {
+    const th = ev.target.closest('th[data-sort]'); if (!th) return;
+    if (csPk.sort === th.dataset.sort) csPk.dir = -csPk.dir; else { csPk.sort = th.dataset.sort; csPk.dir = 1; }
+    csPk.page = 1; csPkRender();
+  });
+  csPkOn('cs-pk-pager', 'click', ev => {
+    const b = ev.target.closest('button[data-pg]'); if (!b) return;
+    const pages = Math.max(1, Math.ceil(csPkFiltered().length / CS_PK_PAGE)), g = b.dataset.pg;
+    csPk.page = g === 'first' ? 1 : g === 'prev' ? csPk.page - 1 : g === 'next' ? csPk.page + 1 : pages;
+    csPkRender();
+  });
+  // garde-fou : quitter l'éditeur avec des modifications non enregistrées
+  const csShowSectionOrig = window.showSection;
+  window.showSection = function(id) {
+    if (csEditorActive() && id !== 'consultation-editeur') {
+      if (csDirty && !csReadOnly && !confirm('Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?')) return;
+      csDirty = false;
+    }
+    return csShowSectionOrig(id);
+  };
+  window.addEventListener('beforeunload', ev => { if (csDirty && !csReadOnly && csEditorActive()) { ev.preventDefault(); ev.returnValue = ''; } });
   document.getElementById('cs-res-close').addEventListener('click', () => csClose('cs-res-overlay'));
   document.getElementById('cs-tbody').addEventListener('click', async ev => {
     const b = ev.target.closest('button[data-cs]'); if (!b) return;
