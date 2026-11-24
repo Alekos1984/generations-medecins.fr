@@ -88,6 +88,15 @@ REGION_NAMES = {
 }
 
 # Population INSEE 2024 (estimations) — utilisée pour la densité médicale
+# Départements d'Île-de-France : population INSEE (estimation arrondie au millier,
+# à actualiser chaque année) utilisée pour la densité par département
+IDF_DEPARTEMENTS = {
+    "75": ("Paris (75)", 2_113_000), "77": ("Seine-et-Marne (77)", 1_434_000),
+    "78": ("Yvelines (78)", 1_476_000), "91": ("Essonne (91)", 1_319_000),
+    "92": ("Hauts-de-Seine (92)", 1_637_000), "93": ("Seine-Saint-Denis (93)", 1_694_000),
+    "94": ("Val-de-Marne (94)", 1_423_000), "95": ("Val-d'Oise (95)", 1_262_000),
+}
+
 REGION_POPULATION = {
     "FR": 68_402_000, "11": 12_317_279, "24": 2_563_598, "27": 2_782_050,
     "28": 3_293_749, "32": 5_969_004, "44": 5_547_575, "52": 3_852_557,
@@ -403,6 +412,7 @@ def compute(path):
     medecins_par_region = {}        # region → set(id)
     spec_par_id_region = {}         # (region, id) → spec canonique
     attrs_par_id_region = {}        # (region, id) → tuple(civilite, mode_exercice, date_naissance)
+    medecins_par_dept_idf = {}      # département IDF → set(id)
     col_dept = col_prof = col_savoir = col_id = None
     col_civilite = col_dnaiss = None
 
@@ -498,7 +508,10 @@ def compute(path):
             med_chunk = chunk[mask_prof].copy()
             if col_id and len(med_chunk):
                 med_chunk["_region"] = chunk_dept.loc[med_chunk.index].map(dept_to_region)
+                med_chunk["_dept"] = chunk_dept.loc[med_chunk.index]
                 med_chunk = med_chunk[med_chunk["_region"].notna() & med_chunk[col_id].notna()]
+                for dep, grp in med_chunk[med_chunk["_dept"].isin(IDF_DEPARTEMENTS.keys())].groupby("_dept"):
+                    medecins_par_dept_idf.setdefault(dep, set()).update(grp[col_id].values)
                 # Première occurrence de chaque (region, pid) — un médecin peut
                 # avoir plusieurs sites dans la même région
                 med_unique = med_chunk.drop_duplicates(subset=[col_id, "_region"])
@@ -687,6 +700,24 @@ def compute(path):
                 "annee":      ANNEE,
                 "region":     region,
             })
+    # Densité médicale par département d'Île-de-France (médecins / 100k habitants)
+    dens = []
+    for dep, (nom, pop) in IDF_DEPARTEMENTS.items():
+        n = len(medecins_par_dept_idf.get(dep, set()))
+        if n > 0 and pop:
+            dens.append((nom, 100_000 * n / pop))
+    dens.sort(key=lambda x: -x[1])
+    for rang, (nom, d) in enumerate(dens, start=1):
+        series.append({
+            "serie_id":   "densite_dep",
+            "label":      nom,
+            "valeur_num": int(round(d)),
+            "valeur_fmt": f"{d:.0f} / 100k hab.",
+            "rang":       rang,
+            "source":     "RPPS / INSEE (pop. arrondie)",
+            "annee":      ANNEE,
+            "region":     "11",
+        })
     log(f"✓ {len(kpis)} KPIs et {len(series)} lignes séries (toutes régions confondues)")
     return kpis, series, total_lignes
 
