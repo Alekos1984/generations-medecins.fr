@@ -153,6 +153,27 @@
     .btn-supprimer { background: rgba(220,38,38,0.07); color: #b91c1c; border-color: rgba(220,38,38,0.2); }
     .btn-supprimer:hover { background: rgba(220,38,38,0.15); }
 
+
+    /* Boutons des consultations (modernes) */
+    .cs-actions { display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+    .cs-btn {
+      display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px;
+      font-family:inherit; font-size:.8rem; font-weight:700; cursor:pointer; white-space:nowrap;
+      border:1px solid transparent; transition:transform .12s, box-shadow .15s, background .15s, border-color .15s;
+    }
+    .cs-btn svg { width:15px; height:15px; flex-shrink:0; }
+    .cs-btn:hover { transform:translateY(-1px); }
+    .cs-btn:focus-visible { outline:3px solid rgba(42,109,184,.35); outline-offset:2px; }
+    .cs-btn-primary { background:linear-gradient(135deg,#1a4a80,#2a6db8); color:#fff; box-shadow:0 2px 8px rgba(26,74,128,.25); }
+    .cs-btn-primary:hover { box-shadow:0 4px 14px rgba(26,74,128,.35); }
+    .cs-btn-secondary { background:#fff; color:#1a4a80; border-color:#c9d8ea; }
+    .cs-btn-secondary:hover { background:#f1f6fc; border-color:#9db9dc; }
+    .cs-btn-ghost { background:transparent; color:#475569; border-color:#e2e8f0; }
+    .cs-btn-ghost:hover { background:#f8fafc; border-color:#cbd5e1; }
+    .cs-btn-danger { background:#fff; color:#b91c1c; border-color:#fecaca; }
+    .cs-btn-danger:hover { background:#fef2f2; border-color:#fca5a5; }
+    .cs-btn-icon { padding:8px; }
+
     /* Icon-only action buttons */
     .btn-icon {
       width: 32px; height: 32px; padding: 0;
@@ -3844,6 +3865,8 @@
   const csToLocalInput = d => { if (!d) return ''; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
   const csCount = c => { const x = c.consultation_questions; return Array.isArray(x) && x[0] && typeof x[0].count === 'number' ? x[0].count : 0; };
 
+  const CS_ICONS = {"edit": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z\"/></svg>", "send": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 2L11 13\"/><path d=\"M22 2l-7 20-4-9-9-4 20-7z\"/></svg>", "play": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M10 8l6 4-6 4V8z\"/></svg>", "trash": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 6h18\"/><path d=\"M8 6V4h8v2\"/><path d=\"M19 6l-1 14H6L5 6\"/></svg>", "eye": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>", "bell": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9\"/><path d=\"M13.7 21a2 2 0 01-3.4 0\"/></svg>", "stop": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"5\" y=\"5\" width=\"14\" height=\"14\" rx=\"2\"/></svg>", "chart": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 20V10M12 20V4M6 20v-6\"/></svg>"};
+  const csBtn = (act, id, label, kind, icon, title) => `<button class="cs-btn cs-btn-${kind}" data-cs="${act}" data-id="${csE(id)}"${title ? ' title="' + csE(title) + '"' : ''}>${CS_ICONS[icon] || ''}${label ? '<span>' + label + '</span>' : ''}</button>`;
   async function loadConsultationsAdmin() {
     const tbody = document.getElementById('cs-tbody');
     const { data, error } = await sb.from('consultations').select('*, consultation_questions(count), consultation_participants(count)').order('created_at', { ascending: false });
@@ -3854,16 +3877,26 @@
       const closed = csClosed(c);
       const st = c.statut === 'brouillon' ? '<span style="color:#92400e;font-weight:700">Brouillon</span>' : closed ? '<span style="color:var(--muted);font-weight:700">Close</span>' : '<span style="color:#2d7a1a;font-weight:700">● Ouverte</span>';
       const btns = [];
-      if (c.statut === 'brouillon') btns.push(`<button class="btn-action" data-cs="edit" data-id="${csE(c.id)}">Modifier</button><button class="btn-action" data-cs="open" data-id="${csE(c.id)}">Ouvrir et annoncer</button><button class="btn-action btn-supprimer" data-cs="del" data-id="${csE(c.id)}">Supprimer</button>`);
-      else if (!closed) btns.push(`<button class="btn-action" data-cs="view" data-id="${csE(c.id)}">Consulter</button><button class="btn-action" data-cs="remind" data-id="${csE(c.id)}">Envoyer un rappel</button><button class="btn-action" data-cs="close" data-id="${csE(c.id)}">Clôturer</button>`);
-      else btns.push(`<button class="btn-action" data-cs="results" data-id="${csE(c.id)}">Résultats</button>`);
+      if (c.statut === 'brouillon') {
+        btns.push(csBtn('edit', c.id, 'Modifier', 'ghost', 'edit'));
+        btns.push(csBtn('open_silent', c.id, 'Ouvrir sans e-mail', 'secondary', 'play', 'Ouvre la consultation sans prévenir personne par e-mail : idéal pour un test'));
+        btns.push(csBtn('open', c.id, 'Ouvrir et annoncer', 'primary', 'send', 'Ouvre la consultation et envoie l\'e-mail d\'annonce aux destinataires'));
+        btns.push(csBtn('del', c.id, '', 'danger cs-btn-icon', 'trash', 'Supprimer le brouillon'));
+      } else if (!closed) {
+        btns.push(csBtn('view', c.id, 'Consulter', 'ghost', 'eye'));
+        if (!c.annonce_envoyee) btns.push(csBtn('annonce', c.id, 'Annoncer par e-mail', 'primary', 'send', 'Envoie l\'e-mail d\'annonce aux destinataires'));
+        btns.push(csBtn('remind', c.id, 'Rappel', 'secondary', 'bell', 'Relance par e-mail ceux qui n\'ont pas encore répondu'));
+        btns.push(csBtn('close', c.id, 'Clôturer', 'danger', 'stop'));
+      } else {
+        btns.push(csBtn('results', c.id, 'Résultats', 'primary', 'chart'));
+      }
       const n = csCount(c);
       const selBadge = c.audience === 'selection' ? `<br><span style="display:inline-block;margin-top:4px;background:#fef3c7;color:#92400e;border-radius:10px;padding:2px 8px;font-size:.72rem;font-weight:700">Sélection (${csSelCount(c)})</span>` : '';
       return `<tr><td style="font-weight:700;max-width:280px">${csE(c.titre)}${selBadge}</td>
         <td style="font-size:.82rem">${n} question${n > 1 ? 's' : ''}<br><span style="color:var(--muted)">${c.mode === 'secret' ? '🔒 secret' : '👤 nominatif'}</span></td>
         <td>${st}</td><td style="font-size:.82rem">${csE(csFmt(c.date_cloture))}</td>
         <td id="cs-part-${csE(c.id)}" style="font-size:.82rem;color:var(--muted)">${c.statut === 'brouillon' ? '-' : '…'}</td>
-        <td style="white-space:nowrap">${btns.join(' ')}</td></tr>`;
+        <td><div class="cs-actions">${btns.join('')}</div></td></tr>`;
     }).join('');
     for (const c of csCache.filter(x => x.statut !== 'brouillon')) {
       sb.rpc('consultation_participation', { p_id: c.id }).then(({ data: p }) => {
@@ -4501,9 +4534,21 @@
         const { error } = await sb.from('consultations').delete().eq('id', id);
         if (error) throw error; toast('Brouillon supprimé'); return loadConsultationsAdmin();
       }
+      if (a === 'open_silent') {
+        const csS = csCache.find(x => x.id === id);
+        if (!confirm('Ouvrir la consultation SANS envoyer d\'e-mail ?\n\nElle sera visible tout de suite ' + (csS && csS.audience === 'selection' ? 'par les ' + csSelCount(csS) + ' adhérent(s) sélectionné(s) seulement' : 'par tous les adhérents actifs') + ', mais personne ne sera prévenu. Vous pourrez envoyer l\'annonce plus tard avec le bouton « Annoncer par e-mail ».\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
+        const { error } = await sb.rpc('ouvrir_consultation', { p_id: id });
+        if (error) { toast('Ouverture impossible : ' + error.message, 'error'); alert('La consultation ne peut pas être ouverte :\n\n' + error.message); return; }
+        toast('Consultation ouverte, aucun e-mail envoyé ✓', 'success'); return loadConsultationsAdmin();
+      }
+      if (a === 'annonce') {
+        const csA = csCache.find(x => x.id === id);
+        if (!confirm('Envoyer l\'e-mail d\'annonce ' + csAudTxt(csA) + ' ?')) return;
+        const out = await csNotify(id, 'annonce'); toast(`Annonce envoyée à ${out.envoyes} adhérent(s) ✓`, 'success'); return loadConsultationsAdmin();
+      }
       if (a === 'open') {
         const csC = csCache.find(x => x.id === id);
-        if (!confirm('Ouvrir la consultation et envoyer l\'annonce par e-mail ' + csAudTxt(csC) + ' ?\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
+        if (!confirm('Ouvrir la consultation ET envoyer l\'e-mail d\'annonce ' + csAudTxt(csC) + ' ?\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
         const { error } = await sb.rpc('ouvrir_consultation', { p_id: id });
         if (error) { toast('Ouverture impossible : ' + error.message, 'error'); alert('La consultation ne peut pas être ouverte :\n\n' + error.message); return; }
         try { const out = await csNotify(id, 'annonce'); toast(`Consultation ouverte, annonce envoyée à ${out.envoyes} adhérent(s) ✓`, 'success'); }
