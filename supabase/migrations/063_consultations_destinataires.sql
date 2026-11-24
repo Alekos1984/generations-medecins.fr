@@ -1,0 +1,6 @@
+-- Migration 063 (appliquee) - Consultations ciblees : audience 'tous' ou 'selection' d'adherents.
+-- Voir aussi 064 pour les droits. Contenu applique en base : colonne audience, table consultation_participants
+-- (liste des destinataires, modifiable en brouillon uniquement), lecture RLS limitee aux destinataires,
+-- fonctions voter / consultation_resultats / ouvrir_consultation transformees en enveloppes qui controlent
+-- l'audience puis appellent les fonctions *_interne (renommees, non appelables par les membres),
+-- consultation_destinataires limite les e-mails (annonce, rappel) aux destinataires.

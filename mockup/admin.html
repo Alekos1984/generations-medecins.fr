@@ -3927,6 +3927,22 @@
   document.getElementById('cs-cancel').addEventListener('click', () => csClose('cs-modal-overlay'));
   document.getElementById('cs-save').addEventListener('click', csSave);
   document.getElementById('cs-mode').addEventListener('change', csModeNote);
+  document.querySelectorAll('input[name="cs-audience"]').forEach(r => r.addEventListener('change', csRenderAud));
+  document.getElementById('cs-sel-q').addEventListener('input', () => {
+    clearTimeout(csSearchT);
+    csSearchT = setTimeout(csSearch, 300);
+  });
+  document.getElementById('cs-sel-me').addEventListener('click', csAddMe);
+  document.getElementById('cs-sel-res').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-add]'); if (!b) return;
+    const m = csResults_.find(x => x.id === b.dataset.add);
+    if (m) { csAddSel(m); csSearch(); }
+  });
+  document.getElementById('cs-sel-chips').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-rm]'); if (!b || csReadOnly) return;
+    csSel = csSel.filter(x => x.id !== b.dataset.rm);
+    csRenderAud();
+  });
   document.getElementById('cs-add-q').addEventListener('click', () => { if (csQs.length < 30) { csQs.push(csNewQ()); csRenderQs(); } });
   document.getElementById('cs-questions').addEventListener('click', csQsClick);
   document.getElementById('cs-questions').addEventListener('input', csQsInput);
@@ -3945,7 +3961,8 @@
         if (error) throw error; toast('Brouillon supprimé'); return loadConsultationsAdmin();
       }
       if (a === 'open') {
-        if (!confirm('Ouvrir la consultation et envoyer l\'annonce par e-mail à tous les adhérents actifs ?\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
+        const csC = csCache.find(x => x.id === id);
+        if (!confirm('Ouvrir la consultation et envoyer l\'annonce par e-mail ' + csAudTxt(csC) + ' ?\n\nAprès ouverture, les règles, les questions et les options ne pourront plus être modifiées.')) return;
         const { error } = await sb.rpc('ouvrir_consultation', { p_id: id });
         if (error) { toast('Ouverture impossible : ' + error.message, 'error'); alert('La consultation ne peut pas être ouverte :\n\n' + error.message); return; }
         try { const out = await csNotify(id, 'annonce'); toast(`Consultation ouverte, annonce envoyée à ${out.envoyes} adhérent(s) ✓`, 'success'); }
@@ -3953,7 +3970,9 @@
         return loadConsultationsAdmin();
       }
       if (a === 'remind') {
-        if (!confirm('Envoyer un rappel aux adhérents actifs qui n\'ont pas encore voté ?')) return;
+        const csC2 = csCache.find(x => x.id === id);
+        const csTarget = csC2 && csC2.audience === 'selection' ? 'aux ' + csSelCount(csC2) + ' adhérents sélectionnés' : 'aux adhérents actifs';
+        if (!confirm('Envoyer un rappel ' + csTarget + ' qui n\'ont pas encore voté ?')) return;
         const out = await csNotify(id, 'rappel'); toast(`Rappel envoyé à ${out.envoyes} adhérent(s) ✓`, 'success'); return;
       }
       if (a === 'close') {
