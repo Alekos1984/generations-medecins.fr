@@ -38,6 +38,8 @@ exports.handler = async (event) => {
 
   try {
     const out = await sendBatch(c, action);
+    if (out.destinataires === 0) return json(409, headers, { error: 'Aucun destinataire actif avec une adresse e-mail' });
+    if (out.envoyes === 0) return json(502, headers, { error: 'Le service d\'envoi a refusé les messages : rien n\'est parti' });
     await marquer(c.id, action === 'annonce' ? 'annonce_envoyee' : 'rappel_envoye');
     return json(200, headers, { ok: true, ...out });
   } catch (e) {

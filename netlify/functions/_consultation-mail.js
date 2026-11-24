@@ -56,7 +56,14 @@ async function sendBatch(c, kind) {
         })),
       }),
     });
-    if (res.ok) envoyes += chunk.length; else console.error('Brevo consultation :', res.status);
+    if (res.ok) {
+      envoyes += chunk.length;
+      let ref = ''; try { ref = JSON.stringify(await res.json()).slice(0, 200); } catch {}
+      console.log('Brevo consultation : accepté', chunk.length, 'message(s)', ref);
+    } else {
+      let corps = ''; try { corps = (await res.text()).slice(0, 300); } catch {}
+      console.error('Brevo consultation :', res.status, corps);
+    }
   }
   return { destinataires: dest.length, envoyes };
 }
